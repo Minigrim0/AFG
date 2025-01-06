@@ -3,9 +3,14 @@ name = "csai"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-vulkano = "0.34.1"
-vulkano-shaders = "0.34.0"
+[profile.dev.package."*"]
+opt-level = 3
 
 [profile.dev]
 opt-level = 1
+
+[target.wasm32-unknown-unknown]
+runner = "wasm-server-runner"
+
+[dependencies]
+bevy = "0.15.1"
