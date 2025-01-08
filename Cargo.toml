@@ -9,8 +9,5 @@ opt-level = 3
 [profile.dev]
 opt-level = 1
 
-[target.wasm32-unknown-unknown]
-runner = "wasm-server-runner"
-
 [dependencies]
 bevy = "0.15.1"

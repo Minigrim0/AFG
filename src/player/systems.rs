@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::virtual_machine::VirtualMachine;
 
-use super::entities::PlayerBundle;
+use super::entities::{Player, PlayerBundle};
 
 use super::components::{Gun, GunType, Health};
 
@@ -18,4 +18,8 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ),
         transform: Transform::IDENTITY
     });
+}
+
+pub fn update_player(mut query: Query<(&mut VirtualMachine, &mut Transform)>) {
+    println!("Updating player's virtual machine");
 }

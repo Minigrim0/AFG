@@ -15,7 +15,7 @@ fn world_setup(mut commands: Commands) {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, world_setup)
-        .add_systems(Startup, player_systems::setup)
+        .add_systems(Startup, (world_setup, player_systems::setup))
+        .add_systems(Update, player_systems::update_player)
         .run();
 }
