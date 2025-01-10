@@ -1,11 +1,12 @@
-use bevy::{prelude::{Bundle, Transform}, sprite::Sprite};
+use bevy::{
+    prelude::{Bundle, Transform},
+    sprite::Sprite,
+};
+use bevy_rapier2d::prelude::{Collider, RigidBody, Velocity};
 
 use crate::virtual_machine::VirtualMachine;
 
 use super::components::{Gun, Health};
-
-// Define the player entity
-pub struct Player;
 
 /// A player's bundle
 #[derive(Bundle)]
@@ -14,5 +15,8 @@ pub struct PlayerBundle {
     pub health: Health,
     pub gun: Gun,
     pub sprite: Sprite,
-    pub transform: Transform
+    pub transform: Transform,
+    pub collider: Collider,
+    pub body: RigidBody,
+    pub velocity: Velocity,
 }
