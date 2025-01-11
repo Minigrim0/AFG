@@ -9,7 +9,7 @@ pub enum MemoryMappedProperties {
     // 0xFFF0 => Mask for Writable properties (range 0xFFF0 - 0xFFF7)
     VelocityX = 0xfff7, // Writable Lateral velocity (right+/left-)
     VelocityY = 0xfff6, // Writable Vertical velocity (front+/back-)
-    MOMENT = 0xfff5,    // Writable Moment (clockwise+/counterclockwise-)
+    Moment = 0xfff5,    // Writable Moment (clockwise+/counterclockwise-)
 }
 
 pub enum Registers {
@@ -29,22 +29,29 @@ pub enum Registers {
 
 #[derive(Debug, Copy, Clone)]
 pub enum Instructions {
-    NOP = 0x00,   // No operation
-    MOVRI = 0x01, // Moves data from one location to another
-    MOVRR = 0x02, // Moves data from one location to another
-    MOVRM = 0x03, // Moves data from one location to another
-    MOVMR = 0x04, // Moves data from one location to another
-    ADD = 0x05,   // Adds two numbers
-    SUB = 0x06,
-    MUL = 0x07,
-    DIV = 0x08,
-    JMP = 0x09,
-    JZ = 0x0A,
-    JNZ = 0x0B,
-    CALL = 0x0C, // Call function
-    RET = 0x0D,
-    POP = 0x0E,
-    PUSH = 0x0F,
+    NOP,    // No operation
+    MOVI,   // Moves Immediate value <operand 2> to register <operand 1> as int
+    MOV,    // Moves Register <operand 2> into register <operand 1>
+    STORE,  // Stores content of <Register <operand 2>> into memory address #<Register<operand  1>>
+    STOREI, // Stores content of <Register <operand 2>> into memory address #<operand  1>
+    LOAD,   // Loads into <Register <operand 1>> content of Memory at address #<Register<operand 2>>
+    LOADI,  // Loads into <Register <operand 1>> content of Memory at address #<operand 2>
+    ADD,    // Adds into <Register <operand 1>> <Register <operand 2>>
+    ADDI,   // Adds into <Register <operand 1>> #<operand 2>
+    SUB,    // Subs into <Register <operand 1>> <Register <operand 2>>
+    SUBI,   // Subs into <Register <operand 1>> #<operand 2>
+    MUL,    // Mul into <Register <operand 1>> <Register <operand 2>>
+    MULI,   // Mul into <Register <operand 1>> #<operand 2>
+    DIV,    // r<op1> = #<r<op1>> / #<r<op2>>
+    DIVI,   // r<op1> = #<r<op1>> / #<op2>
+    JMP,    // Unconditional jump to instruction #<op1>
+    JZ,     // Jump if previous operation resulted in 0
+    JNZ,    // Jump if previous operation was not 0
+    CALL,   // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
+    CALLI,  // Call function at address #<op1>     /!\ User is responsible for pushing and popping the stack
+    RET,    // Returns from function call          /!\ User is responsible for pushing and popping the stack
+    POP,    // Pops a value from the stack into <r<op1>>
+    PUSH,   // Pushes to the stack the value of <r<op1>>
 }
 
 pub enum MachineStatus {

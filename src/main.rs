@@ -42,6 +42,7 @@ fn main() {
             Update,
             (
                 player_systems::update_player.run_if(in_state(AppState::Level)),
+                player_systems::debug_player_direction.run_if(in_state(AppState::Level)),
                 // player_systems::print_player_velocity.run_if(in_state(AppState::Level)),
                 map::spawn_map.run_if(in_state(AppState::Loading)),
             ),
