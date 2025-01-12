@@ -1,4 +1,9 @@
 mod machine;
+mod parser;
+pub mod assets;
+
+#[cfg(test)]
+mod tests;
 
 pub enum MemoryMappedProperties {
     // 0xFFF8 => Mask for Read-only properties (range 0xFFF8 - 0xFFFF)
@@ -27,17 +32,17 @@ pub enum Registers {
     RP = 0x0B,  // Return Pointer (used for function calls)
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Instructions {
     NOP,    // No operation
-    MOVI,   // Moves Immediate value <operand 2> to register <operand 1> as int
-    MOV,    // Moves Register <operand 2> into register <operand 1>
-    STORE,  // Stores content of <Register <operand 2>> into memory address #<Register<operand  1>>
-    STOREI, // Stores content of <Register <operand 2>> into memory address #<operand  1>
-    LOAD,   // Loads into <Register <operand 1>> content of Memory at address #<Register<operand 2>>
-    LOADI,  // Loads into <Register <operand 1>> content of Memory at address #<operand 2>
-    ADD,    // Adds into <Register <operand 1>> <Register <operand 2>>
-    ADDI,   // Adds into <Register <operand 1>> #<operand 2>
+    MOV,    // r<op1> = #r<op2>
+    MOVI,   // r<op1> = #<op2>
+    STORE,  // [#r<op1>] = #r<op2>
+    STOREI, // [#r<op1>] = #<op2>
+    LOAD,   // r<op1> = [#r<op2>]
+    LOADI,  // r<op1> = [#<op2>]
+    ADD,    // r<op1> = #r<op1> + #r<op2>
+    ADDI,   // r<op1> = #r<op1> + #<op2>
     SUB,    // Subs into <Register <operand 1>> <Register <operand 2>>
     SUBI,   // Subs into <Register <operand 1>> #<operand 2>
     MUL,    // Mul into <Register <operand 1>> <Register <operand 2>>

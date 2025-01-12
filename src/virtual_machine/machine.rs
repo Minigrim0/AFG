@@ -1,89 +1,64 @@
 use std::f32::consts::PI;
 
-use bevy::{color::palettes::css::PLUM, prelude::*};
+use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use super::{Instructions, MachineStatus, MemoryMappedProperties, Registers};
 
-#[derive(Debug, Clone, Copy)]
-struct Instruction {
-    opcode: Instructions, // 1 byte65536
-    operand_1: i32,       // 4 bytes
-    operand_2: Option<i32>,       // 4 bytes
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Instruction {
+    pub opcode: Instructions, // 1 byte65536
+    pub operand_1: i32,       // 4 bytes
+    pub operand_2: Option<i32>,       // 4 bytes
 }
 
 #[derive(Component)]
 pub struct VirtualMachine {
-    registers: [i32; 12],             // 8 registers
-    stack: Vec<i32>,
-    memory: [i32; 65536],             // 64KB of memory
-    instructions: [Instruction; 255], // 255 instructions
-    status: MachineStatus,
+    pub registers: [i32; 12],             // 8 registers
+    pub stack: Vec<i32>,
+    pub memory: [i32; 65536],             // 64KB of memory
+    pub instructions: Vec<Instructions>, // 255 instructions
+    pub status: MachineStatus,
 }
 
 impl VirtualMachine {
     pub fn new() -> VirtualMachine {
-        let mut machine = VirtualMachine {
+        VirtualMachine {
             registers: [0; 12],
             stack: vec![],
             memory: [0; 65536],
-            instructions: [Instruction {
-                opcode: Instructions::NOP,
-                operand_1: 0,
-                operand_2: None,
-            }; 255],
+            instructions: Vec::new(),
             status: MachineStatus::Ready,
-        };
-
-        machine.instructions[0] = Instruction {
-            opcode: Instructions::MOVI,
-            operand_1: (Registers::GPA as i32),
-            operand_2: Some(MemoryMappedProperties::VelocityY as i32),
-        };
-        machine.instructions[1] = Instruction {
-            opcode: Instructions::MOVI,
-            operand_1: (Registers::GPB as i32),
-            operand_2: Some(MemoryMappedProperties::Moment as i32),
-        };
-        machine.instructions[2] = Instruction {
-            opcode: Instructions::STOREI,
-            operand_1: (Registers::GPA as i32),
-            operand_2: Some(100),
-        };
-        machine.instructions[3] = Instruction {
-            opcode: Instructions::STOREI,
-            operand_1: (Registers::GPB as i32),
-            operand_2: Some(-100),
-        };
-
-        machine
+        }
     }
 
     pub fn update_mmp(&mut self, transform: &mut Transform, vel: &mut Velocity) {
+        let rotation_angle = transform.rotation.to_axis_angle().0.z * transform.rotation.to_axis_angle().1;
+
         // Write read-only to memory, read writeable from memory
         self.memory[MemoryMappedProperties::PositionX as usize] = transform.translation.x as i32;
         self.memory[MemoryMappedProperties::PositionY as usize] = transform.translation.y as i32;
-        self.memory[MemoryMappedProperties::Rotation as usize] = (transform.rotation.to_axis_angle().1 * (180.0 / PI)) as i32;
+        self.memory[MemoryMappedProperties::Rotation as usize] = (rotation_angle * (180.0 / PI)) as i32;
 
         let velocity: Vec2 = Vec2::new(
             self.memory[MemoryMappedProperties::VelocityX as usize] as f32,
             self.memory[MemoryMappedProperties::VelocityY as usize] as f32,
         );
 
-        vel.linvel = Vec2::from_angle(transform.rotation.to_axis_angle().1)
+        vel.linvel = Vec2::from_angle(rotation_angle)
             .rotate(velocity);
 
         vel.angvel = self.memory[MemoryMappedProperties::Moment as usize] as f32 * (PI / 180.0);
 
-        println!(
-            "PosX: {:5} PosY: {:5} Rot: {:5} Vel: ({:3}, {:3}, {:3})",
-            self.memory[MemoryMappedProperties::PositionX as usize],
-            self.memory[MemoryMappedProperties::PositionY as usize],
-            self.memory[MemoryMappedProperties::Rotation as usize],
-            self.memory[MemoryMappedProperties::VelocityX as usize],
-            self.memory[MemoryMappedProperties::VelocityY as usize],
-            self.memory[MemoryMappedProperties::Moment as usize]
-        );
+        // println!(
+        //     "PosX: {:5} PosY: {:5} Rot: {:5} Vel: ({:3}, {:3}, {:3})",
+        //     self.memory[MemoryMappedProperties::PositionX as usize],
+        //     self.memory[MemoryMappedProperties::PositionY as usize],
+        //     self.memory[MemoryMappedProperties::Rotation as usize],
+        //     self.memory[MemoryMappedProperties::VelocityX as usize],
+        //     self.memory[MemoryMappedProperties::VelocityY as usize],
+        //     self.memory[MemoryMappedProperties::Moment as usize]
+        // );
     }
 
     fn invalid_instruction<S: AsRef<str>>(&mut self, msg: S) {

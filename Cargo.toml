@@ -13,5 +13,7 @@ opt-level = 1
 bevy = "0.15.1"
 bevy_common_assets = { version = "0.12.0", features = ["toml"] }
 bevy_rapier2d = { version = "0.28.0", features = ["simd-stable", "wasm-bindgen"] }
+rand = "0.8.5"
 serde = { version = "1.0.217", features = ["derive"] }
+thiserror = "2.0.11"
 toml = "0.8.19"

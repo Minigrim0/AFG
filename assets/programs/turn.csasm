@@ -1,0 +1,6 @@
+; Registers are prefixed with "'", Special Variable with "$" and litterals with "#"
+; Do not modify this file, kept for testing purposes
+movi 'GPA $VelocityY
+movi 'GPB $Moment
+storei 'GPA #100
+storei 'GPB #-100

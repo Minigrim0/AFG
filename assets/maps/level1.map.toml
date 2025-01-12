@@ -28,7 +28,7 @@ width = 1
 height = 50
 
 [[walls]]
-x = 20
+x = 5
 y = 0
 width = 1
 height = 30
