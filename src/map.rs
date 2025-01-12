@@ -22,7 +22,7 @@ pub struct Map {
 }
 
 #[derive(Resource)]
-pub struct MapHandle(Handle<Map>);
+pub struct MapHandle(pub Handle<Map>);
 
 /// Loads a map from a toml file
 pub fn setup_map(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -33,23 +33,29 @@ pub fn setup_map(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn spawn_map(
     mut commands: Commands,
     map: Res<MapHandle>,
-    mut maps: ResMut<Assets<Map>>,
+    maps: ResMut<Assets<Map>>,
     mut state: ResMut<NextState<AppState>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    if let Some(map) = maps.remove(map.0.id()) {
+    if let Some(map) = maps.get(map.0.id()) {
         println!("Spawning map {}", map.title);
         let tile_size = map.tile_size as f32;
         for wall in map.walls.iter() {
             commands
-                .spawn(RigidBody::Fixed)
-                .insert(Collider::cuboid(
-                    wall.width as f32 * tile_size as f32 / 2.0,
-                    wall.height as f32 * tile_size as f32 / 2.0,
-                ))
-                .insert(Transform::from_xyz(
-                    (wall.x as f32 * tile_size + wall.width as f32 * tile_size) / 2.0,
-                    (wall.y as f32 * tile_size + wall.height as f32 * tile_size) / 2.0,
-                    0.0,
+                .spawn((
+                    RigidBody::Fixed,
+                    Collider::cuboid(
+                        (wall.width as f32 * tile_size as f32) / 2.0,
+                        (wall.height as f32 * tile_size as f32)  / 2.0,
+                    ),
+                    Transform::from_xyz(
+                        wall.x as f32 * tile_size + (wall.width as f32 * tile_size) / 2.0,
+                        wall.y as f32 * tile_size + (wall.height as f32 * tile_size) / 2.0,
+                        0.0,
+                    ),
+                    Mesh2d(meshes.add(Rectangle::new(wall.width as f32 * tile_size, wall.height as f32 * tile_size))),
+                    MeshMaterial2d(materials.add(Color::srgb(0.2, 0.2, 0.3))),
                 ));
         }
     }
