@@ -1,4 +1,4 @@
-use super::{Instruction, Instructions, Registers, MemoryMappedProperties};
+use super::{Instruction, Instructions, MemoryMappedProperties, Registers};
 
 fn parse_instr<S: AsRef<str>>(instr: S) -> Instructions {
     match instr.as_ref() {
@@ -19,7 +19,13 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
     match operand.as_ref().chars().next() {
         Some('$') => {
             println!("Operand is a special variable");
-            match operand.as_ref().chars().skip(1).collect::<String>().as_str() {
+            match operand
+                .as_ref()
+                .chars()
+                .skip(1)
+                .collect::<String>()
+                .as_str()
+            {
                 "VelocityX" => Ok(MemoryMappedProperties::VelocityX as i32),
                 "VelocityY" => Ok(MemoryMappedProperties::VelocityY as i32),
                 "Moment" => Ok(MemoryMappedProperties::Moment as i32),
@@ -31,16 +37,28 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
                     Err(())
                 }
             }
-        },
+        }
         Some('#') => {
             println!("Operand is a litteral");
-            operand.as_ref().chars().skip(1).collect::<String>().parse::<i32>().map_err(|e| {
-                println!("Unable to parse int : {}", e.to_string());
-            })
-        },
+            operand
+                .as_ref()
+                .chars()
+                .skip(1)
+                .collect::<String>()
+                .parse::<i32>()
+                .map_err(|e| {
+                    println!("Unable to parse int : {}", e.to_string());
+                })
+        }
         Some('\'') => {
             println!("Operand is a register");
-            match operand.as_ref().chars().skip(1).collect::<String>().as_str() {
+            match operand
+                .as_ref()
+                .chars()
+                .skip(1)
+                .collect::<String>()
+                .as_str()
+            {
                 "GPA" => Ok(Registers::GPA as i32),
                 "GPB" => Ok(Registers::GPB as i32),
                 "GPC" => Ok(Registers::GPC as i32),
@@ -54,12 +72,16 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
                     Err(())
                 }
             }
-        },
-        Some(_) => {
-            operand.as_ref().chars().skip(1).collect::<String>().parse::<i32>().map_err(|e| {
+        }
+        Some(_) => operand
+            .as_ref()
+            .chars()
+            .skip(1)
+            .collect::<String>()
+            .parse::<i32>()
+            .map_err(|e| {
                 println!("Unable to parse int : {}", e.to_string());
-            })
-        },
+            }),
         None => {
             println!("No operand to parse !");
             Err(())
@@ -73,6 +95,10 @@ pub fn parse<S: AsRef<str>>(text: S) -> Vec<Instruction> {
         println!("Working on line: {}", line);
         if line.chars().next() == Some(';') {
             println!("Comment line, skipping");
+            continue;
+        }
+        if line.len() == 0 {
+            println!("Empty line, skipping");
             continue;
         }
 
@@ -99,7 +125,9 @@ pub fn parse<S: AsRef<str>>(text: S) -> Vec<Instruction> {
                     break 'main_loop;
                 }
             },
-            operand_2: splitted_line.next().and_then(|operand| parse_operand(operand).ok())
+            operand_2: splitted_line
+                .next()
+                .and_then(|operand| parse_operand(operand).ok()),
         };
         instructions.push(instruction);
     }

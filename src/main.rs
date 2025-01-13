@@ -1,8 +1,8 @@
+mod camera;
 mod map;
 mod player;
 mod state;
 mod virtual_machine;
-mod camera;
 
 use bevy::prelude::*;
 use bevy::DefaultPlugins;
@@ -25,16 +25,14 @@ fn main() {
             RapierDebugRenderPlugin::default(),
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
+        .init_asset::<crate::virtual_machine::assets::Program>()
+        .init_asset_loader::<crate::virtual_machine::assets::ProgramLoader>()
         .init_state::<AppState>()
         .add_systems(
             Startup,
-            (
-                camera::camera_setup,
-                gravity_setup,
-                map::setup_map,
-            ),
+            (camera::camera_setup, gravity_setup, map::setup_map),
         )
-        .add_systems(OnEnter (AppState::Level), player_systems::setup)
+        .add_systems(OnEnter(AppState::Level), player_systems::setup)
         .add_systems(
             Update,
             (

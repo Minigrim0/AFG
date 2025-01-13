@@ -1,17 +1,19 @@
-use bevy::{asset::{io::Reader, AssetLoader, LoadContext}, prelude::*};
+use bevy::{
+    asset::{io::Reader, AssetLoader, LoadContext},
+    prelude::*,
+};
 use thiserror::Error;
 
-use super::{Instruction, parser::parse};
-
+use super::{parser::parse, Instruction};
 
 #[derive(Asset, TypePath, Debug)]
 pub struct Program {
-    instructions: Vec<Instruction>
+    pub instructions: Vec<Instruction>,
 }
 
 #[non_exhaustive]
 #[derive(Debug, Error)]
-enum ProgramLoaderError {
+pub enum ProgramLoaderError {
     #[error("Could not load asset: {0}")]
     FileNotFound(#[from] std::io::Error),
     #[error("Invalid instruction")]
@@ -19,7 +21,7 @@ enum ProgramLoaderError {
 }
 
 #[derive(Default)]
-struct ProgramLoader;
+pub struct ProgramLoader;
 
 impl AssetLoader for ProgramLoader {
     type Asset = Program;
@@ -27,9 +29,10 @@ impl AssetLoader for ProgramLoader {
     type Error = ProgramLoaderError;
 
     async fn load(
-        &self, reader: &mut dyn Reader,
+        &self,
+        reader: &mut dyn Reader,
         _setting: &(),
-        _load_context: &mut LoadContext<'_>
+        _load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
