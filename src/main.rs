@@ -32,7 +32,10 @@ fn main() {
             Startup,
             (camera::camera_setup, gravity_setup, map::setup_map),
         )
-        .add_systems(OnEnter(AppState::Level), player_systems::setup)
+        .add_systems(
+            OnEnter(AppState::Level),
+            (player_systems::setup, camera::move_camera),
+        )
         .add_systems(
             Update,
             (
