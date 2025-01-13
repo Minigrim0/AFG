@@ -8,7 +8,7 @@ use super::{Instructions, MachineStatus, MemoryMappedProperties, Registers};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Instruction {
-    pub opcode: Instructions,   // 1 byte65536
+    pub opcode: Instructions,   // 1 byte
     pub operand_1: i32,         // 4 bytes
     pub operand_2: Option<i32>, // 4 bytes
 }
@@ -94,7 +94,8 @@ impl VirtualMachine {
         let instructions = if let Some(program) = programs.get(&self.program_handle) {
             &program.instructions
         } else {
-            self.invalid_instruction("Could not find program");
+            println!("Unable to find program");
+            // self.invalid_instruction("Could not find program");
             return false;
         };
 
