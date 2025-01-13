@@ -1,4 +1,6 @@
-use bevy::color::palettes::css::GREEN;
+use std::f32::consts::PI;
+
+use bevy::color::palettes::css::{GREEN, RED, BLUE};
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
@@ -48,11 +50,36 @@ pub fn setup(
 
 pub fn update_player(
     mut query: Query<(&mut VirtualMachine, &mut Transform, &mut Velocity)>,
+    rapier_context: Query<&RapierContext>,
     programs: Res<Assets<Program>>,
+    mut gizmos: Gizmos,
 ) {
+    let view_angle = 110.0 * PI / 180.0;
+    let ray_amount = 7;
+
     for (mut vm, mut transform, mut vel) in query.iter_mut() {
         vm.tick(&programs);
         vm.update_mmp(&mut transform, &mut vel);
+
+        if let Ok(context) = rapier_context.get_single() {
+            let rays = (0..ray_amount).map(|ray_id| {
+                let ray_dir = Vec2::from_angle(-(view_angle / 2.0) + ray_id as f32 * (view_angle / ray_amount as f32) + PI / 2.0);
+                println!("{}) angle: {}", ray_id, ray_dir);
+                if let Some((entity, toi)) = context.cast_ray(transform.translation.truncate(), ray_dir, f32::MAX, false, QueryFilter::new()) {
+                    let hit_point = transform.translation.truncate() + ray_dir * toi;
+                    gizmos.line(transform.translation, hit_point.extend(0.0), RED);
+                    Some((entity, toi))
+                } else {
+                    gizmos.line(
+                        transform.translation,
+                        (transform.translation.truncate() + ray_dir * 200.0).extend(0.0),
+                        BLUE
+                    );
+                    None
+                }
+            }).collect::<Vec<Option<(Entity, f32)>>>();
+            vm.update_rays(rays);
+        }
     }
 }
 

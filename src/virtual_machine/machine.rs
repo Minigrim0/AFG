@@ -74,6 +74,10 @@ impl VirtualMachine {
         // );
     }
 
+    pub fn update_rays(&mut self, rays: Vec<Option<(Entity, f32)>>) {
+
+    }
+
     fn invalid_instruction<S: AsRef<str>>(&mut self, msg: S) {
         println!("ERR: {}", msg.as_ref());
         self.status = MachineStatus::Dead;
