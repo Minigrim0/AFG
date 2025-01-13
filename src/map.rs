@@ -5,7 +5,7 @@ use serde::Deserialize;
 use super::state::AppState;
 
 #[derive(Debug, Deserialize)]
-struct Wall {
+pub struct Wall {
     pub x: i32,
     pub y: i32,
     pub width: i32,

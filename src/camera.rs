@@ -41,12 +41,12 @@ pub fn update_camera_zoom(
         match ev.unit {
             MouseScrollUnit::Line => {
                 for mut projection in query.iter_mut() {
-                    projection.scale -= ev.y * 0.5 * time.delta_secs();
+                    projection.scale += ev.y * 1.0 * time.delta_secs();
                 }
             }
             MouseScrollUnit::Pixel => {
                 for mut projection in query.iter_mut() {
-                    projection.scale -= ev.y * 0.5 * time.delta_secs();
+                    projection.scale += ev.y * 1.0 * time.delta_secs();
                 }
             }
         }
@@ -92,6 +92,6 @@ pub fn update_camera(
     // Progressively update the camera's position over time. Normalize the
     // direction vector to prevent it from exceeding a magnitude of 1 when
     // moving diagonally.
-    let move_delta = direction.normalize_or_zero() * 200.0 * time.delta_secs();
+    let move_delta = direction.normalize_or_zero() * 2000.0 * time.delta_secs();
     transform.translation += move_delta.extend(0.);
 }

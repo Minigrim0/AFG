@@ -4,8 +4,6 @@ mod player;
 mod state;
 mod virtual_machine;
 
-use std::f32::consts::PI;
-
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -16,6 +14,7 @@ use bevy_rapier2d::prelude::*;
 use state::AppState;
 
 use map::Map;
+use player::components::Bot;
 use player::systems as player_systems;
 
 #[derive(Component)]
@@ -31,6 +30,7 @@ fn mouse_button_events(
     q_windows: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
     mut q_selected_entity: Query<Entity, With<IsSelected>>,
+    bots: Query<(), With<Bot>>,
     rapier_context: Query<&RapierContext>,
 ) {
     use bevy::input::ButtonState;
@@ -42,8 +42,6 @@ fn mouse_button_events(
 
     for ev in mousebtn_evr.read() {
         if ev.state == ButtonState::Pressed {
-            let filter = QueryFilter::default();
-
             let (camera, camera_transform) = q_camera.single();
             let Some(mouse_position) = q_windows
                 .single()
@@ -53,10 +51,13 @@ fn mouse_button_events(
                 continue;
             };
 
-            rapier_context.intersections_with_point(mouse_position, filter, |entity| {
-                commands.entity(entity).insert(IsSelected);
-                if let Ok(previously_selected) = q_selected_entity.get_single_mut() {
-                    commands.entity(previously_selected).remove::<IsSelected>();
+            rapier_context.intersections_with_point(mouse_position, QueryFilter::default(), |entity| {
+                if bots.get(entity).is_ok() {
+                    println!("Entity is bot !");
+                    commands.entity(entity).insert(IsSelected);
+                    if let Ok(previously_selected) = q_selected_entity.get_single_mut() {
+                        commands.entity(previously_selected).remove::<IsSelected>();
+                    }
                 }
 
                 // Return `false` to stop searching for other colliders containing this point.

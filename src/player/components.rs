@@ -1,12 +1,8 @@
 use bevy::prelude::*;
 
 // Define the components for the player entity
-
-// Component for the player's animated sprite
 #[derive(Component)]
-pub struct AnimatedSprite {
-    // Add fields as necessary for the animated sprite
-}
+pub struct Bot;
 
 // Component for the player's health
 #[derive(Component)]

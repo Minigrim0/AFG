@@ -6,7 +6,7 @@ use rand::Rng;
 use crate::virtual_machine::{assets::Program, VirtualMachine};
 use crate::{map::MapHandle, Map};
 
-use super::components::{Gun, GunType, Health};
+use super::components::{Gun, GunType, Health, Bot};
 use super::entities::PlayerBundle;
 
 // System to setup the player entity
@@ -34,6 +34,7 @@ pub fn setup(
 
     // Spawn the player entity with all its components
     commands.spawn(PlayerBundle {
+        bot: Bot,
         virtual_machine: VirtualMachine::new_with_program(player_program),
         health: Health::new(100),
         gun: Gun::new(GunType::Pistol),
