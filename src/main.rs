@@ -51,18 +51,21 @@ fn mouse_button_events(
                 continue;
             };
 
-            rapier_context.intersections_with_point(mouse_position, QueryFilter::default(), |entity| {
-                if bots.get(entity).is_ok() {
-                    println!("Entity is bot !");
-                    commands.entity(entity).insert(IsSelected);
-                    if let Ok(previously_selected) = q_selected_entity.get_single_mut() {
-                        commands.entity(previously_selected).remove::<IsSelected>();
+            rapier_context.intersections_with_point(
+                mouse_position,
+                QueryFilter::default(),
+                |entity| {
+                    if bots.get(entity).is_ok() {
+                        commands.entity(entity).insert(IsSelected);
+                        if let Ok(previously_selected) = q_selected_entity.get_single_mut() {
+                            commands.entity(previously_selected).remove::<IsSelected>();
+                        }
                     }
-                }
 
-                // Return `false` to stop searching for other colliders containing this point.
-                false
-            });
+                    // Return `false` to stop searching for other colliders containing this point.
+                    false
+                },
+            );
         }
     }
 }

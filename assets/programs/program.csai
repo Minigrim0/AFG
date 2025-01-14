@@ -1,0 +1,19 @@
+fn turn_90() {
+    let initial_rotation = $Rotation;
+    while $Rotation - initial_rotation < 90 { }
+    return;
+}
+
+
+// Change velocity to 500
+$VelocityY = 500;
+
+if $Rays[3].type != 0 {
+    if $Rays[3].dist < 1000 {
+        $VelocityY = 0;
+        $Moment = -10;
+        if $Rotation > -90 {
+            $VelocityY = 0;
+        }
+    }
+}

@@ -1,8 +1,5 @@
-use core::fmt;
-
-use super::{Instruction, Instructions, MemoryMappedProperties, Registers};
 use super::errors::ParsingError;
-
+use super::{Instruction, Instructions, MemoryMappedProperties, Registers};
 
 fn parse_instr<S: AsRef<str>>(instr: S) -> Result<Instructions, String> {
     match instr.as_ref().to_lowercase().as_str() {
@@ -31,9 +28,7 @@ fn parse_instr<S: AsRef<str>>(instr: S) -> Result<Instructions, String> {
         "ret" => Ok(Instructions::RET),
         "pop" => Ok(Instructions::POP),
         "push" => Ok(Instructions::PUSH),
-        _ => {
-            Err(format!("Unknown instruction: {}", instr.as_ref()))
-        }
+        _ => Err(format!("Unknown instruction: {}", instr.as_ref())),
     }
 }
 
@@ -68,9 +63,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, String> {
                 "Ray5Type" => Ok(MemoryMappedProperties::Ray5Type as i32),
                 "Ray6Dist" => Ok(MemoryMappedProperties::Ray6Dist as i32),
                 "Ray6Type" => Ok(MemoryMappedProperties::Ray6Type as i32),
-                var => {
-                    Err(format!("Unknown variable: {}", var))
-                }
+                var => Err(format!("Unknown variable: {}", var)),
             }
         }
         Some('#') => {
@@ -81,9 +74,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, String> {
                 .skip(1)
                 .collect::<String>()
                 .parse::<i32>()
-                .map_err(|e| {
-                    format!("Unable to parse int : {}", e.to_string())
-                })
+                .map_err(|e| format!("Unable to parse int : {}", e.to_string()))
         }
         Some('\'') => {
             println!("\tOperand is a register");
@@ -102,9 +93,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, String> {
                 "FPB" => Ok(Registers::FPB as i32),
                 "FPC" => Ok(Registers::FPC as i32),
                 "FPD" => Ok(Registers::FPD as i32),
-                reg => {
-                    Err(format!("Unknown register: {}", reg))
-                }
+                reg => Err(format!("Unknown register: {}", reg)),
             }
         }
         Some(_) => operand
@@ -114,9 +103,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, String> {
             .collect::<String>()
             .parse::<i32>()
             .map_err(|e| format!("Unable to parse int : {}", e.to_string())),
-        None => {
-            Err("No operand to parse !".to_string())
-        }
+        None => Err("No operand to parse !".to_string()),
     }
 }
 
@@ -139,7 +126,7 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
             opcode: match splitted_line.next() {
                 Some(instr) => match parse_instr(instr) {
                     Ok(instr) => instr,
-                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e))
+                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e)),
                 },
                 None => {
                     println!("No intruction found for line '{}'", line);
@@ -149,9 +136,14 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
             operand_1: match splitted_line.next() {
                 Some(op) => match parse_operand(op) {
                     Ok(op) => op,
-                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e))
+                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e)),
                 },
-                None => return Err(ParsingError::new(line_nbr as u32, "Missing operand".to_string()))
+                None => {
+                    return Err(ParsingError::new(
+                        line_nbr as u32,
+                        "Missing operand".to_string(),
+                    ))
+                }
             },
             operand_2: splitted_line
                 .next()
