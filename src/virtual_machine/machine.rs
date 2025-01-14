@@ -1,10 +1,18 @@
 use std::f32::consts::PI;
+use std::fmt::Display;
 
 use bevy::prelude::*;
+use bevy_rapier2d::parry::simba::scalar::SupersetOf;
 use bevy_rapier2d::prelude::*;
 
 use super::assets::Program;
 use super::{Instructions, MachineStatus, MemoryMappedProperties, Registers};
+
+enum Flags {
+    ZeroFlag     = 0b00000001,
+    OverflowFlag = 0b00000010,
+    NegativeFlag = 0b00000100,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Instruction {
@@ -17,6 +25,7 @@ pub struct Instruction {
 pub struct VirtualMachine {
     pub registers: [i32; 12], // 8 registers
     pub stack: Vec<i32>,
+    pub flags: u8,
     pub memory: [i32; 65536], // 64KB of memory
     program_handle: Handle<Program>,
     pub status: MachineStatus,
@@ -27,6 +36,7 @@ impl VirtualMachine {
         VirtualMachine {
             registers: [0; 12],
             stack: vec![],
+            flags: 0,
             memory: [0; 65536],
             program_handle: Handle::default(),
             status: MachineStatus::Ready,
@@ -38,10 +48,25 @@ impl VirtualMachine {
         VirtualMachine {
             registers: [0; 12],
             stack: vec![],
+            flags: 0,
             memory: [0; 65536],
             program_handle: program,
             status: MachineStatus::Ready,
         }
+    }
+
+    fn check_flag(&self, flag: Flags) -> bool {
+        self.flags & flag as u8 != 0
+    }
+
+    fn is_valid_register(&self) -> Box<dyn Fn(&i32) -> (bool, String)> {
+        let register_len = self.registers.len();
+        Box::from(move |val: &i32| ((*val as usize) < register_len, "Invalid register".to_string()))
+    }
+
+    fn is_valid_memory_address(&self) -> Box<dyn Fn(&i32) -> (bool, String)> {
+        let memory_size = self.memory.len();
+        Box::from(move |val: &i32| ((*val as usize) < memory_size, "Invalid memory addresss".to_string()))
     }
 
     pub fn update_mmp(&mut self, transform: &mut Transform, vel: &mut Velocity) {
@@ -75,12 +100,53 @@ impl VirtualMachine {
     }
 
     pub fn update_rays(&mut self, rays: Vec<Option<(Entity, f32)>>) {
+        let ray_addr = vec![
+            (MemoryMappedProperties::Ray0Dist, MemoryMappedProperties::Ray0Type),
+            (MemoryMappedProperties::Ray1Dist, MemoryMappedProperties::Ray1Type),
+            (MemoryMappedProperties::Ray2Dist, MemoryMappedProperties::Ray2Type),
+            (MemoryMappedProperties::Ray3Dist, MemoryMappedProperties::Ray3Type),
+            (MemoryMappedProperties::Ray4Dist, MemoryMappedProperties::Ray4Type),
+            (MemoryMappedProperties::Ray5Dist, MemoryMappedProperties::Ray5Type),
+            (MemoryMappedProperties::Ray6Dist, MemoryMappedProperties::Ray6Type),
+        ];
 
+        for (ray_data, (dist_addr, type_addr)) in rays.iter().zip(ray_addr) {
+            if let Some((ent, dist)) = ray_data {
+                self.memory[dist_addr as usize] = *dist as i32;
+                self.memory[type_addr as usize] = 1;
+            } else {
+                self.memory[dist_addr as usize] = 0;
+                self.memory[type_addr as usize] = 0;
+            }
+        }
     }
 
-    fn invalid_instruction<S: AsRef<str>>(&mut self, msg: S) {
-        println!("ERR: {}", msg.as_ref());
-        self.status = MachineStatus::Dead;
+    fn check_valid_value<T>(&mut self, val: T, check: Box<dyn Fn(&T) -> (bool, String)>) -> Result<T, ()>
+        where T: Display {
+        if let (false, err) = check(&val) {
+            println!("ERR: {}", format!("{}: {}", err, val));
+            self.status = MachineStatus::Dead;
+            Err(())
+        } else {
+            Ok(val)
+        }
+    }
+
+    fn check_some_valid_value<T>(&mut self, val: Option<T>, check: Box<dyn Fn(&T) -> (bool, String)>) -> Result<T, ()>
+        where T: Display {
+        if let Some(val) = val {
+            self.check_valid_value(val, check)
+        } else {
+            Err(())
+        }
+    }
+
+    fn update_flags(flags: u8, value: i32) -> u8 {
+        match value {
+            0 => flags | Flags::ZeroFlag as u8,
+            n if n < 0 => flags | Flags::NegativeFlag as u8,
+            _ => flags
+        }
     }
 
     pub fn tick(&mut self, programs: &Res<Assets<Program>>) -> bool {
@@ -104,93 +170,176 @@ impl VirtualMachine {
         };
 
         let instruction = instructions[self.registers[Registers::PC as usize] as usize];
+        let mut next_jump: i32 = 1;
+        let mut next_flags: u8 = 0;
+
         match instruction.opcode {
-            Instructions::MOVI => {
-                let op1: i32 = instruction.operand_1;
-                if let Some(op2) = instruction.operand_2 {
-                    if op1 as usize > self.registers.len() {
-                        self.invalid_instruction(format!("Invalid register {}", op1));
-                        return false;
-                    }
-                    println!("MOVI <{}>, ${}", op1, op2);
-                    self.registers[op1 as usize] = op2;
-                } else {
-                    self.invalid_instruction("Missing operand for MOVI instruction");
-                    return false;
-                }
-            }
             Instructions::MOV => {
-                let op1: i32 = instruction.operand_1;
-                if let Some(op2) = instruction.operand_2 {
-                    if op1 as usize > self.registers.len() || op2 as usize > self.registers.len() {
-                        self.invalid_instruction(format!("Invalid register {}, {}", op1, op2));
-                        return false;
-                    }
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
+                ) {
                     println!("MOV <{}>, <{}>", op1, op2);
                     self.registers[op1 as usize] = self.registers[op2 as usize];
                 } else {
-                    self.invalid_instruction("Missing operand for MOV instruction");
+                    return false;
+                }
+            }
+            Instructions::MOVI => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
+                ) {
+                    println!("MOVI <{}>, ${}", op1, op2);
+                    self.registers[op1 as usize] = op2;
+                } else {
                     return false;
                 }
             }
             Instructions::STORE => {
-                let op1 = instruction.operand_1;
-                if op1 as usize > self.memory.len() {
-                    self.invalid_instruction(format!("Invalid memory address {}", op1));
-                    return false;
-                }
-                if let Some(op2) = instruction.operand_2 {
-                    if op2 as usize > self.registers.len() {
-                        self.invalid_instruction(format!("Invalid register {}", op2));
-                        return false;
-                    }
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
+                ) {
                     println!("STORE [<{}>], <{}>", op1, op2);
                     self.memory[self.registers[op1 as usize] as usize] =
                         self.registers[op2 as usize];
                 } else {
-                    self.invalid_instruction("Missing operand for STORE instruction");
                     return false;
                 }
             }
             Instructions::STOREI => {
-                let op1 = instruction.operand_1;
-                if op1 as usize > self.memory.len() {
-                    self.invalid_instruction(format!("Invalid memory address {}", op1));
-                    return false;
-                }
-                if let Some(op2) = instruction.operand_2 {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
+                ) {
                     println!("STOREI [<{}>], ${}", op1, op2);
                     self.memory[self.registers[op1 as usize] as usize] = op2;
                 } else {
-                    self.invalid_instruction("Missing operand for STOREI instruction");
                     return false;
                 }
             }
             Instructions::LOAD => {
-                let op1: i32 = instruction.operand_1;
-                if op1 as usize > self.registers.len() {
-                    self.invalid_instruction(format!("Invalid register {}", op1));
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
+                ) {
+                    println!("LOAD <{}>, [<{}>]", op1, op2);
+                    self.registers[op1 as usize] = self.memory[self.registers[op2 as usize] as usize];
+                } else {
                     return false;
                 }
-                if let Some(op2) = instruction.operand_2 {
-                    if op2 as usize > self.registers.len() {
-                        self.invalid_instruction(format!("Invalid memory address {}", op2));
-                        return false;
-                    }
-
-                    println!("LOAD <{}>, [<{}>]", op1, op2);
+            }
+            Instructions::LOADI => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_memory_address())
+                ) {
+                    println!("LOADI <{}>, [#{}]", op1, op2);
                     self.registers[op1 as usize] = self.memory[op2 as usize];
                 } else {
-                    self.invalid_instruction("Missing operand for LOAD instruction");
+                    return false;
                 }
             }
-            Instructions::NOP => {}
-            _ => {
-                println!("Not yet implemented");
+            Instructions::ADD => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
+                ) {
+                    println!("ADD <{}>, <{}>", op1, op2);
+                    self.registers[op1 as usize] += self.registers[op2 as usize];
+                } else {
+                    return false;
+                }
             }
+            Instructions::ADDI => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
+                ) {
+                    println!("ADDI <{}>, #{}", op1, op2);
+                    self.registers[op1 as usize] += op2;
+                } else {
+                    return false;
+                }
+            }
+            Instructions::SUB => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
+                ) {
+                    print!("SUB <{}>, <{}>", op1, op2);
+                    self.registers[op1 as usize] -= self.registers[op2 as usize];
+                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
+                    println!("flags: {:8b}", next_flags);
+                } else {
+                    return false;
+                }
+            }
+            Instructions::SUBI => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
+                ) {
+                    print!("SUBI <{}>, #{}", op1, op2);
+                    self.registers[op1 as usize] -= op2;
+                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
+                    println!("flags: {:8b}", next_flags);
+                } else {
+                    return false;
+                }
+            }
+            Instructions::MUL => {}
+            Instructions::MULI => {}
+            Instructions::DIV => {}
+            Instructions::DIVI => {}
+            Instructions::CMP => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
+                ) {
+                    print!("CMP <{}>, <{}>", op1, op2);
+                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize] - self.registers[op2 as usize]);
+                    println!("flags: {:8b}", next_flags);
+                }
+            }
+            Instructions::CMPI => {
+                if let (Ok(op1), Ok(op2)) = (
+                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
+                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh Oh unexpected".to_string())))
+                ) {
+                    print!("CMPI <{}>, #{}", op1, op2);
+                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize] - op2);
+                    println!("flags: {:8b}", next_flags);
+                }
+            }
+            Instructions::JMP => {
+                println!("JMP {}", instruction.operand_1);
+                next_jump = instruction.operand_1;
+            }
+            Instructions::JZ => {
+                if self.check_flag(Flags::ZeroFlag) {
+                    println!("JZ {}", instruction.operand_1);
+                    next_jump = instruction.operand_1;
+                }
+            }
+            Instructions::JNZ => {}
+            Instructions::JN => {
+                if self.check_flag(Flags::NegativeFlag) {
+                    println!("JN {}", instruction.operand_1);
+                    next_jump = instruction.operand_1;
+                }
+            }
+            Instructions::CALL => {}
+            Instructions::CALLI => {}
+            Instructions::RET => {}
+            Instructions::POP => {}
+            Instructions::PUSH => {}
+            Instructions::NOP => {}
         }
 
-        self.registers[Registers::PC as usize] += 1;
+        self.flags = next_flags;
+        self.registers[Registers::PC as usize] += next_jump;
         if self.registers[Registers::PC as usize] as usize >= instructions.len() {
             self.status = MachineStatus::Complete;
         }

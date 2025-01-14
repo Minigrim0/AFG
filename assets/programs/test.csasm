@@ -1,0 +1,6 @@
+; Test program, used to validate the parser functionality
+; Do not move
+movi 'GPA $VelocityY
+movi 'GPB $Moment
+storei 'GPA #100
+storei 'GPB #-100

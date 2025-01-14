@@ -1,6 +1,25 @@
 ; Registers are prefixed with "'", Special Variable with "$" and litterals with "#"
-; Do not modify this file, kept for testing purposes
 movi 'GPA $VelocityY
-movi 'GPB $Moment
-storei 'GPA #100
-storei 'GPB #-100
+storei 'GPA #500
+; Have we hit something ?
+loadi 'GPC $Ray3Type
+cmpi 'GPC #0
+jz #-2
+; Yes
+loadi 'GPB $Ray3Dist
+subi 'GPB #1000
+; Jumps do not take comments into account
+jn #2
+; Not negative continue checking
+jmp #-5
+storei 'GPA #0
+movi 'GPA $Moment
+loadi 'GPC $Rotation
+storei 'GPA #-10
+loadi 'GPB $Rotation
+sub 'GPB 'GPC
+CMPI 'GPB #-90
+JN #2
+jmp #-4
+storei 'GPA #0
+jmp #-19

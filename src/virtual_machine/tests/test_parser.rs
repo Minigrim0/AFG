@@ -5,7 +5,7 @@ use super::super::{Instruction, Instructions, Registers, MemoryMappedProperties}
 
 #[test]
 fn test_parser() {
-    let text = fs::read_to_string("assets/programs/turn.csasm");
+    let text = fs::read_to_string("assets/programs/test.csasm");
     assert!(text.is_ok(), "Unable to read input file: {}", text.err().unwrap().to_string());
     let instructions = parse(text.unwrap());
 
@@ -32,7 +32,11 @@ fn test_parser() {
         }
     ];
 
+    assert!(instructions.is_ok());
+
+    let instructions = instructions.unwrap();
     assert_eq!(instructions.len(), expected.len(), "Instruction set does not have the correct size");
+
     for (i1, i2) in instructions.iter().zip(expected.iter()) {
         assert_eq!(i1, i2);
     }

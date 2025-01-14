@@ -4,7 +4,7 @@ use bevy::{
 };
 use thiserror::Error;
 
-use super::{parser::parse, Instruction};
+use super::{errors::ParsingError, parser::parse, Instruction};
 
 #[derive(Asset, TypePath, Debug)]
 pub struct Program {
@@ -17,7 +17,7 @@ pub enum ProgramLoaderError {
     #[error("Could not load asset: {0}")]
     FileNotFound(#[from] std::io::Error),
     #[error("Invalid instruction")]
-    InvalidInstruction,
+    InvalidInstruction(#[from] ParsingError),
 }
 
 #[derive(Default)]
@@ -37,7 +37,7 @@ impl AssetLoader for ProgramLoader {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let text: String = bytes.iter().map(|b| char::from(*b)).collect();
-        let instructions = parse(text);
+        let instructions = parse(text)?;
         Ok(Program { instructions })
     }
 }

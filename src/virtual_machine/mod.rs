@@ -1,20 +1,35 @@
 mod machine;
 mod parser;
+pub mod errors;
 pub mod assets;
 
 #[cfg(test)]
 mod tests;
 
 pub enum MemoryMappedProperties {
-    // 0xFFF8 => Mask for Read-only properties (range 0xFFF8 - 0xFFFF)
+    // 0xFFF8 => Mask for Read-only properties (range 0xFF20 - 0xFFFF)
     PositionX = 0xffff, // Read-only Lateral position
     PositionY = 0xfffe, // Read-only Vertical position
     Rotation = 0xfffd,  // Read-only Rotation
+    Ray0Dist = 0xfffc,
+    Ray0Type = 0xfffb,
+    Ray1Dist = 0xfffa,
+    Ray1Type = 0xfff9,
+    Ray2Dist = 0xfff8,
+    Ray2Type = 0xfff7,
+    Ray3Dist = 0xfff6,
+    Ray3Type = 0xfff5,
+    Ray4Dist = 0xfff4,
+    Ray4Type = 0xfff3,
+    Ray5Dist = 0xfff2,
+    Ray5Type = 0xfff1,
+    Ray6Dist = 0xfff0,
+    Ray6Type = 0xffef,
 
     // 0xFFF0 => Mask for Writable properties (range 0xFFF0 - 0xFFF7)
-    VelocityX = 0xfff7, // Writable Lateral velocity (right+/left-)
-    VelocityY = 0xfff6, // Writable Vertical velocity (front+/back-)
-    Moment = 0xfff5,    // Writable Moment (clockwise+/counterclockwise-)
+    VelocityX = 0xff1f, // Writable Lateral velocity (right+/left-)
+    VelocityY = 0xff1e, // Writable Vertical velocity (front+/back-)
+    Moment = 0xff1d,    // Writable Moment (clockwise+/counterclockwise-)
 }
 
 pub enum Registers {
@@ -49,9 +64,12 @@ pub enum Instructions {
     MULI,   // Mul into <Register <operand 1>> #<operand 2>
     DIV,    // r<op1> = #<r<op1>> / #<r<op2>>
     DIVI,   // r<op1> = #<r<op1>> / #<op2>
+    CMP,    // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
+    CMPI,    // Performs a comparison by subbing its register operands with an immediate value, without saving the result, just changing the flags
     JMP,    // Unconditional jump to instruction #<op1>
     JZ,     // Jump if previous operation resulted in 0
     JNZ,    // Jump if previous operation was not 0
+    JN,     // Jump if previous operation was negative
     CALL,   // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
     CALLI,  // Call function at address #<op1>     /!\ User is responsible for pushing and popping the stack
     RET,    // Returns from function call          /!\ User is responsible for pushing and popping the stack

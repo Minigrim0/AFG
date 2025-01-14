@@ -1,24 +1,46 @@
-use super::{Instruction, Instructions, MemoryMappedProperties, Registers};
+use core::fmt;
 
-fn parse_instr<S: AsRef<str>>(instr: S) -> Instructions {
-    match instr.as_ref() {
-        "mov" => Instructions::MOV,
-        "movi" => Instructions::MOVI,
-        "store" => Instructions::STORE,
-        "storei" => Instructions::STOREI,
-        "load" => Instructions::LOAD,
-        "loadi" => Instructions::LOADI,
+use super::{Instruction, Instructions, MemoryMappedProperties, Registers};
+use super::errors::ParsingError;
+
+
+fn parse_instr<S: AsRef<str>>(instr: S) -> Result<Instructions, String> {
+    match instr.as_ref().to_lowercase().as_str() {
+        "mov" => Ok(Instructions::MOV),
+        "movi" => Ok(Instructions::MOVI),
+        "store" => Ok(Instructions::STORE),
+        "storei" => Ok(Instructions::STOREI),
+        "load" => Ok(Instructions::LOAD),
+        "loadi" => Ok(Instructions::LOADI),
+        "add" => Ok(Instructions::ADD),
+        "addi" => Ok(Instructions::ADDI),
+        "sub" => Ok(Instructions::SUB),
+        "subi" => Ok(Instructions::SUBI),
+        "mul" => Ok(Instructions::MUL),
+        "muli" => Ok(Instructions::MULI),
+        "div" => Ok(Instructions::DIV),
+        "divi" => Ok(Instructions::DIVI),
+        "cmp" => Ok(Instructions::CMP),
+        "cmpi" => Ok(Instructions::CMPI),
+        "jmp" => Ok(Instructions::JMP),
+        "jz" => Ok(Instructions::JZ),
+        "jnz" => Ok(Instructions::JNZ),
+        "jn" => Ok(Instructions::JN),
+        "call" => Ok(Instructions::CALL),
+        "calli" => Ok(Instructions::CALLI),
+        "ret" => Ok(Instructions::RET),
+        "pop" => Ok(Instructions::POP),
+        "push" => Ok(Instructions::PUSH),
         _ => {
-            println!("Unknown instruction: {}", instr.as_ref());
-            Instructions::NOP
+            Err(format!("Unknown instruction: {}", instr.as_ref()))
         }
     }
 }
 
-fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
+fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, String> {
     match operand.as_ref().chars().next() {
         Some('$') => {
-            println!("Operand is a special variable");
+            println!("\tOperand is a special variable");
             match operand
                 .as_ref()
                 .chars()
@@ -32,14 +54,27 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
                 "Rotation" => Ok(MemoryMappedProperties::Rotation as i32),
                 "PositionX" => Ok(MemoryMappedProperties::PositionX as i32),
                 "PositionY" => Ok(MemoryMappedProperties::PositionY as i32),
+                "Ray0Dist" => Ok(MemoryMappedProperties::Ray0Dist as i32),
+                "Ray0Type" => Ok(MemoryMappedProperties::Ray0Type as i32),
+                "Ray1Dist" => Ok(MemoryMappedProperties::Ray1Dist as i32),
+                "Ray1Type" => Ok(MemoryMappedProperties::Ray1Type as i32),
+                "Ray2Dist" => Ok(MemoryMappedProperties::Ray2Dist as i32),
+                "Ray2Type" => Ok(MemoryMappedProperties::Ray2Type as i32),
+                "Ray3Dist" => Ok(MemoryMappedProperties::Ray3Dist as i32),
+                "Ray3Type" => Ok(MemoryMappedProperties::Ray3Type as i32),
+                "Ray4Dist" => Ok(MemoryMappedProperties::Ray4Dist as i32),
+                "Ray4Type" => Ok(MemoryMappedProperties::Ray4Type as i32),
+                "Ray5Dist" => Ok(MemoryMappedProperties::Ray5Dist as i32),
+                "Ray5Type" => Ok(MemoryMappedProperties::Ray5Type as i32),
+                "Ray6Dist" => Ok(MemoryMappedProperties::Ray6Dist as i32),
+                "Ray6Type" => Ok(MemoryMappedProperties::Ray6Type as i32),
                 var => {
-                    println!("Unknown variable: {}", var);
-                    Err(())
+                    Err(format!("Unknown variable: {}", var))
                 }
             }
         }
         Some('#') => {
-            println!("Operand is a litteral");
+            println!("\tOperand is a litteral");
             operand
                 .as_ref()
                 .chars()
@@ -47,11 +82,11 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
                 .collect::<String>()
                 .parse::<i32>()
                 .map_err(|e| {
-                    println!("Unable to parse int : {}", e.to_string());
+                    format!("Unable to parse int : {}", e.to_string())
                 })
         }
         Some('\'') => {
-            println!("Operand is a register");
+            println!("\tOperand is a register");
             match operand
                 .as_ref()
                 .chars()
@@ -68,8 +103,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
                 "FPC" => Ok(Registers::FPC as i32),
                 "FPD" => Ok(Registers::FPD as i32),
                 reg => {
-                    println!("Unknown register: {}", reg);
-                    Err(())
+                    Err(format!("Unknown register: {}", reg))
                 }
             }
         }
@@ -79,26 +113,23 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, ()> {
             .skip(1)
             .collect::<String>()
             .parse::<i32>()
-            .map_err(|e| {
-                println!("Unable to parse int : {}", e.to_string());
-            }),
+            .map_err(|e| format!("Unable to parse int : {}", e.to_string())),
         None => {
-            println!("No operand to parse !");
-            Err(())
+            Err("No operand to parse !".to_string())
         }
     }
 }
 
-pub fn parse<S: AsRef<str>>(text: S) -> Vec<Instruction> {
+pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
     let mut instructions = vec![];
-    'main_loop: for line in text.as_ref().split("\n") {
+    'main_loop: for (line_nbr, line) in text.as_ref().split("\n").enumerate() {
         println!("Working on line: {}", line);
         if line.chars().next() == Some(';') {
-            println!("Comment line, skipping");
+            println!("\tComment line, skipping");
             continue;
         }
         if line.len() == 0 {
-            println!("Empty line, skipping");
+            println!("\tEmpty line, skipping");
             continue;
         }
 
@@ -106,7 +137,10 @@ pub fn parse<S: AsRef<str>>(text: S) -> Vec<Instruction> {
         let mut splitted_line = splitted_line.iter();
         let instruction = Instruction {
             opcode: match splitted_line.next() {
-                Some(instr) => parse_instr(instr),
+                Some(instr) => match parse_instr(instr) {
+                    Ok(instr) => instr,
+                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e))
+                },
                 None => {
                     println!("No intruction found for line '{}'", line);
                     break 'main_loop;
@@ -115,15 +149,9 @@ pub fn parse<S: AsRef<str>>(text: S) -> Vec<Instruction> {
             operand_1: match splitted_line.next() {
                 Some(op) => match parse_operand(op) {
                     Ok(op) => op,
-                    Err(()) => {
-                        println!("Error in program code");
-                        break 'main_loop;
-                    }
+                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e))
                 },
-                None => {
-                    println!("No intruction found for line '{}'", line);
-                    break 'main_loop;
-                }
+                None => return Err(ParsingError::new(line_nbr as u32, "Missing operand".to_string()))
             },
             operand_2: splitted_line
                 .next()
@@ -132,5 +160,5 @@ pub fn parse<S: AsRef<str>>(text: S) -> Vec<Instruction> {
         instructions.push(instruction);
     }
 
-    instructions
+    Ok(instructions)
 }
