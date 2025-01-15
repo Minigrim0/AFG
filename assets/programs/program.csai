@@ -1,4 +1,4 @@
-fn turn_90() {
+fn turn_90(a, b) {
     let initial_rotation = $Rotation;
     while $Rotation - initial_rotation < 90 { }
     return;

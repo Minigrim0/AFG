@@ -3,7 +3,7 @@ use std::fmt;
 
 // Operator (e.g. +, -, *, /)
 #[derive(Debug)]
-struct Operator {}
+pub struct Operator {}
 
 impl ASTNodeInfo for Operator {}
 

@@ -19,7 +19,8 @@ fn main() -> Result<(), String> {
 
     let text = fs::read_to_string(args.input).map_err(|e| e.to_string())?;
 
-    let program = AST::parse(&text)?;
+    let program = AST::parse_program(&text)?;
+    println!("{:?}", program);
 
     Ok(())
 }
