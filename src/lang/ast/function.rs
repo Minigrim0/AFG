@@ -9,11 +9,33 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn new(identifier: String, parameters: Vec<String>) -> Self {
-        Self {
+    pub fn new<T>(identifier: String, tokens: &mut T) -> Result<Self, String>
+    where
+        T: Iterator,
+        T::Item: AsRef<str>,
+    {
+        Ok(Self {
             identifier,
-            parameters,
+            parameters: Self::parse_fn_args(tokens)?,
+        })
+    }
+
+    fn parse_fn_args<T>(tokens: &mut T) -> Result<Vec<String>, String>
+    where
+        T: Iterator,
+        T::Item: AsRef<str>,
+    {
+        let mut args = Vec::new();
+
+        while let Some(arg) = tokens.next() {
+            match arg.as_ref() {
+                "(" => continue,
+                " " => continue,
+                ")" => return Ok(args),
+                arg => args.push(arg.to_string().replace(',', "")),
+            }
         }
+        Err("Unclosed Parenthese for function arguments".to_string())
     }
 }
 

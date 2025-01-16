@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::fs;
 
-use csai::lang::ast::AST;
+use csai::lang::ast2::parse_program;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -19,7 +19,7 @@ fn main() -> Result<(), String> {
 
     let text = fs::read_to_string(args.input).map_err(|e| e.to_string())?;
 
-    let program = AST::parse_program(&text)?;
+    let program = parse_program(&text)?;
     println!("{:?}", program);
 
     Ok(())

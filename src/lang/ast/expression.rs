@@ -2,7 +2,8 @@ use super::ASTNodeInfo;
 use std::fmt;
 
 #[derive(Debug)]
-pub struct Expression {} // Expression (e.g. binary operation, function call)
+// An expression returns a value. This can be
+pub struct Expression {}
 
 impl ASTNodeInfo for Expression {}
 

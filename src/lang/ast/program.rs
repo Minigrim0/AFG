@@ -5,6 +5,12 @@ use std::fmt;
 #[derive(Debug)]
 pub struct Program {}
 
+impl Program {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl ASTNodeInfo for Program {}
 
 impl fmt::Display for Program {

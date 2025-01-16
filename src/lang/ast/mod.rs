@@ -1,4 +1,5 @@
 use core::fmt;
+use regex::Regex;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -8,7 +9,11 @@ mod function;
 mod identifier;
 mod operator;
 mod program;
-mod statement;
+mod assignment;
+
+// mod node;
+
+// use node::ASTNode;
 
 // Difference between statements and expressions:
 // - Statements are executed for their side effects (e.g. let x = 2)
@@ -44,10 +49,7 @@ pub struct AST {
 impl AST {
     pub fn new() -> Self {
         Self {
-            root: Rc::from(RefCell::from(ASTNode {
-                data: Box::from(program::Program {}),
-                children: Vec::new(),
-            })),
+            root: Rc::from(RefCell::from(ASTNode::new(Box::from(program::Program::new())))),
         }
     }
 
@@ -57,7 +59,7 @@ impl AST {
         let mut result: Vec<&str> = Vec::new();
         let mut last = 0;
         for (index, matched) in
-            text.match_indices(|c| c == ' ' || c == '(' || c == ')' || c == '{' || c == '}')
+            text.match_indices(|c| c == ' ' || c == '(' || c == ')' || c == '{' || c == '}' || c == '\n' || c == '\n')
         {
             if last != index {
                 result.push(&text[last..index]);
@@ -78,25 +80,6 @@ impl AST {
         Ok(ast)
     }
 
-    /// Parses function parameters from a string
-    fn parse_fn_args<T>(tokens: &mut T) -> Result<Vec<String>, String>
-    where
-        T: Iterator,
-        T::Item: AsRef<str>,
-    {
-        let mut args = Vec::new();
-
-        while let Some(arg) = tokens.next() {
-            match arg.as_ref() {
-                "(" => continue,
-                " " => continue,
-                ")" => return Ok(args),
-                arg => args.push(arg.to_string().replace(',', "")),
-            }
-        }
-        Err("Unclosed Parenthese for function arguments".to_string())
-    }
-
     /// Parses the current block from a string
     pub fn parse<T>(tokens: &mut T, current_node: Rc<RefCell<ASTNode>>) -> Result<(), String>
     where
@@ -108,17 +91,52 @@ impl AST {
         while let Some(token) = tokens.next() {
             match token.as_ref() {
                 "fn" => {
+                    let function_name = tokens
+                        .next()
+                        .ok_or("No function name found")?
+                        .as_ref()
+                        .to_string();
+
+                    let function_node = function::Function::new(function_name, tokens)?;
+
+                    let opening_brace = tokens.next().ok_or("Missing code block after function definition")?.as_ref().to_string();
+                    if opening_brace != "{" {
+                        return Err(format!("Unexpected token '{}', expected '{{' after function definition", opening_brace));
+                    }
+
+                    let function_node =  if let Ok(mut cn) = current_node.try_borrow_mut() {
+                        cn.add_child(ASTNode::new(Box::from(
+                            function_node,
+                        )))
+                    } else {
+                        return Err("Unable to borrow current node as mut !".to_string());
+                    };
+
+                    Self::parse(tokens, function_node.clone())?;
+                },
+                "let" => {
+                    let variable_name = tokens.next()
+                        .and_then(|t| {
+                            let var_name = Regex::new(r"[a-zA-Z_]+").unwrap();
+                            if t.as_ref() != "=" && var_name.is_match(t.as_ref()) {
+                                Some(t)
+                            } else {
+                                None
+                            }
+                        }).ok_or("Missing or invalid variable name after let token")?.as_ref().to_string();
+                    if tokens.next().ok_or("Missing = operator after variable name in let statement")?.as_ref() != "=" {
+                        return Err("Missing = operator after variable name in let statement".to_string())
+                    }
                     if let Ok(mut cn) = current_node.try_borrow_mut() {
-                        let function_name = tokens
-                            .next()
-                            .ok_or("No function name found")?
-                            .as_ref()
-                            .to_string();
-                        let function_args = Self::parse_fn_args(tokens)?;
-                        let function_node = cn.add_child(ASTNode::new(Box::from(
-                            function::Function::new(function_name, function_args),
+                        let mut node = assignment::Assignment::new(variable_name);
+                        node.parse_expression(tokens)?;
+
+                        let assignment_node = cn.add_child(ASTNode::new(Box::from(
+                            node,
                         )));
-                        Self::parse(tokens, function_node.clone())?;
+                        // Avoid blocking next stages
+                        std::mem::drop(cn);
+                        Self::parse(tokens, assignment_node.clone())?;
                     } else {
                         return Err("Unable to borrow current node as mut !".to_string());
                     }

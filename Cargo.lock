@@ -1874,6 +1874,7 @@ dependencies = [
  "bevy_rapier2d",
  "clap",
  "rand",
+ "regex",
  "serde",
  "thiserror 2.0.11",
  "toml",
