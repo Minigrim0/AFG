@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::fs;
 
-use csai::lang::ast2::parse_program;
+use csai::lang::ast::parse_program;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]

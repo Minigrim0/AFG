@@ -1,65 +1,51 @@
-use core::fmt;
-use regex::Regex;
+use std::collections::HashMap;
+use std::iter::Iterator;
+use std::collections::VecDeque;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use node::ASTBlockNode;
 
-mod expression;
-mod function;
-mod identifier;
-mod operator;
-mod program;
-mod assignment;
+pub mod block;
+pub mod function;
+pub mod node;
 
-// mod node;
-
-// use node::ASTNode;
-
-// Difference between statements and expressions:
-// - Statements are executed for their side effects (e.g. let x = 2)
-// - Expressions are evaluated to produce a value (e.g. 2 + 2 in let x = 2 + 2)
-pub trait ASTNodeInfo: fmt::Display + fmt::Debug {}
-
-#[derive(Debug)]
-pub struct ASTNode {
-    pub data: Box<dyn ASTNodeInfo>,
-    pub children: Vec<Rc<RefCell<ASTNode>>>,
-}
-
-impl ASTNode {
-    pub fn new(data: Box<dyn ASTNodeInfo>) -> Self {
-        Self {
-            data,
-            children: Vec::new(),
-        }
-    }
-
-    pub fn add_child(&mut self, child: ASTNode) -> Rc<RefCell<ASTNode>> {
-        let child = Rc::new(RefCell::new(child));
-        self.children.push(child.clone());
-        child
-    }
+#[derive(Debug, PartialEq)]
+pub enum TokenType {
+    LPAREN,
+    RPAREN,
+    LBRACE,
+    RBRACE,
+    KEYWORD,
+    OP,
+    COMMENT,
+    ENDL,
+    ID,
 }
 
 #[derive(Debug)]
-pub struct AST {
-    pub root: Rc<RefCell<ASTNode>>,
+pub struct Token {
+    ttype: TokenType,
+    value:  Option<String>,
 }
 
-impl AST {
-    pub fn new() -> Self {
+impl Token {
+    pub fn new(ttype: TokenType, value: Option<String>)  -> Self {
         Self {
-            root: Rc::from(RefCell::from(ASTNode::new(Box::from(program::Program::new())))),
+            ttype,
+            value
         }
     }
+}
 
-    /// Parses a full program from a string
-    pub fn parse_program<S: AsRef<str>>(text: S) -> Result<Self, String> {
-        let text = text.as_ref().to_string();
+pub struct TokenStream {
+    tokens: VecDeque<Token>
+}
+
+impl TokenStream {
+    pub fn from_text(text: String) -> Self {
         let mut result: Vec<&str> = Vec::new();
         let mut last = 0;
         for (index, matched) in
-            text.match_indices(|c| c == ' ' || c == '(' || c == ')' || c == '{' || c == '}' || c == '\n' || c == '\n')
+            text.match_indices(|c| c == ' ' || c == '(' || c == ')' || c == '{' || c == '}' || c == '\n' || c == ';')
         {
             if last != index {
                 result.push(&text[last..index]);
@@ -70,83 +56,126 @@ impl AST {
         if last < text.len() {
             result.push(&text[last..]);
         }
-        println!("Tokens: {:?}", result);
+        // println!("Pre-tokenization: {:?}", result);
 
-        let ast = AST::new();
-        Self::parse(
-            &mut result.into_iter().filter(|t| *t != " "),
-            ast.root.clone(),
-        )?;
-        Ok(ast)
+        let tokens = result.into_iter().filter(|t| *t != " ").filter_map(
+            |t| match t {
+                "fn" | "while" | "set" | "if" | "else" | "return" => Some(Token::new(TokenType::KEYWORD, Some(t.to_string()))),
+                "+" | "-" | "*" | "/" | "%" | "<" | "<=" | "==" | "=" | ">=" | ">" => Some(Token::new(TokenType::OP, Some(t.to_string()))),
+                "(" => Some(Token::new(TokenType::LPAREN, None)),
+                ")" => Some(Token::new(TokenType::RPAREN, None)),
+                "{" => Some(Token::new(TokenType::LBRACE, None)),
+                "}" => Some(Token::new(TokenType::RBRACE, None)),
+                "//" => Some(Token::new(TokenType::COMMENT, None)),
+                "\n" | ";" => Some(Token::new(TokenType::ENDL, None)),
+                " " => None,  // Skip whitespaces
+                t => Some(Token::new(TokenType::ID, Some(t.to_string())))
+            }
+        ).collect::<Vec<Token>>();
+
+        TokenStream {
+            tokens: VecDeque::from(tokens)
+        }
     }
 
-    /// Parses the current block from a string
-    pub fn parse<T>(tokens: &mut T, current_node: Rc<RefCell<ASTNode>>) -> Result<(), String>
-    where
-        T: Iterator,
-        T::Item: AsRef<str>,
-    {
-        let tokens = tokens.into_iter();
+    pub fn next(&mut self) -> Option<Token> {
+        self.tokens.pop_front()
+    }
 
-        while let Some(token) = tokens.next() {
-            match token.as_ref() {
-                "fn" => {
-                    let function_name = tokens
-                        .next()
-                        .ok_or("No function name found")?
-                        .as_ref()
-                        .to_string();
-
-                    let function_node = function::Function::new(function_name, tokens)?;
-
-                    let opening_brace = tokens.next().ok_or("Missing code block after function definition")?.as_ref().to_string();
-                    if opening_brace != "{" {
-                        return Err(format!("Unexpected token '{}', expected '{{' after function definition", opening_brace));
-                    }
-
-                    let function_node =  if let Ok(mut cn) = current_node.try_borrow_mut() {
-                        cn.add_child(ASTNode::new(Box::from(
-                            function_node,
-                        )))
-                    } else {
-                        return Err("Unable to borrow current node as mut !".to_string());
-                    };
-
-                    Self::parse(tokens, function_node.clone())?;
-                },
-                "let" => {
-                    let variable_name = tokens.next()
-                        .and_then(|t| {
-                            let var_name = Regex::new(r"[a-zA-Z_]+").unwrap();
-                            if t.as_ref() != "=" && var_name.is_match(t.as_ref()) {
-                                Some(t)
-                            } else {
-                                None
-                            }
-                        }).ok_or("Missing or invalid variable name after let token")?.as_ref().to_string();
-                    if tokens.next().ok_or("Missing = operator after variable name in let statement")?.as_ref() != "=" {
-                        return Err("Missing = operator after variable name in let statement".to_string())
-                    }
-                    if let Ok(mut cn) = current_node.try_borrow_mut() {
-                        let mut node = assignment::Assignment::new(variable_name);
-                        node.parse_expression(tokens)?;
-
-                        let assignment_node = cn.add_child(ASTNode::new(Box::from(
-                            node,
-                        )));
-                        // Avoid blocking next stages
-                        std::mem::drop(cn);
-                        Self::parse(tokens, assignment_node.clone())?;
-                    } else {
-                        return Err("Unable to borrow current node as mut !".to_string());
-                    }
-                }
-                unk_tok => {
-                    println!("Unknown token: {}", unk_tok);
-                }
+    pub fn get_until(&mut self, token_type: TokenType) -> Vec<Token> {
+        let mut tokens = vec![];
+        while let Some(token) = self.tokens.pop_front() {
+            let is_end_token = token.ttype == token_type;
+            tokens.push(token);
+            if is_end_token {
+                break;
             }
         }
+        tokens
+    }
+}
+
+fn display_tokenized(tokens: &Vec<Token>) {
+    let mut level = 0;
+    for token in tokens.iter() {
+        match token.ttype {
+            TokenType::RPAREN | TokenType::RBRACE => level -= 1,
+            _ => {}
+        }
+        let mut prefix = String::new();
+        for _ in 0..(level * 4) {
+            prefix.push(' ')
+        }
+        match &token.value {
+            Some(v) => println!("{}{:8?}: {}", prefix, token.ttype, v),
+            None => println!("{}{:?}", prefix, token.ttype)
+        }
+        match token.ttype {
+            TokenType::LPAREN | TokenType::LBRACE => level += 1,
+            _ => {}
+        }
+    }
+}
+
+fn parse_block(stream: &mut TokenStream) -> Result<Vec<ASTBlockNode>, String> {
+    let mut block_tree = vec![];
+    while let Some(token) = stream.next() {
+        match token.ttype {
+            TokenType::KEYWORD if token.value == Some("set".to_string()) => {
+                let assignment = ASTBlockNode::parse_assignment(stream)?;
+                block_tree.push(assignment);
+            },
+            TokenType::KEYWORD if token.value == Some("while".to_string()) => {
+                let while_block = ASTBlockNode::parse_while(stream)?;
+                // Parse while block content here
+                block_tree.push(while_block);
+            }
+            TokenType::ENDL => {
+                continue
+            }
+            TokenType::RBRACE => {
+                break;
+            },
+            t => println!("Unexpected or unhandled token: {:?}", t)
+        }
+    }
+
+    Ok(block_tree)
+}
+
+fn parse_function(stream: &mut TokenStream) -> Result<(), String> {
+    if let Some(function_name) = stream.next() {
+        if stream.next().and_then(|t| Some(t.ttype)) != Some(TokenType::LPAREN) {
+            return Err("Unexpected token after function name, expected (".to_string());
+        }
+
+        let mut args = stream.get_until(TokenType::RPAREN);
+        args.pop();  // Pop the RPAREN
+
+        if stream.next().and_then(|t| Some(t.ttype)) != Some(TokenType::LBRACE) {
+            return Err("Unexpected token after function name, expected {".to_string());
+        }
+
+        let funtion_block = parse_block(stream)?;
 
         Ok(())
+    } else {
+        Err("Missing function name".to_string())
     }
+}
+
+pub fn parse_program<S: AsRef<str>>(text: S) -> Result<HashMap<String, node::ASTBlockNode>, String> {
+    let mut tokens = TokenStream::from_text(text.as_ref().to_string());
+
+    while let Some(token) = tokens.next() {
+        match &token.ttype {
+            TokenType::KEYWORD if token.value == Some("fn".to_string()) => {
+                parse_function(&mut tokens)?;
+            },
+            TokenType::ENDL => continue,
+            ttype => return Err(format!("Unexpected token {:?} {:?}", ttype, token.value))
+        }
+    }
+
+    Ok(HashMap::new())
 }

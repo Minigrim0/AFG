@@ -1,26 +1,33 @@
-use super::ASTNodeInfo;
-use std::fmt;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-#[derive(Debug)]
-// Function declaration (e.g. fn foo() {})
-pub struct Function {
-    identifier: String,
-    parameters: Vec<String>,
+use super::block::Block;
+
+type SafeTable = Rc<RefCell<Vec<String>>>;
+
+struct Function {
+    name: String,  // Function name
+    arguments: Vec<String>, // Locally defined variables through arguments
+    block: Block,
 }
 
 impl Function {
-    pub fn new<T>(identifier: String, tokens: &mut T) -> Result<Self, String>
-    where
-        T: Iterator,
-        T::Item: AsRef<str>,
+    // It is assumed this is called after consuming the 'fn' keyword
+    pub fn new<T>(tokens: &mut T) -> Result<Self, String>
+    where T: Iterator,
+        T::Item: AsRef<str>
     {
-        Ok(Self {
-            identifier,
-            parameters: Self::parse_fn_args(tokens)?,
-        })
+        let function_name = tokens
+            .next()
+            .ok_or("No function name found")?
+            .as_ref()
+            .to_string();
+        let args = Self::parse_args(tokens)?;
+
+        Err("noe".to_string())
     }
 
-    fn parse_fn_args<T>(tokens: &mut T) -> Result<Vec<String>, String>
+    fn parse_args<T>(tokens: &mut T) -> Result<Vec<String>, String>
     where
         T: Iterator,
         T::Item: AsRef<str>,
@@ -37,12 +44,5 @@ impl Function {
         }
         Err("Unclosed Parenthese for function arguments".to_string())
     }
-}
 
-impl ASTNodeInfo for Function {}
-
-impl fmt::Display for Function {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Function '{}'", self.identifier)
-    }
 }
