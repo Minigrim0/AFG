@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 use std::collections::VecDeque;
 
+use node::ASTBlockNode;
+
 pub mod block;
 pub mod function;
 pub mod node;
 
-#[derive(Debug)]
-enum TokenType {
+#[derive(Debug, PartialEq)]
+pub enum TokenType {
     LPAREN,
     RPAREN,
     LBRACE,
@@ -20,7 +22,7 @@ enum TokenType {
 }
 
 #[derive(Debug)]
-struct Token {
+pub struct Token {
     ttype: TokenType,
     value:  Option<String>,
 }
@@ -34,7 +36,7 @@ impl Token {
     }
 }
 
-struct TokenStream {
+pub struct TokenStream {
     tokens: VecDeque<Token>
 }
 
@@ -58,7 +60,7 @@ impl TokenStream {
 
         let tokens = result.into_iter().filter(|t| *t != " ").filter_map(
             |t| match t {
-                "fn" | "while" | "let" | "if" | "else" | "return" => Some(Token::new(TokenType::KEYWORD, Some(t.to_string()))),
+                "fn" | "while" | "set" | "if" | "else" | "return" => Some(Token::new(TokenType::KEYWORD, Some(t.to_string()))),
                 "+" | "-" | "*" | "/" | "%" | "<" | "<=" | "==" | "=" | ">=" | ">" => Some(Token::new(TokenType::OP, Some(t.to_string()))),
                 "(" => Some(Token::new(TokenType::LPAREN, None)),
                 ")" => Some(Token::new(TokenType::RPAREN, None)),
@@ -78,6 +80,18 @@ impl TokenStream {
 
     pub fn next(&mut self) -> Option<Token> {
         self.tokens.pop_front()
+    }
+
+    pub fn get_until(&mut self, token_type: TokenType) -> Vec<Token> {
+        let mut tokens = vec![];
+        while let Some(token) = self.tokens.pop_front() {
+            let is_end_token = token.ttype == token_type;
+            tokens.push(token);
+            if is_end_token {
+                break;
+            }
+        }
+        tokens
     }
 }
 
@@ -103,24 +117,58 @@ fn display_tokenized(tokens: &Vec<Token>) {
     }
 }
 
-fn parse_function(tokens: &mut TokenStream) -> Result<(), String>
-{
-    if let Some(function_name) = tokens.next() {
-        println!("Function name: {}", function_name.value.as_ref().unwrap());
+fn parse_block(stream: &mut TokenStream) -> Result<Vec<ASTBlockNode>, String> {
+    let mut block_tree = vec![];
+    while let Some(token) = stream.next() {
+        match token.ttype {
+            TokenType::KEYWORD if token.value == Some("set".to_string()) => {
+                let assignment = ASTBlockNode::parse_assignment(stream)?;
+                println!("Assignment: {:?}", assignment);
+                block_tree.push(assignment);
+            },
+            TokenType::ENDL => {
+                continue
+            }
+            TokenType::RBRACE => {
+                break;
+            },
+            t => println!("Unexpected or unhandled token: {:?}", t)
+        }
+    }
+
+    Ok(block_tree)
+}
+
+fn parse_function(stream: &mut TokenStream) -> Result<(), String> {
+    if let Some(function_name) = stream.next() {
+        if stream.next().and_then(|t| Some(t.ttype)) != Some(TokenType::LPAREN) {
+            return Err("Unexpected token after function name, expected (".to_string());
+        }
+
+        let mut args = stream.get_until(TokenType::RPAREN);
+        args.pop();  // Pop the RPAREN
+
+        if stream.next().and_then(|t| Some(t.ttype)) != Some(TokenType::LBRACE) {
+            return Err("Unexpected token after function name, expected {".to_string());
+        }
+
+        let funtion_block = parse_block(stream)?;
+
         Ok(())
     } else {
         Err("Missing function name".to_string())
     }
 }
 
-pub fn parse_program<S: AsRef<str>>(text: S) -> Result<HashMap<String, node::ASTNode>, String> {
+pub fn parse_program<S: AsRef<str>>(text: S) -> Result<HashMap<String, node::ASTBlockNode>, String> {
     let mut tokens = TokenStream::from_text(text.as_ref().to_string());
 
     while let Some(token) = tokens.next() {
         match &token.ttype {
             TokenType::KEYWORD if token.value == Some("fn".to_string()) => {
-                parse_function(&mut tokens);
+                parse_function(&mut tokens)?;
             },
+            TokenType::ENDL => continue,
             ttype => return Err(format!("Unexpected token {:?} {:?}", ttype, token.value))
         }
     }

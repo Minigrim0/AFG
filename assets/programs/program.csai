@@ -1,6 +1,6 @@
-fn turn_90() {
-    let initial_rotation = $Rotation + 100;
-    let current_rot = $Rotation - initial_rotation;
+fn turn_90(a, b, c) {
+    set initial_rotation = $Rotation + 100;
+    set current_rot = $Rotation - initial_rotation;
     while current_rot < 90 {
         current_rot = $Rotation - initial_rotation;
     }
@@ -9,14 +9,14 @@ fn turn_90() {
 
 fn main() {
     // Change velocity to 500
-    $VelocityY = 500;
+    set $VelocityY = 500;
 
     if $Rays[3].type != 0 {
         if $Rays[3].dist < 1000 {
-            $VelocityY = 0;
-            $Moment = -10;
+            set $VelocityY = 0;
+            set $Moment = -10;
             if $Rotation > -90 {
-                $VelocityY = 0;
+                set $VelocityY = 0;
             }
         }
     }
