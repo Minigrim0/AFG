@@ -330,7 +330,7 @@ impl VirtualMachine {
                     next_jump = instruction.operand_1;
                 }
             }
-            Instructions::CALL => {}
+            Instructions::CALL => {}  // TODO: Implement context switching for function calls
             Instructions::CALLI => {}
             Instructions::RET => {}
             Instructions::POP => {}

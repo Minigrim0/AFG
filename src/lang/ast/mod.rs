@@ -1,19 +1,15 @@
-use std::collections::HashSet;
-
-use node::ASTBlockNode;
-
 pub mod token;
-pub mod block;
-pub mod function;
 pub mod node;
 mod utils;
 pub mod parser;
+
+use node::CodeBlock;
 
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
     pub parameters: Vec<String>,
-    pub content: Vec<ASTBlockNode>
+    pub content: CodeBlock
 }
 
 impl Function {
@@ -34,17 +30,6 @@ impl Function {
         }
 
         Ok(())
-    }
-
-    /// Returns the amount of addresses required by this function to work properly.
-    /// This represents the amount of variable this function has.
-    /// RECURSION WILL RESULT IN AN UNDEFINED BEHAVIOUR -> Variables are staticallly
-    /// saved in memory
-    pub fn get_size(&self) -> i32 {
-        let mut total = HashSet::new();
-        for node in self.content.iter() {
-            total.extend(node.get_variables.iter());
-        }
     }
 }
 

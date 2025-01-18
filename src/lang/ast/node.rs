@@ -1,6 +1,4 @@
-use core::fmt;
-use std::{cell::RefCell, rc::Rc};
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use super::token::{Token, TokenType, TokenStream};
 
@@ -25,294 +23,363 @@ pub enum OperationType {
     Modulo
 }
 
+pub type CodeBlock = Vec<Box<Node>>;
 
 #[derive(Debug, Default)]
-pub enum NodeType {
-    Identifier,
+pub enum Node {
+    Identifier {
+        name: String
+    },
+    Litteral {
+        value: i32
+    },
+    Assignment {
+        lparam: Box<Node>,
+        rparam: Box<Node>
+    },
+    Operation {
+        lparam: Box<Node>,
+        rparam: Box<Node>,
+        operation: OperationType
+    },
+    Comparison {
+        lparam: Box<Node>,
+        rparam: Box<Node>,
+        comparison: ComparisonType
+    },
+    WhileLoop {
+        condition: Box<Node>, // Should be a comparison
+        content: CodeBlock
+    },
+    Loop {
+        content: CodeBlock
+    },
+    IfCondition {
+        condition: Box<Node>, // Should be a Comparison
+        content: CodeBlock
+    },
+    FunctionCall {
+        function_name: String,
+        parameters: CodeBlock,  // A list of identifiers or literals
+    },
     #[default]
-    Litteral,
-    Assignment,
-    Operation,
-    Comparison,
-    WhileLoop,
-    Loop,
-    IfCondition,
-    FunctionCall,
     Return,
 }
 
-#[derive(Debug, Default)]
-/// Example:
-/// ```csai
-/// set $Velocity = $Velocity + 500;
-/// ```
-/// ASTBlockNode { type: Assignment, name: None, value: None, arglist: [], descendents: [
-///     ASTBlockNode { type: Identifier, name: "$Velocity", value: None, arglist: [], descendents: [None; 3], local_table: []},
-///     ASTBlockNode { type: Operation, name: "", value: OP_ADDITION, arglist: [], descendents: [
-///             ASTBlockNode { type: Identifier, name: "$Velocity", value: None arglist: [], descendents: [None; 3], local_table: [] },
-///             ASTBlockNode { type: Literal, name: "", value: Some(500), arglist: [], descendents: [None; 3], local_table: [] },
-///             None
-///     ], local_table: []},
-/// ], local_table: []}
-pub struct ASTBlockNode {
-    node_type: NodeType,
-    name: String,
-    value: i32,
-    arglist: Vec<Token>,  // When calling a function
-    pub descendents: (Option<Rc<RefCell<ASTBlockNode>>>, Option<Rc<RefCell<ASTBlockNode>>>, Vec<ASTBlockNode>),  // First two elements are operands to the block (e.g. two parts of an assignment A + B => (A, B))
+fn new_id_or_litteral(token: Token) -> Result<Node, String> {
+    if token.ttype != TokenType::ID {
+        return Err(format!("Unexpected token type {:?} expected and ID or a litteral", token.ttype));
+    }
+
+    if token.is_litteral() {
+        Ok(Node::Litteral {
+            value: match token.value {
+                Some(v) => match v.parse::<i32>() {
+                    Ok(v) => v,
+                    Err(_) => unreachable!()
+                },
+                None => return Err("Token should be ID or Litteral but has no value !".to_string())
+            }
+        })
+    } else {
+        Ok(Node::Identifier { name: match token.value {
+                Some(v) => v,
+                None => return Err("Token should have a value".to_string())
+            }
+        })
+    }
 }
 
-impl ASTBlockNode {
-    pub fn new(node_type: NodeType) -> Self {
-        Self {
-            node_type,
-            ..Default::default()
+fn new_operator(operator: String, lparam: Box<Node>, rparam: Box<Node>) -> Result<Node, String> {
+    Ok(Node::Operation {
+        rparam,
+        lparam,
+        operation: match operator.as_str() {
+            "+" => OperationType::Addition,
+            "-" => OperationType::Substraction,
+            "*" => OperationType::Multiplication,
+            "/" => OperationType::Division,
+            "%" => OperationType::Modulo,
+            op => return Err(format!("Unknown operator {}, expected one of +, -, *, /, %", op))
         }
-    }
+    })
+}
 
-    pub fn new_id(id: String) -> Self {
-        Self {
-            node_type: NodeType::Identifier,
-            name: id,
-            ..Default::default()
+fn new_comp_operator(operator: String, lparam: Box<Node>, rparam: Box<Node>) -> Result<Node, String> {
+    Ok(Node::Comparison {
+        lparam,
+        rparam,
+        comparison: match operator.as_str() {
+            ">" => ComparisonType::GT,
+            ">=" => ComparisonType::GE,
+            "==" => ComparisonType::EQ,
+            "!=" => ComparisonType::DIFF,
+            "<=" => ComparisonType::LE,
+            "<" => ComparisonType::LT,
+            op => return Err(format!("Unknown comparison operator {}, expected one of >, >=, ==, !=, <=, <", op))
         }
+    })
+}
+
+fn new_return() -> Node {
+    Node::Return
+}
+
+fn new_loop(stream: &mut TokenStream) -> Result<Node, String> {
+    Ok(Node::Loop {
+        content: parse_block(stream)?
+    })
+}
+
+fn new_function_call(func_id: String, params: Vec<Token>) -> Result<Node, String> {
+    let mut parameters = vec![];
+    for parameter in params.into_iter() {
+        let param = Box::from(new_id_or_litteral(parameter)?);
+        parameters.push(param);
     }
 
-    pub fn new_operator(operator: String) -> Result<Self, String> {
-        Ok(Self {
-            node_type: NodeType::Operation,
-            value: match operator.as_str() {
-                "+" => OperationType::Addition as i32,
-                "-" => OperationType::Substraction as i32,
-                "*" => OperationType::Multiplication as i32,
-                "/" => OperationType::Division as i32,
-                "%" => OperationType::Modulo as i32,
-                op => return Err(format!("Unknown operator {}, expected one of +, -, *, /, %", op))
+    Ok(Node::FunctionCall {
+        function_name: func_id,
+        parameters,
+    })
+}
+
+/// Parses a tri-comparison expression (e.g. $a < 10)
+fn parse_tricomp(tokens: &mut VecDeque<Token>) -> Result<Node, String> {
+    match tokens.len() {
+        3 => {},
+        other => return Err(format!("Expected three tokens to match a tri-comp but found {}", other))
+    };
+
+    let lparam = tokens
+        .pop_front()
+        .and_then(|rp| Some(new_id_or_litteral(rp)))
+        .unwrap_or(Err("Unable to find the rparameter for the comparison operation".to_string()))?;
+
+    let operator = tokens
+        .pop_front()
+        .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
+        .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
+
+    let rparam = tokens
+        .pop_front()
+        .and_then(|lp| Some(new_id_or_litteral(lp)))
+        .unwrap_or(Err("Unable to find the rparameter for the comparison operation".to_string()))?;
+
+    new_comp_operator(operator, Box::from(lparam), Box::from(rparam))
+}
+
+/// Parses a tri-operation expression (e.g. $a + 10)
+fn parse_triop(tokens: &mut VecDeque<Token>) -> Result<Node, String> {
+    match tokens.len() {
+        3 => {},
+        other => return Err(format!("Expected three tokens to match a tri-ops but found {}", other))
+    };
+
+    let lparam = tokens
+        .pop_front()
+        .and_then(|rp| Some(new_id_or_litteral(rp)))
+        .unwrap_or(Err("Unable to find the rparameter for the comparison operation".to_string()))?;
+
+    let operator = tokens
+        .pop_front()
+        .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
+        .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
+
+    let rparam = tokens
+        .pop_front()
+        .and_then(|lp| Some(new_id_or_litteral(lp)))
+        .unwrap_or(Err("Unable to find the rparameter for the comparison operation".to_string()))?;
+
+    new_operator(operator, Box::from(lparam), Box::from(rparam))
+}
+
+fn parse_while(stream: &mut TokenStream) -> Result<Node, String> {
+    let mut assignment_stuff = VecDeque::from(stream.get_until(TokenType::LBRACE));
+    assignment_stuff.pop_back();  // Remove Lbrace
+
+    let condition = match assignment_stuff.len() {
+        3 => parse_tricomp(&mut assignment_stuff)?,
+        other => return Err(format!("Expected 3 tokens after `while` keyword but found {} [{:?}]", other, assignment_stuff.iter().map(|s| &s.ttype)))
+    };
+
+    Ok(Node::WhileLoop {
+        condition: Box::from(condition),
+        content: parse_block(stream)?
+    })
+}
+
+fn parse_assignment(stream: &mut TokenStream) -> Result<Node, String> {
+    let mut assignment_stuff = VecDeque::from(stream.get_until(TokenType::ENDL));
+    assignment_stuff.pop_back();  // Remove endl
+
+    let lparam = match assignment_stuff.pop_front() {
+        Some(token) => match new_id_or_litteral(token)? {
+            Node::Identifier { name } => Node::Identifier { name },
+            _ => return Err("Lparam of assignment must be an identifier not a litteral".to_string())
+        },
+        None => return Err("Expected identifier after `set` keyword".to_string())
+    };
+
+    super::utils::ensure_next_token(&mut assignment_stuff, TokenType::OP, Some("=".to_string()))?;
+
+    let rparam = match assignment_stuff.len() {
+        1 => {
+            match assignment_stuff.pop_front() {
+                Some(token) => new_id_or_litteral(token)?,
+                None => return Err("Expected token after assignment operation".to_string())
+            }
+        },
+        3 => {
+            parse_triop(&mut assignment_stuff)?
+        },
+        t => return Err(format!("Expected one or three tokens after assignment operator but found {}", t))
+    };
+
+    Ok(Node::Assignment {
+        lparam: Box::from(lparam),
+        rparam: Box::from(rparam)
+    })
+}
+
+fn parse_if(stream: &mut TokenStream) -> Result<Node, String> {
+    let mut assignment_stuff = VecDeque::from(stream.get_until(TokenType::LBRACE));
+    assignment_stuff.pop_back();  // Remove Lbrace
+
+    let condition = match assignment_stuff.len() {
+        3 => parse_tricomp(&mut assignment_stuff)?,
+        other => return Err(format!("Expected 3 tokens after `while` keyword bu found {}", other))
+    };
+
+    Ok(Node::IfCondition {
+        condition: Box::from(condition),
+        content: parse_block(stream)?
+    })
+}
+
+/// Parses a block of code (within a function)
+pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
+    let mut block_tree = vec![];
+    while let Some(token) = stream.next() {
+        match token.ttype {
+            TokenType::KEYWORD if token.value == Some("set".to_string()) => {
+                let assignment = parse_assignment(stream)?;
+                block_tree.push(Box::from(assignment));
             },
-            ..Default::default()
-        })
-    }
+            TokenType::KEYWORD if token.value == Some("while".to_string()) => {
+                let while_block = parse_while(stream)?;
+                block_tree.push(Box::from(while_block));
+            }
+            TokenType::KEYWORD if token.value == Some("if".to_string()) => {
+                let if_block = parse_if(stream)?;
+                block_tree.push(Box::from(if_block));
+            }
+            TokenType::KEYWORD if token.value == Some("return".to_string()) => {
+                block_tree.push(Box::from(new_return()))
+            }
+            TokenType::KEYWORD if token.value == Some("call".to_string()) => {
+                if let Some(function_name) = stream.next() {
+                    let func_id = match function_name.value {
+                        Some(v) => v,
+                        None => unreachable!()
+                    };
 
-    pub fn new_comp_operator(operator: String) -> Result<Self, String> {
-        Ok(Self {
-            node_type: NodeType::Operation,
-            value: match operator.as_str() {
-                ">" => ComparisonType::GT as i32,
-                ">=" => ComparisonType::GE as i32,
-                "==" => ComparisonType::EQ as i32,
-                "!=" => ComparisonType::DIFF as i32,
-                "<=" => ComparisonType::LE as i32,
-                "<" => ComparisonType::LT as i32,
-                op => return Err(format!("Unknown operator {}, expected one of >, >=, ==, !=, <=, <", op))
-            },
-            ..Default::default()
-        })
-    }
+                    if stream.next().and_then(|t| Some(t.ttype)) != Some(TokenType::LPAREN) {
+                        return Err("Unexpected token after function name, expected (".to_string());
+                    }
 
-    pub fn new_return() -> Self {
-        ASTBlockNode {
-            node_type: NodeType::Return,
-            ..Default::default()
-        }
-    }
+                    let mut args = stream.get_until(TokenType::RPAREN);
+                    args.pop();  // Pop the RPAREN
 
-    pub fn new_loop() -> Self {
-        ASTBlockNode {
-            node_type: NodeType::Loop,
-            ..Default::default()
-        }
-    }
-
-    pub fn new_function_call(func_id: String, parameters: Vec<Token>) -> Self {
-        ASTBlockNode {
-            node_type: NodeType::FunctionCall,
-            name: func_id,
-            arglist: parameters,
-            ..Default::default()
-        }
-    }
-
-    /// Parses a tri-comparison expression (e.g. $a < 10)
-    pub fn parse_tricomp(tokens: &mut VecDeque<Token>) -> Result<Self, String> {
-        match tokens.len() {
-            3 => {},
-            other => return Err(format!("Expected three tokens to match a tri-comp but found {}", other))
-        };
-
-        let first_token = match tokens.pop_front() {
-            Some(av) => match av.value {
-                Some(v) => Rc::from(RefCell::from(Self::new_id(v))),
-                None => return Err(format!("Expected value for identifier token: {:?}", av))
-            },
-            None => unreachable!()
-        };
-        let mut operator = match tokens.pop_front() {
-            Some(op) if op.ttype == TokenType::OP => match op.value {
-                Some(v) => Self::new_comp_operator(v)?,
-                None => return Err("Expected operator to have a value".to_string())
-            },
-            Some(op) => return Err(format!("Expected Comparison token as second token after if/whille operator but found {:?}", op)),
-            None => unreachable!()
-        };
-        let second_token = match tokens.pop_front() {
-            Some(av) => match av.value {
-                Some(v) => Rc::from(RefCell::from(Self::new_id(v))),
-                None => return Err(format!("Expected value for identifier token: {:?}", av))
-            },
-            None => return Err("Expected token after assignment operation".to_string())
-        };
-
-        operator.descendents.0 = Some(first_token);
-        operator.descendents.1 = Some(second_token);
-
-        Ok(operator)
-    }
-
-    /// Parses a tri-operation expression (e.g. $a + 10)
-    pub fn parse_triop(tokens: &mut VecDeque<Token>) -> Result<Self, String> {
-        match tokens.len() {
-            3 => {},
-            other => return Err(format!("Expected three tokens to match a tri-ops but found {}", other))
-        };
-
-        let first_token = match tokens.pop_front() {
-            Some(av) => match av.value {
-                Some(v) => Rc::from(RefCell::from(Self::new_id(v))),
-                None => return Err(format!("Expected value for identifier token: {:?}", av))
-            },
-            None => unreachable!()
-        };
-        let mut operator = match tokens.pop_front() {
-            Some(op) if op.ttype == TokenType::OP => match op.value {
-                Some(v) => Self::new_operator(v)?,
-                None => return Err("Expected operator to have a value".to_string())
-            },
-            Some(op) => return Err(format!("Expected OP token as second token after assignment operator but found {:?}", op)),
-            None => unreachable!()
-        };
-        let second_token = match tokens.pop_front() {
-            Some(av) => match av.value {
-                Some(v) => Rc::from(RefCell::from(Self::new_id(v))),
-                None => return Err(format!("Expected value for identifier token: {:?}", av))
-            },
-            None => return Err("Expected token after assignment operation".to_string())
-        };
-
-        operator.descendents.0 = Some(first_token);
-        operator.descendents.1 = Some(second_token);
-
-        Ok(operator)
-    }
-
-    pub fn parse_while(stream: &mut TokenStream) -> Result<Self, String> {
-        let mut assignment_stuff = VecDeque::from(stream.get_until(TokenType::LBRACE));
-        assignment_stuff.pop_back();  // Remove Lbrace
-
-        let condition = match assignment_stuff.len() {
-            3 => Self::parse_tricomp(&mut assignment_stuff)?,
-            other => return Err(format!("Expected 3 tokens after `while` keyword but found {} [{:?}]", other, assignment_stuff.iter().map(|s| &s.ttype)))
-        };
-
-        Ok(Self {
-            node_type: NodeType::WhileLoop,
-            descendents: (
-                Some(Rc::from(RefCell::from(condition))), None, vec![]
-            ),
-            ..Default::default()
-        })
-    }
-
-    pub fn parse_assignment(stream: &mut TokenStream) -> Result<Self, String> {
-        let mut assignment_stuff = VecDeque::from(stream.get_until(TokenType::ENDL));
-        assignment_stuff.pop_back();  // Remove endl
-
-        let mut top_node = Self {
-            node_type: NodeType::Assignment,
-            descendents: (
-                None, None, vec![]
-            ),
-            ..Default::default()
-        };
-
-        let assigned_to = match assignment_stuff.pop_front() {
-            Some(t) if t.ttype == TokenType::ID  => t,
-            Some(t) => return Err(format!("Unexpected token {:?} after set keyword", t)),
-            None => return Err("Expected identifier after `set` keyword".to_string())
-        };
-
-        let lparam = match assigned_to.value {
-            Some(v) => Rc::from(RefCell::from(Self::new_id(v))),
-            None => return Err("Missing lparam value for assignment operation".to_string())
-        };
-
-        super::utils::ensure_next_token(&mut assignment_stuff, TokenType::OP, Some("=".to_string()))?;
-
-        let rparam = match assignment_stuff.len() {
-            1 => {
-                match assignment_stuff.pop_front() {
-                    Some(av) => match av.value {
-                        Some(v) => Rc::from(RefCell::from(Self::new_id(v))),
-                        None => return Err(format!("Expected value for identifier token: {:?}", av))
-                    },
-                    None => return Err("Expected token after assignment operation".to_string())
+                    let function_call = new_function_call(func_id, args)?;
+                    block_tree.push(Box::from(function_call));
+                } else {
+                    return Err("Missing function name after call keyword".to_string())
                 }
-            },
-            3 => {
-                Rc::from(RefCell::from(Self::parse_triop(&mut assignment_stuff)?))
-            },
-            t => return Err(format!("Expected one or three tokens after assignment operator but found {}", t))
-        };
+            }
+            TokenType::KEYWORD if token.value == Some("loop".to_string()) => {
+                if let Some(t) = stream.next() {
+                    if t.ttype != TokenType::LBRACE {
+                        return Err(format!("Unexpected token {:?} after loop keyword, expected LBRACE", t.ttype))
+                    }
+                } else {
+                    return Err("Expected LBRACE after loop keyword".to_string());
+                }
 
-        top_node.descendents.0 = Some(lparam);
-        top_node.descendents.1 = Some(rparam);
-
-        Ok(top_node)
+                let loop_block = new_loop(stream)?;
+                block_tree.push(Box::from(loop_block));
+            }
+            TokenType::COMMENT => {
+                // Skip the whole comment
+                stream.get_until(TokenType::ENDL);
+                continue;
+            }
+            TokenType::ENDL => {
+                continue
+            }
+            TokenType::RBRACE => {
+                break;
+            },
+            t => println!("Unexpected or unhandled token: {:?} {:?}", t, token.value)
+        }
     }
 
-    pub fn parse_if(stream: &mut TokenStream) -> Result<Self, String> {
-        let mut assignment_stuff = VecDeque::from(stream.get_until(TokenType::LBRACE));
-        assignment_stuff.pop_back();  // Remove Lbrace
+    Ok(block_tree)
+}
 
-        let condition = match assignment_stuff.len() {
-            3 => Self::parse_tricomp(&mut assignment_stuff)?,
-            other => return Err(format!("Expected 3 tokens after `while` keyword bu found {}", other))
-        };
-
-        Ok(Self {
-            node_type: NodeType::IfCondition,
-            descendents: (
-                Some(Rc::from(RefCell::from(condition))), None, vec![]
-            ),
-            ..Default::default()
-        })
+/// Inner block printing
+fn __print_block(block: CodeBlock, level: i32) {
+    let mut prefix = String::new();
+    for _ in 0..level {
+        prefix.push_str(" |  ");
     }
 
-    /// Returns all the variables of the node
-    pub fn get_variables(&self) -> HashSet<String> {
-        let mut new_set = HashSet::new();
-        match self.node_type {
-            NodeType::Assignment => {
-                new_set.insert(self.name);
+    for inst in block.into_iter() {
+        match *inst {
+            Node::Identifier { name } => println!("{}ID {}", prefix, name),
+            Node::Litteral { value } => println!("{}LIT {}", prefix, value),
+            Node::Assignment { lparam, rparam } => {
+                println!("{}Assignment", prefix);
+                __print_block(vec![lparam], level+1);
+                __print_block(vec![rparam], level+1);
+            },
+            Node::Operation { lparam, rparam, operation } => {
+                println!("{}Operation {:?}", prefix, operation);
+                __print_block(vec![lparam], level+1);
+                __print_block(vec![rparam], level+1);
+            },
+            Node::Comparison { lparam, rparam, comparison } => {
+                println!("{}Comparison {:?}", prefix, comparison);
+                __print_block(vec![lparam], level+1);
+                __print_block(vec![rparam], level+1);
+            },
+            Node::WhileLoop { condition, content } => {
+                println!("{}While", prefix);
+                __print_block(vec![condition], level+1);
+                println!("{}Do", prefix);
+                __print_block(content, level+1);
+            },
+            Node::Loop { content } => {
+                println!("{}Loop", prefix);
+                __print_block(content, level+1);
+            },
+            Node::IfCondition { condition, content } => {
+                println!("{}If", prefix);
+                __print_block(vec![condition], level+1);
+                println!("{}Do", prefix);
+                __print_block(content, level+1);
+            }
+            Node::FunctionCall { function_name, parameters } => {
+                println!("{}Call {}", prefix, function_name);
+                __print_block(parameters, level+1);
+            }
+            Node::Return => {
+                println!("{}Return", prefix);
             }
         }
-
-        new_set
     }
 }
 
-impl fmt::Display for ASTBlockNode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.node_type {
-            NodeType::Identifier => write!(f, "{{type: \"Identifier\", value: {}}},", self.value),
-            NodeType::Litteral => write!(f, "{{type: \"Litteral\", }}"),
-            NodeType::Assignment => write!(f, "{{type: \"Assignment\", }}"),
-            NodeType::Operation => write!(f, "{{type: \"Operation\", }}"),
-            NodeType::Comparison => write!(f, "{{type: \"Comparison\", }}"),
-            NodeType::WhileLoop => write!(f, "{{type: \"WhileLoop\", }}"),
-            NodeType::Loop => write!(f, "{{type: \"Loop\", }}"),
-            NodeType::IfCondition => write!(f, "{{type: \"IfCondition\", }}"),
-            NodeType::FunctionCall => write!(f, "{{type: \"FunctionCall\", }}"),
-            NodeType::Return => write!(f, "{{type: \"Return\"}}"),
-        }
-    }
+pub fn print_block(block: CodeBlock) {
+    __print_block(block, 0);
 }

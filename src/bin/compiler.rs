@@ -2,6 +2,7 @@ use clap::Parser;
 use std::fs;
 
 use csai::lang::ast::parser::parse_program;
+use csai::lang::ast::node::print_block;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -19,7 +20,7 @@ fn main() -> Result<(), String> {
 
     let text = fs::read_to_string(args.input).map_err(|e| e.to_string())?;
 
-    let program = parse_program(&text)?;
+    let mut program = parse_program(&text)?;
 
     if let Some(fun) = program.get("main") {
         if fun.parameters.len() != 0 {
@@ -29,14 +30,14 @@ fn main() -> Result<(), String> {
         return Err("Program must contain a main function".to_string());
     }
 
+    println!("AST: {:?}", program);
 
-    for key in program.keys() {
-        if let Some(function) = program.get(key) {
-            function.to_asm()?;
-        } else {
-            unreachable!();
-        }
-    };
+    if let Some(function) = program.remove("main") {
+        print_block(function.content)
+    }
+    if let Some(function) = program.remove("turn_90") {
+        print_block(function.content)
+    }
 
     Ok(())
 }
