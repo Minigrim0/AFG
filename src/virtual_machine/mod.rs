@@ -42,7 +42,6 @@ pub enum Registers {
     FPC = 0x06, // Function Parameter C
     FPD = 0x07, // Function Parameter D
     PC = 0x08,  // Program Counter
-    MP = 0x09,  // Memory Pointer
     SP = 0x0A,  // Stack Pointer (used for function calls)
     RP = 0x0B,  // Return Pointer (used for function calls)
 }
@@ -71,7 +70,6 @@ pub enum Instructions {
     JNZ,    // Jump if previous operation was not 0
     JN,     // Jump if previous operation was negative
     CALL,   // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
-    CALLI,  // Call function at address #<op1>     /!\ User is responsible for pushing and popping the stack
     RET,    // Returns from function call          /!\ User is responsible for pushing and popping the stack
     POP,    // Pops a value from the stack into <r<op1>>
     PUSH,   // Pushes to the stack the value of <r<op1>>

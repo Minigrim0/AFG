@@ -38,7 +38,8 @@ pub fn setup(
         // Spawn the player entity with all its components
         commands.spawn(PlayerBundle {
             bot: Bot,
-            virtual_machine: VirtualMachine::new_with_program(player_program),
+            virtual_machine: VirtualMachine::new()
+                .with_program(player_program),
             health: Health::new(100),
             gun: Gun::new(GunType::Pistol),
             sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),

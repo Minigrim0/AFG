@@ -2,7 +2,6 @@ use std::f32::consts::PI;
 use std::fmt::Display;
 
 use bevy::prelude::*;
-use bevy_rapier2d::parry::simba::scalar::SupersetOf;
 use bevy_rapier2d::prelude::*;
 
 use super::assets::Program;
@@ -43,16 +42,9 @@ impl VirtualMachine {
         }
     }
 
-    pub fn new_with_program(program: Handle<Program>) -> VirtualMachine {
-        println!("Constructing new machine with handle {:?}", program);
-        VirtualMachine {
-            registers: [0; 12],
-            stack: vec![],
-            flags: 0,
-            memory: [0; 65536],
-            program_handle: program,
-            status: MachineStatus::Ready,
-        }
+    pub fn with_program(mut self, program: Handle<Program>) -> VirtualMachine {
+        self.program_handle = program;
+        self
     }
 
     fn check_flag(&self, flag: Flags) -> bool {
@@ -331,7 +323,6 @@ impl VirtualMachine {
                 }
             }
             Instructions::CALL => {}  // TODO: Implement context switching for function calls
-            Instructions::CALLI => {}
             Instructions::RET => {}
             Instructions::POP => {}
             Instructions::PUSH => {}

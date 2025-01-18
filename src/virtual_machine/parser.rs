@@ -24,7 +24,6 @@ fn parse_instr<S: AsRef<str>>(instr: S) -> Result<Instructions, String> {
         "jnz" => Ok(Instructions::JNZ),
         "jn" => Ok(Instructions::JN),
         "call" => Ok(Instructions::CALL),
-        "calli" => Ok(Instructions::CALLI),
         "ret" => Ok(Instructions::RET),
         "pop" => Ok(Instructions::POP),
         "push" => Ok(Instructions::PUSH),

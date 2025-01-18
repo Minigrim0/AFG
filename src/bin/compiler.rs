@@ -30,12 +30,12 @@ fn main() -> Result<(), String> {
         return Err("Program must contain a main function".to_string());
     }
 
-    println!("AST: {:?}", program);
-
     if let Some(function) = program.remove("main") {
+        println!("AST for main function");
         print_block(function.content)
     }
     if let Some(function) = program.remove("turn_90") {
+        println!("AST for turn_90 function");
         print_block(function.content)
     }
 

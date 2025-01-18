@@ -1,4 +1,4 @@
-use super::token::{Token, TokenType, TokenStream};
+use super::token::{Token, TokenType};
 
 #[test]
 pub fn test_is_litteral() {
