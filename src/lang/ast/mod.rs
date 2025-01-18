@@ -1,6 +1,4 @@
-pub mod token;
 pub mod node;
-mod utils;
 pub mod parser;
 
 use node::CodeBlock;
@@ -34,4 +32,4 @@ impl Function {
 }
 
 #[cfg(test)]
-pub mod test;
+mod tests;

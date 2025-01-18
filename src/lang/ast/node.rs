@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use super::token::{Token, TokenType, TokenStream};
+use crate::lang::token::{Token, TokenType, TokenStream, ensure_next_token};
 
 #[derive(Debug, Default)]
 pub enum ComparisonType {
@@ -221,7 +221,7 @@ fn parse_assignment(stream: &mut TokenStream) -> Result<Node, String> {
         None => return Err("Expected identifier after `set` keyword".to_string())
     };
 
-    super::utils::ensure_next_token(&mut assignment_stuff, TokenType::OP, Some("=".to_string()))?;
+    ensure_next_token(&mut assignment_stuff, TokenType::OP, Some("=".to_string()))?;
 
     let rparam = match assignment_stuff.len() {
         1 => {

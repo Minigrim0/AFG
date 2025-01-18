@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use super::token::{Token, TokenStream, TokenType};
+use crate::lang::token::{Token, TokenStream, TokenType};
 use super::node::{parse_block, CodeBlock};
 
 /// Parses a function (function are building blocks of the language)
