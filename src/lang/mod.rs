@@ -114,6 +114,8 @@
 
 mod token;
 mod ast;
+mod semantic;
 
 pub use token::TokenStream;
 pub use ast::AST;
+pub use semantic::{analyze, SemanticError};
