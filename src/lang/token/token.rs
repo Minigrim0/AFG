@@ -15,20 +15,20 @@ pub enum TokenType {
 
 #[derive(Debug)]
 pub struct Token {
-    pub ttype: TokenType,
+    pub token_type: TokenType,
     pub value:  Option<String>,
 }
 
 impl Token {
-    pub fn new(ttype: TokenType, value: Option<String>)  -> Self {
+    pub fn new(token_type: TokenType, value: Option<String>) -> Self {
         Self {
-            ttype,
+            token_type,
             value
         }
     }
 
-    pub fn is_litteral(&self) -> bool {
-        if self.ttype != TokenType::ID {
+    pub fn is_literal(&self) -> bool {
+        if self.token_type != TokenType::ID {
             return false;
         }
         self.value.is_some() && self.value.as_ref().and_then(|v| Some(v.parse::<i32>().is_ok())) == Some(true)
@@ -46,7 +46,7 @@ impl TokenStream {
         }
     }
 
-    pub fn from_text(text: String) -> Self {
+    pub fn lex(text: String) -> Self {
         let mut result: Vec<&str> = Vec::new();
         let mut last = 0;
         for (index, matched) in
@@ -89,7 +89,7 @@ impl TokenStream {
     pub fn get_until(&mut self, token_type: TokenType) -> Vec<Token> {
         let mut tokens = vec![];
         while let Some(token) = self.tokens.pop_front() {
-            let is_end_token = token.ttype == token_type;
+            let is_end_token = token.token_type == token_type;
             tokens.push(token);
             if is_end_token {
                 break;

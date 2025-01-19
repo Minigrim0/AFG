@@ -1,32 +1,106 @@
-pub mod node;
-pub mod parser;
+use std::collections::HashMap;
+use std::fmt;
+use crate::lang::token::TokenType;
+use crate::lang::TokenStream;
 
-use node::CodeBlock;
+pub mod node;
+mod function;
+
+use function::Function;
+use crate::lang::ast::node::{CodeBlock, Node};
 
 #[derive(Debug)]
-pub struct Function {
-    pub name: String,
-    pub parameters: Vec<String>,
-    pub content: CodeBlock
+pub struct AST {
+    pub functions: HashMap<String, Function>
 }
 
-impl Function {
-    /// Variables are assigned in the memory directly to avoid register allocation
-    /// Context represents up to what point the memory has been used by the caller function, letting the callee work with
-    /// addresses above. Once the call
-    pub fn to_asm(&self) -> Result<(), String> {
-        let function_registers = ["FPA", "FPB", "FPC", "FPD"];
+impl AST {
+    pub fn parse(tokens: &mut TokenStream) -> Result<Self, String> {
+        let mut program = HashMap::new();
 
-        println!("; Function {}", self.name);
-        for (idx, _) in self.parameters.iter().enumerate() {
-            if idx < function_registers.len() {
-                // Pop into the registers
-                println!("pop '{}", function_registers[idx]);
-            } else {
-                return Err(format!("Too much arguments for function {}", self.name))
+        while let Some(token) = tokens.next() {
+            match &token.token_type {
+                TokenType::KEYWORD if token.value == Some("fn".to_string()) => {
+                    let function = Function::parse(tokens)?;
+                    program.insert(function.name.clone(), function);
+                },
+                TokenType::ENDL => continue,
+                token_type => return Err(format!("Unexpected token {:?} {:?}", token_type, token.value))
             }
         }
 
+        Ok(Self {
+            functions: program
+        })
+    }
+
+    fn print_block<'a, T>(block: T, f: &mut fmt::Formatter<'_>, level: i32) -> fmt::Result
+    where T: IntoIterator<Item = &'a Box<Node>>
+    {
+        let mut prefix = String::new();
+        for a in 0..level {
+            if a == level - 1 {
+                prefix.push_str(" |--");
+            } else {
+                prefix.push_str(" |  ");
+            }
+        }
+
+        for inst in block.into_iter() {
+            match &**inst {
+                Node::Identifier { name } => println!("{}ID {}", prefix, name),
+                Node::Litteral { value } => println!("{}LIT {}", prefix, value),
+                Node::Assignment { lparam, rparam } => {
+                    writeln!(f, "{}Assignment", prefix)?;
+                    Self::print_block(vec![rparam], f, level+1)?;
+                    Self::print_block(vec![lparam], f, level+1)?;
+                },
+                Node::Operation { lparam, rparam, operation } => {
+                    writeln!(f, "{}Operation {:?}", prefix, operation)?;
+                    Self::print_block(vec![lparam], f, level + 1)?;
+                    Self::print_block(vec![rparam], f, level + 1)?;
+                },
+                Node::Comparison { lparam, rparam, comparison } => {
+                    writeln!(f, "{}Comparison {:?}", prefix, comparison)?;
+                    Self::print_block(vec![lparam], f, level + 1)?;
+                    Self::print_block(vec![rparam], f, level + 1)?;
+                },
+                Node::WhileLoop { condition, content } => {
+                    writeln!(f, "{}While", prefix)?;
+                    Self::print_block(vec![condition], f, level + 1)?;
+                    writeln!(f, "{}Do", prefix)?;
+                    Self::print_block(content, f, level + 1)?;
+                },
+                Node::Loop { content } => {
+                    writeln!(f, "{}Loop", prefix)?;
+                    Self::print_block(content, f, level + 1)?;
+                },
+                Node::IfCondition { condition, content } => {
+                    writeln!(f, "{}If", prefix)?;
+                    Self::print_block(vec![condition], f, level + 1)?;
+                    writeln!(f, "{}Do", prefix)?;
+                    Self::print_block(content, f, level + 1)?;
+                }
+                Node::FunctionCall { function_name, parameters } => {
+                    writeln!(f, "{}Call {}", prefix, function_name)?;
+                    Self::print_block(parameters, f, level + 1)?;
+                }
+                Node::Return => {
+                    writeln!(f, "{}Return", prefix)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for AST {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (name, function) in &self.functions {
+            writeln!(f, "Function: {}", name)?;
+            Self::print_block(function.content.iter(), f, 0)?;
+        }
         Ok(())
     }
 }

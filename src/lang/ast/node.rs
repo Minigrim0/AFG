@@ -67,11 +67,11 @@ pub enum Node {
 }
 
 fn new_id_or_litteral(token: Token) -> Result<Node, String> {
-    if token.ttype != TokenType::ID {
-        return Err(format!("Unexpected token type {:?} expected and ID or a litteral", token.ttype));
+    if token.token_type != TokenType::ID {
+        return Err(format!("Unexpected token type {:?} expected and ID or a litteral", token.token_type));
     }
 
-    if token.is_litteral() {
+    if token.is_literal() {
         Ok(Node::Litteral {
             value: match token.value {
                 Some(v) => match v.parse::<i32>() {
@@ -200,7 +200,7 @@ fn parse_while(stream: &mut TokenStream) -> Result<Node, String> {
 
     let condition = match assignment_stuff.len() {
         3 => parse_tricomp(&mut assignment_stuff)?,
-        other => return Err(format!("Expected 3 tokens after `while` keyword but found {} [{:?}]", other, assignment_stuff.iter().map(|s| &s.ttype)))
+        other => return Err(format!("Expected 3 tokens after `while` keyword but found {} [{:?}]", other, assignment_stuff.iter().map(|s| &s.token_type)))
     };
 
     Ok(Node::WhileLoop {
@@ -261,7 +261,7 @@ fn parse_if(stream: &mut TokenStream) -> Result<Node, String> {
 pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
     let mut block_tree = vec![];
     while let Some(token) = stream.next() {
-        match token.ttype {
+        match token.token_type {
             TokenType::KEYWORD if token.value == Some("set".to_string()) => {
                 let assignment = parse_assignment(stream)?;
                 block_tree.push(Box::from(assignment));
@@ -284,7 +284,7 @@ pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
                         None => unreachable!()
                     };
 
-                    if stream.next().and_then(|t| Some(t.ttype)) != Some(TokenType::LPAREN) {
+                    if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LPAREN) {
                         return Err("Unexpected token after function name, expected (".to_string());
                     }
 
@@ -299,8 +299,8 @@ pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
             }
             TokenType::KEYWORD if token.value == Some("loop".to_string()) => {
                 if let Some(t) = stream.next() {
-                    if t.ttype != TokenType::LBRACE {
-                        return Err(format!("Unexpected token {:?} after loop keyword, expected LBRACE", t.ttype))
+                    if t.token_type != TokenType::LBRACE {
+                        return Err(format!("Unexpected token {:?} after loop keyword, expected LBRACE", t.token_type))
                     }
                 } else {
                     return Err("Expected LBRACE after loop keyword".to_string());
@@ -327,59 +327,4 @@ pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
     Ok(block_tree)
 }
 
-/// Inner block printing
-fn __print_block(block: CodeBlock, level: i32) {
-    let mut prefix = String::new();
-    for _ in 0..level {
-        prefix.push_str(" |  ");
-    }
 
-    for inst in block.into_iter() {
-        match *inst {
-            Node::Identifier { name } => println!("{}ID {}", prefix, name),
-            Node::Litteral { value } => println!("{}LIT {}", prefix, value),
-            Node::Assignment { lparam, rparam } => {
-                println!("{}Assignment", prefix);
-                __print_block(vec![lparam], level+1);
-                __print_block(vec![rparam], level+1);
-            },
-            Node::Operation { lparam, rparam, operation } => {
-                println!("{}Operation {:?}", prefix, operation);
-                __print_block(vec![lparam], level+1);
-                __print_block(vec![rparam], level+1);
-            },
-            Node::Comparison { lparam, rparam, comparison } => {
-                println!("{}Comparison {:?}", prefix, comparison);
-                __print_block(vec![lparam], level+1);
-                __print_block(vec![rparam], level+1);
-            },
-            Node::WhileLoop { condition, content } => {
-                println!("{}While", prefix);
-                __print_block(vec![condition], level+1);
-                println!("{}Do", prefix);
-                __print_block(content, level+1);
-            },
-            Node::Loop { content } => {
-                println!("{}Loop", prefix);
-                __print_block(content, level+1);
-            },
-            Node::IfCondition { condition, content } => {
-                println!("{}If", prefix);
-                __print_block(vec![condition], level+1);
-                println!("{}Do", prefix);
-                __print_block(content, level+1);
-            }
-            Node::FunctionCall { function_name, parameters } => {
-                println!("{}Call {}", prefix, function_name);
-                __print_block(parameters, level+1);
-            }
-            Node::Return => {
-                println!("{}Return", prefix);
-            }
-        }
-    }
-}
-
-pub fn print_block(block: CodeBlock) {
-    __print_block(block, 0);
-}
