@@ -12,8 +12,8 @@ fn main() {
     set $VelocityY = 500;
 
     loop {
-        if $Rays[3].type != 0 {
-            if $Rays[3].dist < 1000 {
+        if $Ray3Type != 0 {
+            if $Ray3Dist < 1000 {
                 set $VelocityY = 0;
                 call turn_90();
                 set $VelocityY = 500;
