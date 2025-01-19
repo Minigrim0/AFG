@@ -6,6 +6,31 @@ pub mod assets;
 #[cfg(test)]
 mod tests;
 
+pub fn get_special_variables() -> Vec<String> {
+    vec![
+        "$PositionX".to_string(),
+        "$PositionY".to_string(), // Read-only Vertical position
+        "$Rotation".to_string(),  // Read-only Rotation
+        "$Ray0Dist".to_string(),
+        "$Ray0Type".to_string(),
+        "$Ray1Dist".to_string(),
+        "$Ray1Type".to_string(),
+        "$Ray2Dist".to_string(),
+        "$Ray2Type".to_string(),
+        "$Ray3Dist".to_string(),
+        "$Ray3Type".to_string(),
+        "$Ray4Dist".to_string(),
+        "$Ray4Type".to_string(),
+        "$Ray5Dist".to_string(),
+        "$Ray5Type".to_string(),
+        "$Ray6Dist".to_string(),
+        "$Ray6Type".to_string(),
+        "$VelocityX".to_string(),
+        "$VelocityY".to_string(),
+        "$Moment".to_string(),
+    ]
+}
+
 pub enum MemoryMappedProperties {
     // 0xFFF8 => Mask for Read-only properties (range 0xFF20 - 0xFFFF)
     PositionX = 0xffff, // Read-only Lateral position
