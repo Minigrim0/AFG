@@ -4,45 +4,49 @@ use crate::lang::ast::node::{CodeBlock, Node};
 /// Used to validate the semantics of an AST
 pub enum SemanticError {
     UnknownVariable(String),  // Use of a previously undeclared variable
-    InvalidOperation(String)  // Invalid operation
+    InvalidOperation(String), // Invalid operation
 }
 
-
-/// Returns the newly created/assigned variables
-/// This goes through the assignment nodes and returns their lparam
-pub fn get_new_variables(node: &Box<Node>) -> Vec<&String> {
+fn is_valid_assignment_lparam(node: &Box<Node>) -> Result<(), SemanticError> {
     match &**node {
-        Node::Identifier { name } => vec![name],
-        Node::Assignment { lparam, .. } => {
-            get_new_variables(lparam)
-        },
-        _ => vec![]
+        Node::Litteral { value } => Err(SemanticError::InvalidOperation(format!(
+            "{} is not a valid lparam for an assignment",
+            value
+        ))),
+        _ => Ok(()),
     }
 }
 
-pub fn get_used_variables(node: &Box<Node>) -> Vec<&String> {
+/// Returns the newly created/assigned variables
+/// This goes through the assignment nodes and returns their lparam
+fn get_new_variables(node: &Box<Node>) -> Vec<&String> {
     match &**node {
         Node::Identifier { name } => vec![name],
-        Node::Assignment { rparam, .. } => {
+        Node::Assignment { lparam, .. } => get_new_variables(lparam),
+        _ => vec![],
+    }
+}
+
+pub fn get_used_variables(node: &Box<Node>) -> Result<Vec<&String>, SemanticError> {
+    match &**node {
+        Node::Identifier { name } => Ok(vec![name]),
+        Node::Assignment { rparam, lparam } => {
+            is_valid_assignment_lparam(lparam)?;
             get_used_variables(rparam)
-        },
-        Node::Operation { lparam,  rparam , .. } => {
+        }
+        Node::Operation { lparam, rparam, .. } => {
             let mut vars = get_used_variables(lparam);
             vars.extend(get_used_variables(rparam));
             vars
-        },
+        }
         Node::Comparison { lparam, rparam, .. } => {
             let mut vars = get_used_variables(lparam);
             vars.extend(get_used_variables(rparam));
             vars
-        },
-        Node::WhileLoop { condition, .. } => {
-            get_used_variables(condition)
-        },
-        Node::IfCondition { condition, .. } => {
-            get_used_variables(condition)
         }
-        _ => vec![]
+        Node::WhileLoop { condition, .. } => get_used_variables(condition),
+        Node::IfCondition { condition, .. } => get_used_variables(condition),
+        _ => Ok(vec![]),
     }
 }
 
@@ -51,20 +55,23 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
         match &**inst {
             Node::WhileLoop { content, .. } => {
                 analyze_block(content, scope.clone())?;
-            },
+            }
             Node::IfCondition { content, .. } => {
                 analyze_block(content, scope.clone())?;
-            },
+            }
             Node::Loop { content, .. } => {
                 analyze_block(content, scope.clone())?;
-            },
+            }
             _ => {}
         }
 
         let used_vars = get_used_variables(inst);
-        for var in used_vars.iter()  {
+        for var in used_vars.iter() {
             if !scope.contains(var) {
-                return Err(SemanticError::UnknownVariable( format!("{} is not in scope", var) ));
+                return Err(SemanticError::UnknownVariable(format!(
+                    "{} is not in scope",
+                    var
+                )));
             }
         }
 
@@ -75,11 +82,10 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
     Ok(())
 }
 
-
 /// Analyzes the given Abstract Syntax Tree (AST) for semantic errors.
 ///
 /// This function iterates through all functions within the AST and validates them
-/// using semantic rules. Specifically, it checks for issues like the use of 
+/// using semantic rules. Specifically, it checks for issues like the use of
 /// undeclared variables or invalid scopes during function execution.
 ///
 /// # Arguments
