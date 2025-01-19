@@ -65,6 +65,8 @@
 ///
 /// Example algorithm:
 /// ```rust
+/// use crate::lang::{AST, SemanticError};
+///
 /// fn analyze(ast: &AST) -> Result<(), SemanticError> {
 ///     // Check for semantic issues, e.g., variable declarations and type correctness.
 /// }
@@ -96,8 +98,8 @@
 /// - Inline expansion and other common compiler optimizations.
 ///
 /// Example Algorithm:
-/// ```rust
-/// fn optimize(AsmFG: &mut AsmFG) {
+/// ```ignore
+/// fn optimize(asm_fg: &mut AsmFG) {
 ///     // Analyze and remove redundant instructions.
 /// }
 /// ```

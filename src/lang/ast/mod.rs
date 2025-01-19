@@ -7,7 +7,7 @@ pub mod node;
 mod function;
 
 use function::Function;
-use crate::lang::ast::node::{CodeBlock, Node};
+use crate::lang::ast::node::Node;
 
 #[derive(Debug)]
 pub struct AST {
