@@ -5,7 +5,7 @@ use super::super::{Instruction, Instructions, Registers, MemoryMappedProperties}
 
 #[test]
 fn test_parser() {
-    let text = fs::read_to_string("assets/programs/test.csasm");
+    let text = fs::read_to_string("assets/programs/test.asmfg");
     assert!(text.is_ok(), "Unable to read input file: {}", text.err().unwrap().to_string());
     let instructions = parse(text.unwrap());
 
