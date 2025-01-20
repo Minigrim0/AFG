@@ -1,1 +1,6 @@
 /target
+
+# Ignore compiler intermediary files
+*.tokens
+*.ast
+*.pasm
