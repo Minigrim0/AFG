@@ -20,6 +20,7 @@ pub fn get_new_variables(node: &Box<Node>) -> Vec<&String> {
     }
 }
 
+/// Returns a list of the variables used by that AST node
 pub fn get_used_variables(node: &Box<Node>) -> Vec<&String> {
     match &**node {
         Node::Identifier { name } => vec![name],
@@ -105,8 +106,7 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
 /// }
 /// ```
 pub fn analyze(ast: &super::AST) -> Result<(), SemanticError> {
-    for (func_name, func) in &ast.functions {
-        println!("Analyzing: {}", func_name);
+    for (_, func) in &ast.functions {
         let mut in_scope = crate::virtual_machine::get_special_variables();
         in_scope.extend(func.parameters.clone());
 
