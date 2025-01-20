@@ -1,7 +1,6 @@
-fn turn_90() {
+fn turn(angle) {
     set initial_rotation = $Rotation + 100;
     set current_rot = $Rotation - initial_rotation;
-    while current_rot < 90 {
         set current_rot = $Rotation - initial_rotation;
     }
     return;
@@ -13,9 +12,9 @@ fn main() {
 
     loop {
         if $Ray3Type != 0 {
-            if $Ray3Dist < 1000 {
+            if $Ray3Dist <= 1000 {
                 set $VelocityY = 0;
-                call turn_90();
+                call turn(90);
                 set $VelocityY = 500;
             }
         }
