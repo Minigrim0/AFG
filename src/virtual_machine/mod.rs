@@ -94,6 +94,7 @@ pub enum Instructions {
     JZ,     // Jump if previous operation resulted in 0
     JNZ,    // Jump if previous operation was not 0
     JN,     // Jump if previous operation was negative
+    JP,     // Jump if previous operation was positive
     CALL,   // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
     RET,    // Returns from function call          /!\ User is responsible for pushing and popping the stack
     POP,    // Pops a value from the stack into <r<op1>>

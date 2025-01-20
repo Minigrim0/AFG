@@ -11,6 +11,7 @@ enum Flags {
     ZeroFlag     = 0b00000001,
     OverflowFlag = 0b00000010,
     NegativeFlag = 0b00000100,
+    PositiveFlag = 0b00001000,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,7 +138,7 @@ impl VirtualMachine {
         match value {
             0 => flags | Flags::ZeroFlag as u8,
             n if n < 0 => flags | Flags::NegativeFlag as u8,
-            _ => flags
+            _ => flags | Flags::PositiveFlag as u8
         }
     }
 
@@ -317,6 +318,12 @@ impl VirtualMachine {
             }
             Instructions::JNZ => {}
             Instructions::JN => {
+                if self.check_flag(Flags::NegativeFlag) {
+                    println!("JN {}", instruction.operand_1);
+                    next_jump = instruction.operand_1;
+                }
+            }
+            Instructions::JP => {
                 if self.check_flag(Flags::NegativeFlag) {
                     println!("JN {}", instruction.operand_1);
                     next_jump = instruction.operand_1;
