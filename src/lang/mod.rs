@@ -4,7 +4,7 @@
 /// This compiler module is designed to take programs written in the AFG (Automated Fighting Game)
 /// language and translate them into AsmFG (Assembly for Fighting Game), an intermediate assembly-like language.
 ///
-/// The goal of this system is to enable the analysis, transformation, and execution of AFG programs through multiple 
+/// The goal of this system is to enable the analysis, transformation, and execution of AFG programs through multiple
 /// well-defined stages, each responsible for a critical part of the compilation process.
 ///
 /// ## Compilation Stages
@@ -36,7 +36,7 @@
 /// ```
 ///
 /// ### 2. Parsing (Abstract Syntax Tree [AST] Generation)
-/// The parser takes the list of tokens from the lexer and organizes them into a tree-like structure called the Abstract 
+/// The parser takes the list of tokens from the lexer and organizes them into a tree-like structure called the Abstract
 /// Syntax Tree (AST). This tree represents the grammatical structure of the AFG code.
 ///
 /// For example, in the same AFG code:
@@ -56,7 +56,7 @@
 /// - Implements recursive descent parsing to build the AST from tokens.
 ///
 /// ### 3. Semantic Analysis
-/// At this stage, the AST is checked for correctness according to the rules of the AFG language. 
+/// At this stage, the AST is checked for correctness according to the rules of the AFG language.
 /// This includes variable scope validation, and ensuring that operations are valid.
 ///
 /// Example issues caught in this phase:
@@ -83,8 +83,7 @@
 ///
 /// Might be translated to:
 /// ```AsmFG
-/// LOAD_CONST 42
-/// STORE "x"
+/// movi 'GPA #42
 /// ```
 ///
 /// **Future Work:**
@@ -117,7 +116,9 @@
 mod token;
 mod ast;
 mod semantic;
+mod asm;
 
 pub use token::TokenStream;
-pub use ast::AST;
+pub use ast::{AST, node::Node};
 pub use semantic::{analyze, SemanticError};
+pub use asm::PASMProgram;
