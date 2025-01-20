@@ -41,6 +41,9 @@ pub fn get_used_variables(node: &Box<Node>) -> Vec<&String> {
         },
         Node::IfCondition { condition, .. } => {
             get_used_variables(condition)
+        },
+        Node::FunctionCall { parameters, .. } => {
+            parameters.iter().map(|p| get_used_variables(p)).flatten().collect::<Vec<&String>>()
         }
         _ => vec![]
     }
@@ -79,7 +82,7 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
 /// Analyzes the given Abstract Syntax Tree (AST) for semantic errors.
 ///
 /// This function iterates through all functions within the AST and validates them
-/// using semantic rules. Specifically, it checks for issues like the use of 
+/// using semantic rules. Specifically, it checks for issues like the use of
 /// undeclared variables or invalid scopes during function execution.
 ///
 /// # Arguments
@@ -104,7 +107,8 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
 pub fn analyze(ast: &super::AST) -> Result<(), SemanticError> {
     for (func_name, func) in &ast.functions {
         println!("Analyzing: {}", func_name);
-        let in_scope = crate::virtual_machine::get_special_variables();
+        let mut in_scope = crate::virtual_machine::get_special_variables();
+        in_scope.extend(func.parameters.clone());
 
         analyze_block(&func.content, in_scope)?;
     }
