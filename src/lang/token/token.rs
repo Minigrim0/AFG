@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
@@ -32,6 +33,28 @@ impl Token {
             return false;
         }
         self.value.is_some() && self.value.as_ref().and_then(|v| Some(v.parse::<i32>().is_ok())) == Some(true)
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let token_type = match self.token_type {
+            TokenType::LPAREN => "LPAREN",
+            TokenType::RPAREN => "RPAREN",
+            TokenType::LBRACE => "LBRACE",
+            TokenType::RBRACE => "RBRACE",
+            TokenType::KEYWORD => "KEYWORD",
+            TokenType::OP => "OP",
+            TokenType::COMMENT => "COMMENT",
+            TokenType::ENDL => "ENDL",
+            TokenType::ID => "ID",
+        };
+
+        write!(f, "{}", token_type)?;
+        if let Some(value) = self.value.clone() {
+            write!(f, " = {}", value)?
+        }
+        Ok(())
     }
 }
 
@@ -96,5 +119,14 @@ impl TokenStream {
             }
         }
         tokens
+    }
+}
+
+impl fmt::Display for TokenStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for token in &self.tokens {
+            writeln!(f, "{}", token)?;
+        }
+        Ok(())
     }
 }
