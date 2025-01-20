@@ -85,8 +85,11 @@ impl AST {
                     writeln!(f, "{}Call {}", prefix, function_name)?;
                     Self::print_block(parameters, f, level + 1)?;
                 }
-                Node::Return => {
+                Node::Return { value } => {
                     writeln!(f, "{}Return", prefix)?;
+                    if let Some(value) = value {
+                        Self::print_block(vec![&Box::from(Node::Identifier { name: value.clone() })], f, level+1)?;
+                    }
                 }
             }
         }

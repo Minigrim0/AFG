@@ -62,10 +62,7 @@ pub enum Registers {
     GPB = 0x01, // General Purpose
     GPC = 0x02, // General Purpose
     GPD = 0x03, // General Purpose
-    FPA = 0x04, // Function Parameter A
-    FPB = 0x05, // Function Parameter B
-    FPC = 0x06, // Function Parameter C
-    FPD = 0x07, // Function Parameter D
+    FRP = 0x04,
     PC = 0x08,  // Program Counter
     SP = 0x0A,  // Stack Pointer (used for function calls)
     RP = 0x0B,  // Return Pointer (used for function calls)

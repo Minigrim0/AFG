@@ -59,7 +59,7 @@ impl fmt::Display for Token {
 }
 
 pub struct TokenStream {
-    tokens: VecDeque<Token>
+    pub tokens: VecDeque<Token>
 }
 
 impl TokenStream {

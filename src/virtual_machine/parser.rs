@@ -88,10 +88,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<i32, String> {
                 "GPB" => Ok(Registers::GPB as i32),
                 "GPC" => Ok(Registers::GPC as i32),
                 "GPD" => Ok(Registers::GPD as i32),
-                "FPA" => Ok(Registers::FPA as i32),
-                "FPB" => Ok(Registers::FPB as i32),
-                "FPC" => Ok(Registers::FPC as i32),
-                "FPD" => Ok(Registers::FPD as i32),
+                "FRP" => Ok(Registers::FRP as i32),
                 reg => Err(format!("Unknown register: {}", reg)),
             }
         }

@@ -1,6 +1,19 @@
-fn turn(angle) {
-    set initial_rotation = $Rotation + 100;
+fn abs(value) {
+    if value < 0 {
+        set new_value = 0 - value;
+    }
+    return value;
+}
+
+fn turn(angle, direction) {
+    set initial_rotation = $Rotation;
+    if direction != 0 {
+        set initial_rotation = 0 - $Rotation;
+    }
+
     set current_rot = $Rotation - initial_rotation;
+    set current_rot = abs(current_rot);
+    while current_rot < angle {
         set current_rot = $Rotation - initial_rotation;
     }
     return;

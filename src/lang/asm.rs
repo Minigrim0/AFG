@@ -48,7 +48,7 @@ impl fmt::Display for PASMInstruction {
             for operand in self.operands.iter() {
                 match operand {
                     OperandType::Identifier { name } => write!(f, " {}", name)?,
-                    OperandType::Literal { value } => write!(f, " {}", value)?,
+                    OperandType::Literal { value } => write!(f, " #{}", value)?,
                 }
             }
             Ok(())
@@ -63,7 +63,11 @@ pub struct PASMProgram {
 impl fmt::Display  for PASMProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for instruction in self.instructions.iter() {
-            writeln!(f, "{}", instruction)?;
+            if instruction.is_label {
+                writeln!(f, "{} ", instruction)?;
+            } else {
+                writeln!(f, "\t{}", instruction)?;
+            }
         }
         Ok(())
     }
@@ -75,8 +79,15 @@ fn create_temp_variable_name<S: AsRef<str>>(pattern: S) -> String {
 }
 
 fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstructions {
+    let mut memory_operation = false;  // If assignee is memory location, use load/store otherwise mov/movi
+
     let assignee = match &**assignee {
-        Node::Identifier { name } => name,
+        Node::Identifier { name } => {
+            if name.starts_with("$") {
+                memory_operation = true;
+            }
+            name
+        },
         _ => return Err("assignee should be an identifier".to_string())
     }.to_string();
 
@@ -118,11 +129,47 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             Ok(instructions)
         },
         Node::Litteral { value } => {
-            Ok(vec![PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
+            if memory_operation {
+                Ok(vec![PASMInstruction::new("storei".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
+            } else {
+                Ok(vec![PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
+            }
         },
         Node::Identifier { name } => {
-            Ok(vec![PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: name.to_string() } ])])
+            if name.starts_with("$") {
+                if memory_operation {
+                    let temp = create_temp_variable_name("memory_operation");
+                    Ok(vec![
+                        PASMInstruction::new("loadi".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Identifier { name: name.to_string() } ]),
+                        PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: temp.clone() } ])
+                    ])
+                } else {
+                    Ok(vec![PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: name.to_string() } ])])
+                }
+            } else {
+                if memory_operation {
+                    Ok(vec![PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: name.to_string() } ])])
+                } else {
+                    Ok(vec![PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: name.to_string() } ])])
+                }
+            }
         },
+        Node::FunctionCall { function_name, parameters } => {
+            let mut instructions = function_to_asm(function_name, parameters)?;
+            if memory_operation {
+                let temp = create_temp_variable_name("function_return");
+                instructions.extend(vec![
+                    PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Identifier { name: "'FRP".to_string() } ]),
+                    PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: temp.to_string() } ])
+                ]);
+            } else {
+                // Move call result to assignee
+                instructions.push(
+                    PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: "'FRP".to_string() } ])
+                );
+            }
+            Ok(instructions)
+        }
         _ => Err("rparam of an assignment should be either an operation, a literal or an identifier".to_string())
     }
 }
@@ -224,7 +271,7 @@ fn if_to_asm(condition: &Box<Node>, content: &Vec<Box<Node>>, exit_label: Option
                 PASMInstruction::new("jz".to_string(), vec![OperandType::Identifier { name: next_block_label.clone() }])
             ])
         },
-        _ => return Err("Unexpected ast node for iff condition".to_string())
+        _ => return Err("Unexpected ast node for if condition".to_string())
     }
 
     for node in content.iter() {
@@ -294,8 +341,21 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
     Ok(instructions)
 }
 
-fn ret_to_asm() -> Vec<PASMInstruction> {
-    vec![PASMInstruction::new("ret".to_string(), vec![])]
+fn ret_to_asm(value: &Option<String>) -> MaybeInstructions {
+    let mut instructions = vec![];
+
+    if let Some(v) = value {
+        instructions.extend(
+            assignment_to_asm(
+                &Box::from(Node::Identifier { name: "'FRP".to_string() }),
+                &Box::from(Node::Identifier { name: v.clone() })
+            )?
+        );
+    }
+    instructions.push(
+        PASMInstruction::new("ret".to_string(), vec![])
+    );
+    Ok(instructions)
 }
 
 fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
@@ -305,7 +365,7 @@ fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
         Node::Loop { content } => Ok(loop_to_asm(content)?),
         Node::WhileLoop { condition, content } => Ok(while_to_asm(condition, content)?),
         Node::FunctionCall { function_name, parameters } => Ok(function_to_asm(function_name, parameters)?),
-        Node::Return => Ok(ret_to_asm()),
+        Node::Return { value } => Ok(ret_to_asm(value)?),
         _ => Err("Not implemented".to_string())
     }
 }

@@ -25,7 +25,7 @@ pub enum OperationType {
 
 pub type CodeBlock = Vec<Box<Node>>;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub enum Node {
     Identifier {
         name: String
@@ -62,8 +62,15 @@ pub enum Node {
         function_name: String,
         parameters: CodeBlock,  // A list of identifiers or literals
     },
-    #[default]
-    Return,
+    Return {
+        value: Option<String>
+    },
+}
+
+impl Default for Node {
+    fn default() -> Self {
+        Node::Litteral { value: 0 }
+    }
 }
 
 fn new_id_or_litteral(token: Token) -> Result<Node, String> {
@@ -121,8 +128,8 @@ fn new_comp_operator(operator: String, lparam: Box<Node>, rparam: Box<Node>) -> 
     })
 }
 
-fn new_return() -> Node {
-    Node::Return
+fn new_return(value: Option<String>) -> Node {
+    Node::Return { value }
 }
 
 fn new_loop(stream: &mut TokenStream) -> Result<Node, String> {
@@ -223,23 +230,51 @@ fn parse_assignment(stream: &mut TokenStream) -> Result<Node, String> {
 
     ensure_next_token(&mut assignment_stuff, TokenType::OP, Some("=".to_string()))?;
 
-    let rparam = match assignment_stuff.len() {
-        1 => {
-            match assignment_stuff.pop_front() {
-                Some(token) => new_id_or_litteral(token)?,
-                None => return Err("Expected token after assignment operation".to_string())
-            }
-        },
-        3 => {
-            parse_triop(&mut assignment_stuff)?
-        },
-        t => return Err(format!("Expected one or three tokens after assignment operator but found {}", t))
+    let rparam = if assignment_stuff.iter().any(|t: &Token| match t.token_type {
+        TokenType::LPAREN | TokenType::RPAREN => true,
+        _ => false
+    }) {
+        parse_function(&mut TokenStream { tokens: assignment_stuff })?
+    } else {
+        match assignment_stuff.len() {
+            1 => {
+                match assignment_stuff.pop_front() {
+                    Some(token) => new_id_or_litteral(token)?,
+                    None => return Err("Expected token after assignment operation".to_string())
+                }
+            },
+            3 => {
+                parse_triop(&mut assignment_stuff)?
+            },
+            t => return Err(format!("Expected one or three tokens after assignment operator but found {}", t))
+        }
     };
 
     Ok(Node::Assignment {
         lparam: Box::from(lparam),
         rparam: Box::from(rparam)
     })
+}
+
+fn parse_function(stream: &mut TokenStream) -> Result<Node, String> {
+    if let Some(function_name) = stream.next() {
+        let func_id = match function_name.value {
+            Some(v) => v,
+            None => unreachable!()
+        };
+
+        if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LPAREN) {
+            return Err("Unexpected token after function name, expected (".to_string());
+        }
+
+        let mut args = stream.get_until(TokenType::RPAREN);
+        args.pop();  // Pop the RPAREN
+
+        let function_call = new_function_call(func_id, args)?;
+        Ok(function_call)
+    } else {
+        Err("Missing function name after call keyword".to_string())
+    }
 }
 
 fn parse_if(stream: &mut TokenStream) -> Result<Node, String> {
@@ -275,27 +310,16 @@ pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
                 block_tree.push(Box::from(if_block));
             }
             TokenType::KEYWORD if token.value == Some("return".to_string()) => {
-                block_tree.push(Box::from(new_return()))
+                if let Some(token) = stream.next() {
+                    match token.token_type {
+                        TokenType::ENDL => block_tree.push(Box::from(new_return(None))),
+                        TokenType::ID => block_tree.push(Box::from(new_return(token.value))),
+                        _ => continue
+                    }
+                }
             }
             TokenType::KEYWORD if token.value == Some("call".to_string()) => {
-                if let Some(function_name) = stream.next() {
-                    let func_id = match function_name.value {
-                        Some(v) => v,
-                        None => unreachable!()
-                    };
-
-                    if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LPAREN) {
-                        return Err("Unexpected token after function name, expected (".to_string());
-                    }
-
-                    let mut args = stream.get_until(TokenType::RPAREN);
-                    args.pop();  // Pop the RPAREN
-
-                    let function_call = new_function_call(func_id, args)?;
-                    block_tree.push(Box::from(function_call));
-                } else {
-                    return Err("Missing function name after call keyword".to_string())
-                }
+                block_tree.push(Box::from(parse_function(stream)?));
             }
             TokenType::KEYWORD if token.value == Some("loop".to_string()) => {
                 if let Some(t) = stream.next() {
@@ -326,5 +350,3 @@ pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
 
     Ok(block_tree)
 }
-
-
