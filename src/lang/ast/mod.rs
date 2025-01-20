@@ -48,12 +48,12 @@ impl AST {
 
         for inst in block.into_iter() {
             match &**inst {
-                Node::Identifier { name } => println!("{}ID {}", prefix, name),
-                Node::Litteral { value } => println!("{}LIT {}", prefix, value),
+                Node::Identifier { name } => writeln!(f, "{}ID {}", prefix, name)?,
+                Node::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
                 Node::Assignment { lparam, rparam } => {
                     writeln!(f, "{}Assignment", prefix)?;
-                    Self::print_block(vec![rparam], f, level+1)?;
                     Self::print_block(vec![lparam], f, level+1)?;
+                    Self::print_block(vec![rparam], f, level+1)?;
                 },
                 Node::Operation { lparam, rparam, operation } => {
                     writeln!(f, "{}Operation {:?}", prefix, operation)?;
