@@ -117,8 +117,10 @@ mod token;
 mod ast;
 mod semantic;
 mod asm;
+mod liveness;
 
 pub use token::TokenStream;
 pub use ast::{AST, node::Node};
 pub use semantic::{analyze, SemanticError};
 pub use asm::PASMProgram;
+pub use liveness::PASMProgramWithInterferenceGraph;

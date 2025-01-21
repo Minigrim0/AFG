@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use core::fmt;
+use std::collections::HashMap;
 
-use bevy::color::palettes::css::PLUM;
 
 /// Transforms the AST of a function into pseudo-asm
 use super::{ast::node::{ComparisonType, OperationType}, Node};
@@ -59,16 +59,18 @@ impl fmt::Display for PASMInstruction {
 }
 
 pub struct PASMProgram {
-    pub instructions: Vec<PASMInstruction>
+    pub functions: HashMap<String, Vec<PASMInstruction>>
 }
 
 impl fmt::Display  for PASMProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for instruction in self.instructions.iter() {
-            if instruction.is_label {
-                writeln!(f, "{} ", instruction)?;
-            } else {
-                writeln!(f, "\t{}", instruction)?;
+        for (_, function) in self.functions.iter() {
+            for instruction in function {
+                if instruction.is_label {
+                    writeln!(f, "{} ", instruction)?;
+                } else {
+                    writeln!(f, "\t{}", instruction)?;
+                }
             }
         }
         Ok(())
@@ -372,10 +374,10 @@ fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
 
 impl PASMProgram {
     pub fn parse(ast: super::AST) -> Result<Self, String> {
-        let mut instructions = vec![];
+        let mut functions = HashMap::new();
 
         for (function_name, fun) in ast.functions {
-            instructions.push(PASMInstruction::new_label(format!("function_{}_label", function_name)));
+            let mut instructions = vec![PASMInstruction::new_label(format!("function_{}_label", function_name))];
 
             for argument in fun.parameters {
                 instructions.push(PASMInstruction::new("pop".to_string(), vec![OperandType::Identifier { name: argument }]));
@@ -384,8 +386,10 @@ impl PASMProgram {
             for inst in fun.content {
                 instructions.extend(inst_to_pasm(&inst)?);
             }
+
+            functions.insert(function_name, instructions);
         }
 
-        Ok(PASMProgram { instructions })
+        Ok(PASMProgram { functions })
     }
 }

@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::fs;
 
-use AFG::lang::{analyze, PASMProgram, SemanticError, TokenStream, AST};
+use AFG::lang::{analyze, PASMProgram, PASMProgramWithInterferenceGraph, SemanticError, TokenStream, AST};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -41,6 +41,8 @@ fn main() -> Result<(), String> {
         let pasm_output = args.input.clone() + ".pasm";
         fs::write(&pasm_output, format!("{}", pasm)).map_err(|e| e.to_string())?;
     }
+
+    let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 fn abs(value) {
     if value < 0 {
-        set new_value = 0 - value;
+        set value = 0 - value;
     }
     return value;
 }
