@@ -47,7 +47,9 @@ impl fmt::Display for PASMInstruction {
             write!(f, "{}", self.opcode)?;
             for operand in self.operands.iter() {
                 match operand {
-                    OperandType::Identifier { name } => write!(f, " {}", name)?,
+                    OperandType::Identifier { name } =>
+                        if name.starts_with("$") || name.starts_with("'") { write!(f, " {}", name)? }
+                        else { write!(f, " @{}", name)? },
                     OperandType::Literal { value } => write!(f, " #{}", value)?,
                 }
             }
@@ -97,16 +99,6 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             let temp = create_temp_variable_name("arp");
             let mut instructions = vec![];
 
-            match &**lparam {
-                Node::Identifier { name } => {
-                    instructions.push(PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Identifier { name: name.clone() }]))
-                },
-                Node::Litteral { value } => {
-                    instructions.push(PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Literal { value: *value }]))
-                },
-                _ => return Err("lparam of operation should be either a literal or an identifier".to_string())
-            }
-
             let operation = match operation {
                 OperationType::Addition => "add",
                 OperationType::Substraction => "sub",
@@ -115,24 +107,34 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                 OperationType::Modulo => "mod",
             };
 
-            match &**rparam {
-                Node::Identifier { name } => {
-                    instructions.push(PASMInstruction::new(format!("{}", operation), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Identifier { name: name.clone() }]))
-                },
-                Node::Litteral { value } => {
-                    instructions.push(PASMInstruction::new(format!("{}i", operation), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Literal { value: *value }]))
-                },
-                _ => return Err("lparam of operation should be either a literal or an identifier".to_string())
-            };
+            instructions.push(
+                PASMInstruction::new(
+                    "mov".to_string(),
+                    vec![
+                        OperandType::Identifier { name: temp.clone() },
+                        match &**lparam {
+                            Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
+                            Node::Litteral { value } => OperandType::Literal { value: *value },
+                            _ => return Err("lparam of operation should be either a literal or an identifier".to_string())}]));
+
+            instructions.push(
+                PASMInstruction::new(
+                    operation.to_string(),
+                    vec![
+                        OperandType::Identifier { name: temp.clone() },
+                        match &**rparam {
+                            Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
+                            Node::Litteral { value } => OperandType::Literal { value: *value },
+                            _ => return Err("lparam of operation should be either a literal or an identifier".to_string())}]));
 
             instructions.push(PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: temp.clone() }]));
             Ok(instructions)
         },
         Node::Litteral { value } => {
             if memory_operation {
-                Ok(vec![PASMInstruction::new("storei".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
+                Ok(vec![PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
             } else {
-                Ok(vec![PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
+                Ok(vec![PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Literal { value: *value }])])
             }
         },
         Node::Identifier { name } => {
@@ -140,11 +142,11 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                 if memory_operation {
                     let temp = create_temp_variable_name("memory_operation");
                     Ok(vec![
-                        PASMInstruction::new("loadi".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Identifier { name: name.to_string() } ]),
+                        PASMInstruction::new("load".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Identifier { name: name.to_string() } ]),
                         PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: temp.clone() } ])
                     ])
                 } else {
-                    Ok(vec![PASMInstruction::new("store".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: name.to_string() } ])])
+                    Ok(vec![PASMInstruction::new("load".to_string(), vec![OperandType::Identifier { name: assignee }, OperandType::Identifier { name: name.to_string() } ])])
                 }
             } else {
                 if memory_operation {
@@ -182,7 +184,7 @@ fn comparison_to_asm(lparam: &Box<Node>, rparam: &Box<Node>, comparison: &Compar
         Node::Litteral { value } => {
             let temp = create_temp_variable_name("clp");
             instructions.push(
-                PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Literal { value: *value }])
+                PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Literal { value: *value }])
             );
             temp
         },
@@ -194,7 +196,7 @@ fn comparison_to_asm(lparam: &Box<Node>, rparam: &Box<Node>, comparison: &Compar
         Node::Litteral { value } => {
             let temp = create_temp_variable_name("crp");
             instructions.push(
-                PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Literal { value: *value }])
+                PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: temp.clone() }, OperandType::Literal { value: *value }])
             );
             temp
         },
@@ -266,7 +268,7 @@ fn if_to_asm(condition: &Box<Node>, content: &Vec<Box<Node>>, exit_label: Option
         Node::Litteral { value } => {
             let temp_condition = create_temp_variable_name("cp");
             instructions.extend(vec![
-                PASMInstruction::new("movi".to_string(), vec![OperandType::Identifier { name: temp_condition.clone() }, OperandType::Literal { value: *value }]),
+                PASMInstruction::new("mov".to_string(), vec![OperandType::Identifier { name: temp_condition.clone() }, OperandType::Literal { value: *value }]),
                 PASMInstruction::new("cmp".to_string(), vec![OperandType::Identifier { name: temp_condition.clone() }, OperandType::Literal { value: 0 }]),
                 PASMInstruction::new("jz".to_string(), vec![OperandType::Identifier { name: next_block_label.clone() }])
             ])
@@ -323,15 +325,13 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
     let mut instructions = vec![];
 
     for node in parameters.iter().rev() {
-        match &**node {
-            Node::Identifier { name } =>  instructions.push(
-                PASMInstruction::new("push".to_string(), vec![OperandType::Identifier { name: name.clone() }])
-            ),
-            Node::Litteral { value } => instructions.push(
-                PASMInstruction::new("pushi".to_string(), vec![OperandType::Literal { value: *value }])
-            ),
-            _ => return Err("Invalid value in function call, only identifiers and literals are allowed".to_string())
-        }
+        instructions.push(
+            PASMInstruction::new("push".to_string(), vec![
+                match &**node {
+                    Node::Identifier { name } =>  OperandType::Identifier { name: name.clone() },
+                    Node::Litteral { value } => OperandType::Literal { value: *value },
+                    _ => return Err("Invalid value in function call, only identifiers and literals are allowed".to_string())
+                }]))
     }
 
     instructions.push(

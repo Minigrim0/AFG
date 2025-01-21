@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::fs;
 
-use csai::lang::{analyze, PASMProgram, SemanticError, TokenStream, AST};
+use AFG::lang::{analyze, PASMProgram, SemanticError, TokenStream, AST};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
