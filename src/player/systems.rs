@@ -33,7 +33,7 @@ pub fn setup(
             (0.0, 0.0)
         };
 
-        let player_program: Handle<Program> = asset_server.load("programs/turn.csasm");
+        let player_program: Handle<Program> = asset_server.load("programs/turn.asmfg");
 
         // Spawn the player entity with all its components
         commands.spawn(PlayerBundle {

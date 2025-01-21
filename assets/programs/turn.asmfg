@@ -1,25 +1,24 @@
 ; Registers are prefixed with "'", Special Variable with "$" and litterals with "#"
-movi 'GPA $VelocityY
-storei 'GPA #500
+mov 'GPA $VelocityY
+store 'GPA #500
 ; Have we hit something ?
-loadi 'GPC $Ray3Type
-cmpi 'GPC #0
+load 'GPC $Ray3Type
+cmp 'GPC #0
 jz #-2
 ; Yes
-loadi 'GPB $Ray3Dist
-subi 'GPB #1000
+load 'GPB $Ray3Dist
+sub 'GPB #1000
 ; Jumps do not take comments into account
 jn #2
 ; Not negative continue checking
 jmp #-5
-storei 'GPA #0
-movi 'GPA $Moment
-loadi 'GPC $Rotation
-storei 'GPA #-10
-loadi 'GPB $Rotation
+store 'GPA #0
+mov 'GPA $Moment
+load 'GPC $Rotation
+store 'GPA #-100
+load 'GPB $Rotation
 sub 'GPB 'GPC
-CMPI 'GPB #-90
-JN #2
-jmp #-4
-storei 'GPA #0
-jmp #-19
+CMP 'GPB #-90
+JP #-3
+store 'GPA #0
+jmp #-18

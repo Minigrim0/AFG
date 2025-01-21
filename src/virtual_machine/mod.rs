@@ -6,6 +6,15 @@ pub mod assets;
 #[cfg(test)]
 mod tests;
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OperandType {
+    Literal { value: i32 },
+    Register { idx: i32 },
+    #[default]
+    None,
+}
+
 pub fn get_special_variables() -> Vec<String> {
     vec![
         "$PositionX".to_string(),
@@ -72,21 +81,13 @@ pub enum Registers {
 pub enum Instructions {
     NOP,    // No operation
     MOV,    // r<op1> = #r<op2>
-    MOVI,   // r<op1> = #<op2>
     STORE,  // [#r<op1>] = #r<op2>
-    STOREI, // [#r<op1>] = #<op2>
     LOAD,   // r<op1> = [#r<op2>]
-    LOADI,  // r<op1> = [#<op2>]
     ADD,    // r<op1> = #r<op1> + #r<op2>
-    ADDI,   // r<op1> = #r<op1> + #<op2>
     SUB,    // Subs into <Register <operand 1>> <Register <operand 2>>
-    SUBI,   // Subs into <Register <operand 1>> #<operand 2>
     MUL,    // Mul into <Register <operand 1>> <Register <operand 2>>
-    MULI,   // Mul into <Register <operand 1>> #<operand 2>
     DIV,    // r<op1> = #<r<op1>> / #<r<op2>>
-    DIVI,   // r<op1> = #<r<op1>> / #<op2>
     CMP,    // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
-    CMPI,    // Performs a comparison by subbing its register operands with an immediate value, without saving the result, just changing the flags
     JMP,    // Unconditional jump to instruction #<op1>
     JZ,     // Jump if previous operation resulted in 0
     JNZ,    // Jump if previous operation was not 0

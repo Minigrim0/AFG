@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use super::assets::Program;
-use super::{Instructions, MachineStatus, MemoryMappedProperties, Registers};
+use super::{Instructions, MachineStatus, MemoryMappedProperties, Registers, OperandType};
 
 enum Flags {
     ZeroFlag     = 0b00000001,
@@ -16,9 +16,9 @@ enum Flags {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Instruction {
-    pub opcode: Instructions,   // 1 byte
-    pub operand_1: i32,         // 4 bytes
-    pub operand_2: Option<i32>, // 4 bytes
+    pub opcode: Instructions,
+    pub operand_1: OperandType,
+    pub operand_2: OperandType,
 }
 
 #[derive(Component)]
@@ -114,24 +114,9 @@ impl VirtualMachine {
         }
     }
 
-    fn check_valid_value<T>(&mut self, val: T, check: Box<dyn Fn(&T) -> (bool, String)>) -> Result<T, ()>
-        where T: Display {
-        if let (false, err) = check(&val) {
-            println!("ERR: {}", format!("{}: {}", err, val));
-            self.status = MachineStatus::Dead;
-            Err(())
-        } else {
-            Ok(val)
-        }
-    }
-
-    fn check_some_valid_value<T>(&mut self, val: Option<T>, check: Box<dyn Fn(&T) -> (bool, String)>) -> Result<T, ()>
-        where T: Display {
-        if let Some(val) = val {
-            self.check_valid_value(val, check)
-        } else {
-            Err(())
-        }
+    fn invalid_instruction<S: AsRef<str>>(&mut self, msg: S) {
+        println!("FATAL: {}", msg.as_ref());
+        self.status = MachineStatus::Dead;
     }
 
     fn update_flags(flags: u8, value: i32) -> u8 {
@@ -157,7 +142,6 @@ impl VirtualMachine {
         let instructions = if let Some(program) = programs.get(&self.program_handle) {
             &program.instructions
         } else {
-            println!("Unable to find program");
             // self.invalid_instruction("Could not find program");
             return false;
         };
@@ -168,171 +152,170 @@ impl VirtualMachine {
 
         match instruction.opcode {
             Instructions::MOV => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
-                ) {
-                    println!("MOV <{}>, <{}>", op1, op2);
-                    self.registers[op1 as usize] = self.registers[op2 as usize];
+                println!("mov {:?} {:?}", instruction.operand_1, instruction.operand_2);
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    match instruction.operand_2 {
+                        OperandType::Register { idx: op2 } => self.registers[op1 as usize] = self.registers[op2 as usize],
+                        OperandType::Literal { value: op2 } => self.registers[op1 as usize] = op2,
+                        OperandType::None => self.invalid_instruction("Missing second operand for mov instruction"),
+                    }
                 } else {
-                    return false;
-                }
-            }
-            Instructions::MOVI => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
-                ) {
-                    println!("MOVI <{}>, ${}", op1, op2);
-                    self.registers[op1 as usize] = op2;
-                } else {
-                    return false;
+                    self.invalid_instruction("Missing first operand for mov instruction");
                 }
             }
             Instructions::STORE => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
-                ) {
-                    println!("STORE [<{}>], <{}>", op1, op2);
-                    self.memory[self.registers[op1 as usize] as usize] =
-                        self.registers[op2 as usize];
-                } else {
-                    return false;
-                }
-            }
-            Instructions::STOREI => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
-                ) {
-                    println!("STOREI [<{}>], ${}", op1, op2);
-                    self.memory[self.registers[op1 as usize] as usize] = op2;
-                } else {
-                    return false;
+                let to_store = match instruction.operand_2 {
+                    OperandType::Register { idx: op2 } => self.registers[op2 as usize],
+                    OperandType::Literal { value: op2 } => op2,
+                    OperandType::None => { self.invalid_instruction("Missing second operand for store instruction"); return false },
+                };
+
+                match instruction.operand_1 {
+                    OperandType::Register { idx: op1 } => self.memory[self.registers[op1 as usize] as usize] = to_store,
+                    OperandType::Literal { value: op1 } => self.memory[op1 as usize] = to_store,
+                    OperandType::None => { self.invalid_instruction("Missing first operand for store instruction"); return false},
                 }
             }
             Instructions::LOAD => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
-                ) {
-                    println!("LOAD <{}>, [<{}>]", op1, op2);
-                    self.registers[op1 as usize] = self.memory[self.registers[op2 as usize] as usize];
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    match instruction.operand_2 {
+                        OperandType::Register { idx: op2 } => self.registers[op1 as usize] = self.memory[self.registers[op2 as usize] as usize],
+                        OperandType::Literal { value: op2 } => self.registers[op1 as usize] = self.memory[op2 as usize],
+                        OperandType::None => self.invalid_instruction("Missing second operand for store instruction"),
+                    }
                 } else {
-                    return false;
-                }
-            }
-            Instructions::LOADI => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_memory_address())
-                ) {
-                    println!("LOADI <{}>, [#{}]", op1, op2);
-                    self.registers[op1 as usize] = self.memory[op2 as usize];
-                } else {
-                    return false;
+                    self.invalid_instruction("Missing first operand for store instruction");
                 }
             }
             Instructions::ADD => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
-                ) {
-                    println!("ADD <{}>, <{}>", op1, op2);
-                    self.registers[op1 as usize] += self.registers[op2 as usize];
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    match instruction.operand_2 {
+                        OperandType::Register { idx: op2 } => self.registers[op1 as usize] += self.registers[op2 as usize],
+                        OperandType::Literal { value: op2 } => self.registers[op1 as usize] += op2,
+                        OperandType::None => {self.invalid_instruction("Missing second operand for add instruction"); return false},
+                    }
+                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
                 } else {
-                    return false;
-                }
-            }
-            Instructions::ADDI => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
-                ) {
-                    println!("ADDI <{}>, #{}", op1, op2);
-                    self.registers[op1 as usize] += op2;
-                } else {
+                    self.invalid_instruction("Missing first operand for add instruction");
                     return false;
                 }
             }
             Instructions::SUB => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
-                ) {
-                    print!("SUB <{}>, <{}>", op1, op2);
-                    self.registers[op1 as usize] -= self.registers[op2 as usize];
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    match instruction.operand_2 {
+                        OperandType::Register { idx: op2 } => self.registers[op1 as usize] -= self.registers[op2 as usize],
+                        OperandType::Literal { value: op2 } => self.registers[op1 as usize] -= op2,
+                        OperandType::None => {self.invalid_instruction("Missing second operand for sub instruction"); return false},
+                    }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
-                    println!("flags: {:8b}", next_flags);
                 } else {
+                    self.invalid_instruction("Missing first operand for sub instruction");
                     return false;
                 }
             }
-            Instructions::SUBI => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh oh unexpected".to_string())))
-                ) {
-                    print!("SUBI <{}>, #{}", op1, op2);
-                    self.registers[op1 as usize] -= op2;
+            Instructions::MUL => {
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    match instruction.operand_2 {
+                        OperandType::Register { idx: op2 } => self.registers[op1 as usize] *= self.registers[op2 as usize],
+                        OperandType::Literal { value: op2 } => self.registers[op1 as usize] *= op2,
+                        OperandType::None => {self.invalid_instruction("Missing second operand for mul instruction"); return false},
+                    }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
-                    println!("flags: {:8b}", next_flags);
                 } else {
+                    self.invalid_instruction("Missing first operand for mul instruction");
                     return false;
                 }
             }
-            Instructions::MUL => {}
-            Instructions::MULI => {}
-            Instructions::DIV => {}
-            Instructions::DIVI => {}
+            Instructions::DIV => {
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                        match instruction.operand_2 {
+                            OperandType::Register { idx: op2 } => self.registers[op1 as usize] /= self.registers[op2 as usize],
+                            OperandType::Literal { value: op2 } => self.registers[op1 as usize] /= op2,
+                            OperandType::None => {self.invalid_instruction("Missing second operand for div instruction"); return false},
+                        }
+                        next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
+                    } else {
+                        self.invalid_instruction("Missing first operand for div instruction");
+                        return false;
+                    }
+            }
             Instructions::CMP => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, self.is_valid_register())
-                ) {
-                    print!("CMP <{}>, <{}>", op1, op2);
-                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize] - self.registers[op2 as usize]);
-                    println!("flags: {:8b}", next_flags);
-                }
-            }
-            Instructions::CMPI => {
-                if let (Ok(op1), Ok(op2)) = (
-                    self.check_valid_value(instruction.operand_1, self.is_valid_register()),
-                    self.check_some_valid_value(instruction.operand_2, Box::from(|_: &i32| (true, "Uh Oh unexpected".to_string())))
-                ) {
-                    print!("CMPI <{}>, #{}", op1, op2);
-                    next_flags = Self::update_flags(next_flags, self.registers[op1 as usize] - op2);
-                    println!("flags: {:8b}", next_flags);
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    match instruction.operand_2 {
+                        OperandType::Register { idx: op2 } => next_flags = Self::update_flags(next_flags, self.registers[op1 as usize] - self.registers[op2 as usize]),
+                        OperandType::Literal { value: op2 } => next_flags = Self::update_flags(next_flags, self.registers[op1 as usize] - op2),
+                        OperandType::None => {self.invalid_instruction("Missing second operand for sub instruction"); return false},
+                    }
+                } else {
+                    self.invalid_instruction("Missing first operand for sub instruction");
+                    return false;
                 }
             }
             Instructions::JMP => {
-                println!("JMP {}", instruction.operand_1);
-                next_jump = instruction.operand_1;
+                next_jump = match instruction.operand_1 {
+                    OperandType::Register { idx: op1 } => self.registers[op1 as usize],
+                    OperandType::Literal { value: op1 } => op1,
+                    OperandType::None => { self.invalid_instruction("Missing first operand for store instruction"); return false},
+                };
             }
             Instructions::JZ => {
                 if self.check_flag(Flags::ZeroFlag) {
-                    println!("JZ {}", instruction.operand_1);
-                    next_jump = instruction.operand_1;
+                    next_jump = match instruction.operand_1 {
+                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
+                        OperandType::Literal { value: op1 } => op1,
+                        OperandType::None => { self.invalid_instruction("Missing first operand for store instruction"); return false},
+                    };
                 }
             }
-            Instructions::JNZ => {}
+            Instructions::JNZ => {
+                if !self.check_flag(Flags::ZeroFlag) {
+                    next_jump = match instruction.operand_1 {
+                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
+                        OperandType::Literal { value: op1 } => op1,
+                        OperandType::None => { self.invalid_instruction("Missing first operand for store instruction"); return false},
+                    };
+                }
+            }
             Instructions::JN => {
                 if self.check_flag(Flags::NegativeFlag) {
-                    println!("JN {}", instruction.operand_1);
-                    next_jump = instruction.operand_1;
+                    next_jump = match instruction.operand_1 {
+                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
+                        OperandType::Literal { value: op1 } => op1,
+                        OperandType::None => { self.invalid_instruction("Missing first operand for store instruction"); return false},
+                    };
                 }
             }
             Instructions::JP => {
-                if self.check_flag(Flags::NegativeFlag) {
-                    println!("JN {}", instruction.operand_1);
-                    next_jump = instruction.operand_1;
+                if self.check_flag(Flags::PositiveFlag) {
+                    next_jump = match instruction.operand_1 {
+                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
+                        OperandType::Literal { value: op1 } => op1,
+                        OperandType::None => { self.invalid_instruction("Missing first operand for store instruction"); return false},
+                    };
                 }
             }
             Instructions::CALL => {}  // TODO: Implement context switching for function calls
-            Instructions::RET => {}
-            Instructions::POP => {}
-            Instructions::PUSH => {}
+            Instructions::RET => {
+                next_jump = self.registers[Registers::PC as usize] - self.registers[Registers::FRP as usize];
+            }
+            Instructions::POP => {
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    self.registers[op1 as usize] = self.stack.pop().unwrap_or(0);
+                } else if let OperandType::None = instruction.operand_1 {
+                    // Just pop into void
+                    self.stack.pop();
+                } else {
+                    self.invalid_instruction("Can't pop the stack into a literal");
+                    return false;
+                }
+            }
+            Instructions::PUSH => {
+                match instruction.operand_1 {
+                    OperandType::Register { idx: op1 } => self.stack.push(self.registers[op1 as usize]),
+                    OperandType::Literal { value: op1 } => self.stack.push(op1),
+                    OperandType::None => { self.invalid_instruction("Missing operand for push instruction"); return false; }
+                }
+            }
             Instructions::NOP => {}
         }
 

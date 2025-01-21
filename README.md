@@ -42,7 +42,7 @@ To program the bots, you can use either the assembly-like language `asmfg` or th
 ### asmfg
 This is an assembly language for the AFG virtual machine. The machine consists of;
 * A stack, used for function calls or for saving various data.
-* 4 general purpose registers
+* 4 general purpose registers (`GPA`, `GPB`, `GPC`, `GPD`)
 * The `FRP` register, which holds the data returns from function calls
 * `PC` the program counter
 * `RP` the return pointer, set by the machine upon `call` invocations, for the function to know where to return to
@@ -57,22 +57,22 @@ This is an assembly language for the AFG virtual machine. The machine consists o
 | Instruction | operand 1 | operand 2 | Description |
 |-------------|-----------|-----------|-------------|
 | `mov`       | reg       | reg/imm   | Moves data from one register or an immediate value to a register. |
+| `store`     | reg/imm   | reg/imm   | stores value of op2 into memory address op1 |
+| `load`      | reg       | reg/imm   | loads address of op1 into register op1 |
 | `add`       | reg       | reg/imm   | Adds op2 to op1 in place |
 | `sub`       | reg       | reg/imm   | Subtracts op2 from op1 in place |
 | `mul`       | reg       | reg/imm   | Multiplies op1 with op2 in place |
 | `div`       | reg       | reg/imm   | Divides op1 by op2 in place |
-| `load`      | reg       | reg/imm   | loads address of op1 into register op1 |
-| `store`     | reg/imm   | reg/imm   | stores value of op2 into memory address op1 |
-| `push`      | reg/imm   |     /     | Pushes the value of op1 onto the stack. |
-| `pop`       | reg       |     /     | Pops a value from the stack into op1. |
-| `call`      | imm       |     /     | Calls the function at the given offset |
-| `ret`       |     /     |     /     | Returns from a function call using the address in the `RP` register. |
-| `jmp`       | reg/imm   |     /     | Jumps of the operand's offset |
 | `cmp`       | reg       | reg/imm   | sub op2 from op1 and changes machine's flags accordingly |
+| `jmp`       | reg/imm   |     /     | Jumps of the operand's offset |
 | `jz`        | reg/imm   |     /     | Jumps of the operand's offset if the zero flag is set |
 | `jnz`       | reg/imm   |     /     | Jumps of the operand's offset if the zero flag is not set |
 | `jn`        | reg/imm   |     /     | Jumps of the operand's offset if the negtive flag is set |
 | `jp`        | reg/imm   |     /     | Jumps of the operand's offset if the positive flag is set |
+| `push`      | reg/imm   |     /     | Pushes the value of op1 onto the stack. |
+| `pop`       | reg       |     /     | Pops a value from the stack into op1. |
+| `call`      | imm       |     /     | Calls the function at the given offset |
+| `ret`       |     /     |     /     | Returns from a function call using the address in the `RP` register. |
 
 ### afg
 Details about the programming language `afg` and its compilation process to `asmfg` will be provided here.
