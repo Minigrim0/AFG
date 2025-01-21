@@ -1,5 +1,6 @@
 [package]
-name = "csai"
+name = "AFG"
+description = "Automated Fighting Game"
 version = "0.1.0"
 edition = "2021"
 
