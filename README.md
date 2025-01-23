@@ -77,6 +77,8 @@ This is an assembly language for the AFG virtual machine. The machine consists o
 ### afg
 Details about the programming language `afg` and its compilation process to `asmfg` will be provided here.
 
+Details on the compiler are provided in the [COMPILER](./COMPILER.md) file.
+
 ## Bot Sensors
 Information about the different sensors available to bots and how they can be used to gather information about the game environment will be provided here.
 
