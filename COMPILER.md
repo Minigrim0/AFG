@@ -9,7 +9,8 @@ This is a simple compiler, that translates the AFG language into ASMFG, a pseudo
 5. Basic block identification
 6. Live variable analysis
 7. Register allocation
-8. Final assembly generation
+8. Address resolution
+9. Final assembly generation
 
 ## Tokenization
 The tokenization is done using a simple lexer, that reads the input file, splits it into possible tokens by splitting at the following characters: ` (){}\n;`.
@@ -112,12 +113,40 @@ Return
 ```
 
 ## Semantic Analysis
-WIP
+Verifying semantic correctness is done by checking the following:
+* Variables are declared before use
+* No assignment to a litteral
+
+Since variables are scoped function-wise, the compiler will not check for variable scoping. This means that a variable declared in a loop will be accessible outside of the loop.
 
 ## Pseudo-assembly generation
-WIP
+This step produces pseudo assembly code. This is pseudo-code in the sense that it uses labels and named variables, which are not allowed in the final assembly code.
+
+Our `abs` function would look like this:
+
+```
+function_abs_label:
+	pop @value
+	mov @temp_crp_1 #0
+	cmp @temp_crp_1 @value
+	jn @temp_if_exit_0
+	mov @temp_arp_2 #0
+	sub @temp_arp_2 @value
+	mov @value @temp_arp_2
+temp_if_exit_0:
+	mov 'FRP @value
+	ret
+```
+
+> As in the `asmfg` language, literals are prefixed with `#`, registers with `'` and memory addresses with `$`. The `FRP` register is used to store the return value of the function.
+> The `@` prefix is used to indicate a temporary variable or a label to jump to. Whether it is a temporary variable or a label is determined by the context.
 
 ## Basic block identification
 
+The next step is to isolate basic blocks. A basic block is a sequence of instructions that has a single entry point and a single exit point. This is done by identifying the jump instructions and the labels they point to.
+This step is crucial for the next step as is allows to identify the live variables in each basic block, which is necessary for register allocation.
+
 ![example function graph for the abs() function](./.github/function_basic_blocks_graph.png)
 The basic blocks graph for the `abs` function.
+
+## Live variable analysis
