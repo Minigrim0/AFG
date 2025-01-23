@@ -20,15 +20,15 @@ Here are the possible tokens:
 
 | Token | Value | Description |
 |-------|-------|-------------|
-| `KEYWORD` | "fn" \| "while" \| "set" \| "if" \| "return" \| "loop" \| "call" | A reserved keyword, indicating a specific code action |
-| `OP` | "+" \| "-" \| "*" \| "/" \| "%" \| "<" \| "<=" \| "==" \| "!=" \| "=" \| ">=" \| ">" | An operator, used for arithmetic or comparison |
+| `KEYWORD` | `fn`, `while`, `set`, `if`, `return`, `loop`, `call` | A reserved keyword, indicating a specific code action |
+| `OP` | `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `==`, `!=`, `=`, `>=`, `>` | An operator, used for arithmetic or comparison |
 | `LPAREN` | / | Opening parenthesis |
 | `RPAREN` | / | Closing parenthesis |
 | `LBRACE` | / | Opening brace |
 | `RBRACE` | / | Closing brace |
 | `Comment` | / | A comment, starting with `//` |
 | `ENDL` | / | A newline (indicated by either `;` or `\n`) |
-| `ID` | / | An identifier, used for variable names. This consists of every other matches except whitespace which are ignored |
+| `ID` | A string that represents the name of the variable | An identifier, used for variable names. This consists of every other matches except whitespace which are ignored |
 
 Given the following code:
 ```
