@@ -225,17 +225,17 @@ fn comparison_to_asm(lparam: &Box<Node>, rparam: &Box<Node>, comparison: &Compar
             ])
         },
         ComparisonType::GT => {
+            // Invert operation to only require one jump !
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![OperandType::Identifier { name: lparam_name.clone() }, OperandType::Identifier { name: rparam_name.clone() }]),
-                PASMInstruction::new("jn".to_string(), vec![OperandType::Identifier { name: jmp_to.clone() }]),  // If not zero jump to next block's label
-                PASMInstruction::new("jz".to_string(), vec![OperandType::Identifier { name: jmp_to.clone() }]),  // If not zero jump to next block's label
+                PASMInstruction::new("cmp".to_string(), vec![OperandType::Identifier { name: rparam_name.clone() }, OperandType::Identifier { name: lparam_name.clone() }]),
+                PASMInstruction::new("jp".to_string(), vec![OperandType::Identifier { name: jmp_to.clone() }]),  // If not zero jump to next block's label
             ])
         },
         ComparisonType::LT => {
+            // Invert operation to only require one jump !
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![OperandType::Identifier { name: lparam_name.clone() }, OperandType::Identifier { name: rparam_name.clone() }]),
-                PASMInstruction::new("jz".to_string(), vec![OperandType::Identifier { name: jmp_to.clone() }]),  // If not zero jump to next block's label
-                PASMInstruction::new("jp".to_string(), vec![OperandType::Identifier { name: jmp_to.clone() }]),  // If not zero jump to next block's label
+                PASMInstruction::new("cmp".to_string(), vec![OperandType::Identifier { name: rparam_name.clone() }, OperandType::Identifier { name: lparam_name.clone() }]),
+                PASMInstruction::new("jn".to_string(), vec![OperandType::Identifier { name: jmp_to.clone() }]),  // If not zero jump to next block's label
             ])
         },
         ComparisonType::LE => {
