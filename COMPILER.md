@@ -20,7 +20,7 @@ Here are the possible tokens:
 
 | Token | Value | Description |
 |-------|-------|-------------|
-| `KEYWORD` | "fn" \| "while" \| "set" \| "if" \| "else" \| "return" \| "loop" \| "call" | A reserved keyword, indicating a specific code action |
+| `KEYWORD` | "fn" \| "while" \| "set" \| "if" \| "return" \| "loop" \| "call" | A reserved keyword, indicating a specific code action |
 | `OP` | "+" \| "-" \| "*" \| "/" \| "%" \| "<" \| "<=" \| "==" \| "!=" \| "=" \| ">=" \| ">" | An operator, used for arithmetic or comparison |
 | `LPAREN` | / | Opening parenthesis |
 | `RPAREN` | / | Closing parenthesis |
