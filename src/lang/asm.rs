@@ -41,6 +41,38 @@ impl PASMInstruction {
             operands,
         }
     }
+
+    pub fn get_live_and_dead(&self) -> (Vec<String>, Vec<String>) {
+        let mut operand_0 = if let Some(OperandType::Identifier { name }) = self.operands.get(0)
+        {
+            if !name.starts_with("$") && !name.starts_with("'") {
+                vec![name.clone()]
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        };
+
+        let operand_1 = if let Some(OperandType::Identifier { name }) = self.operands.get(1) {
+            if !name.starts_with("$") && !name.starts_with("'") {
+                vec![name.clone()]
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        };
+
+        match self.opcode.as_str() {
+            "load" | "pop" | "mov" => (operand_1, operand_0),
+            "add" | "sub" | "mul" | "div" | "mod" | "cmp" | "store" | "push" => {
+                operand_0.extend(operand_1);
+                (operand_0, vec![])
+            }
+            _ => (vec![], vec![]),
+        }
+    }
 }
 
 impl fmt::Debug for PASMInstruction {

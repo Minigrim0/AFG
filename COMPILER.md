@@ -150,3 +150,8 @@ This step is crucial for the next step as is allows to identify the live variabl
 The basic blocks graph for the `abs` function.
 
 ## Live variable analysis
+In order to determine which variables are live during the program's execution, we need to build a liveness tree.
+This tree will associate each instruction with an `undead-out` set, i.e. a set of variable we now are live after this instruction.
+For example, the instruction `mov @var_a @var_b` will imply that before this instruction (the previous instruction's undead-out) var_b is live and var_a is not (or at least maybe not).
+
+To do this, we need to iterate in reverse order over the instructions in each block.
