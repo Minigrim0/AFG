@@ -1,7 +1,11 @@
 use clap::Parser;
+use std::collections::HashMap;
 use std::fs;
 
-use AFG::lang::{analyze, PASMProgram, PASMProgramWithInterferenceGraph, SemanticError, TokenStream, AST};
+use AFG::lang::{
+    allocate, analyze, PASMInstruction, PASMProgram, PASMProgramWithInterferenceGraph,
+    SemanticError, TokenStream, AST,
+};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -12,6 +16,12 @@ struct Args {
     output: Option<String>,
     #[arg(short, long, help = "Save intermediate files")]
     save_intermediate: bool,
+    #[arg(
+        short,
+        long,
+        help = "Tries to allocate registers and keep track of variable liveness"
+    )]
+    register_allocation: bool,
 }
 
 fn main() -> Result<(), String> {
@@ -42,7 +52,27 @@ fn main() -> Result<(), String> {
         fs::write(&pasm_output, format!("{}", pasm)).map_err(|e| e.to_string())?;
     }
 
-    let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
+    let allocated_program = if args.register_allocation {
+        return Err("Not implemented for this compiler's version".to_string());
+        // let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
+    } else {
+        PASMProgram {
+            functions: pasm
+                .functions
+                .iter()
+                .map(
+                    |(function_name, function)| -> Result<(String, Vec<PASMInstruction>), String> {
+                        Ok((function_name.clone(), allocate(function)?))
+                    },
+                )
+                .collect::<Result<HashMap<String, Vec<PASMInstruction>>, String>>()?,
+        }
+    };
+
+    if args.save_intermediate {
+        let pasm_output = args.input.clone() + ".pasm_allocated";
+        fs::write(&pasm_output, format!("{}", allocated_program)).map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }

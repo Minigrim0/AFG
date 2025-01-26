@@ -112,15 +112,16 @@
 ///
 /// By defining these stages, this module ensures a structured approach to compiling AFG into AsmFG, making the process
 /// extensible and maintainable.
-
-mod token;
-mod ast;
-mod semantic;
+mod allocation;
 mod asm;
+mod ast;
 mod liveness;
+mod semantic;
+mod token;
 
-pub use token::TokenStream;
-pub use ast::{AST, node::Node};
-pub use semantic::{analyze, SemanticError};
-pub use asm::PASMProgram;
+pub use allocation::allocate;
+pub use asm::{PASMInstruction, PASMProgram};
+pub use ast::{node::Node, AST};
 pub use liveness::PASMProgramWithInterferenceGraph;
+pub use semantic::{analyze, SemanticError};
+pub use token::TokenStream;
