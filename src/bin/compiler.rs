@@ -56,13 +56,16 @@ fn main() -> Result<(), String> {
         return Err("Not implemented for this compiler's version".to_string());
         // let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
     } else {
+        let mut memory_top_pointer = 0;
         PASMProgram {
             functions: pasm
                 .functions
                 .iter()
                 .map(
                     |(function_name, function)| -> Result<(String, Vec<PASMInstruction>), String> {
-                        Ok((function_name.clone(), allocate(function)?))
+                        let res = allocate(function, memory_top_pointer)?;
+                        memory_top_pointer = res.1;
+                        Ok((function_name.clone(), res.0))
                     },
                 )
                 .collect::<Result<HashMap<String, Vec<PASMInstruction>>, String>>()?,
@@ -73,6 +76,8 @@ fn main() -> Result<(), String> {
         let pasm_output = args.input.clone() + ".pasm_allocated";
         fs::write(&pasm_output, format!("{}", allocated_program)).map_err(|e| e.to_string())?;
     }
+
+    // Final step; resolve labels and write to output file
 
     Ok(())
 }

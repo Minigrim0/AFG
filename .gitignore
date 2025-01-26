@@ -4,3 +4,4 @@
 *.tokens
 *.ast
 *.pasm
+*.pasm_allocated
