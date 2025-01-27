@@ -115,6 +115,7 @@
 mod allocation;
 mod asm;
 mod ast;
+mod labels;
 mod liveness;
 mod semantic;
 mod token;
@@ -122,6 +123,7 @@ mod token;
 pub use allocation::allocate;
 pub use asm::{PASMInstruction, PASMProgram};
 pub use ast::{node::Node, AST};
+pub use labels::resolve_labels;
 pub use liveness::PASMProgramWithInterferenceGraph;
 pub use semantic::{analyze, SemanticError};
 pub use token::TokenStream;

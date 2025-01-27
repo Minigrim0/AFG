@@ -17,22 +17,24 @@ pub enum TokenType {
 #[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
-    pub value:  Option<String>,
+    pub value: Option<String>,
 }
 
 impl Token {
     pub fn new(token_type: TokenType, value: Option<String>) -> Self {
-        Self {
-            token_type,
-            value
-        }
+        Self { token_type, value }
     }
 
     pub fn is_literal(&self) -> bool {
         if self.token_type != TokenType::ID {
             return false;
         }
-        self.value.is_some() && self.value.as_ref().and_then(|v| Some(v.parse::<i32>().is_ok())) == Some(true)
+        self.value.is_some()
+            && self
+                .value
+                .as_ref()
+                .and_then(|v| Some(v.parse::<i32>().is_ok()))
+                == Some(true)
     }
 }
 
@@ -59,22 +61,22 @@ impl fmt::Display for Token {
 }
 
 pub struct TokenStream {
-    pub tokens: VecDeque<Token>
+    pub tokens: VecDeque<Token>,
 }
 
 impl TokenStream {
     pub fn from_vec(token_vec: Vec<Token>) -> Self {
         TokenStream {
-            tokens: VecDeque::from(token_vec)
+            tokens: VecDeque::from(token_vec),
         }
     }
 
     pub fn lex(text: String) -> Self {
         let mut result: Vec<&str> = Vec::new();
         let mut last = 0;
-        for (index, matched) in
-            text.match_indices(|c| c == ' ' || c == '(' || c == ')' || c == '{' || c == '}' || c == '\n' || c == ';')
-        {
+        for (index, matched) in text.match_indices(|c| {
+            c == ' ' || c == '(' || c == ')' || c == '{' || c == '}' || c == '\n' || c == ';'
+        }) {
             if last != index {
                 result.push(&text[last..index]);
             }
@@ -85,23 +87,32 @@ impl TokenStream {
             result.push(&text[last..]);
         }
 
-        let tokens = result.into_iter().filter(|t| *t != " ").filter_map(
-            |t| match t {
-                "fn" | "while" | "set" | "if" | "else" | "return" | "loop" | "call" => Some(Token::new(TokenType::KEYWORD, Some(t.to_string()))),
-                "+" | "-" | "*" | "/" | "%" | "<" | "<=" | "==" | "!=" | "=" | ">=" | ">" => Some(Token::new(TokenType::OP, Some(t.to_string()))),
+        let tokens = result
+            .into_iter()
+            .filter(|t| *t != " ")
+            .filter_map(|t| match t {
+                "fn" | "while" | "set" | "if" | "else" | "return" | "loop" | "call" | "print" => {
+                    Some(Token::new(TokenType::KEYWORD, Some(t.to_string())))
+                }
+                "+" | "-" | "*" | "/" | "%" | "<" | "<=" | "==" | "!=" | "=" | ">=" | ">" => {
+                    Some(Token::new(TokenType::OP, Some(t.to_string())))
+                }
                 "(" => Some(Token::new(TokenType::LPAREN, None)),
                 ")" => Some(Token::new(TokenType::RPAREN, None)),
                 "{" => Some(Token::new(TokenType::LBRACE, None)),
                 "}" => Some(Token::new(TokenType::RBRACE, None)),
                 "//" => Some(Token::new(TokenType::COMMENT, None)),
                 "\n" | ";" => Some(Token::new(TokenType::ENDL, None)),
-                " " => None,  // Skip whitespaces
-                t => Some(Token::new(TokenType::ID, Some(t.to_string())))
-            }
-        ).collect::<Vec<Token>>();
+                " " => None, // Skip whitespaces
+                t => Some(Token::new(
+                    TokenType::ID,
+                    Some(t.to_string().replace(",", "")),
+                )),
+            })
+            .collect::<Vec<Token>>();
 
         TokenStream {
-            tokens: VecDeque::from(tokens)
+            tokens: VecDeque::from(tokens),
         }
     }
 

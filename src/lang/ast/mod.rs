@@ -1,17 +1,17 @@
-use std::collections::HashMap;
-use std::fmt;
 use crate::lang::token::TokenType;
 use crate::lang::TokenStream;
+use std::collections::HashMap;
+use std::fmt;
 
-pub mod node;
 mod function;
+pub mod node;
 
-use function::Function;
 use crate::lang::ast::node::Node;
+use function::Function;
 
 #[derive(Debug)]
 pub struct AST {
-    pub functions: HashMap<String, Function>
+    pub functions: HashMap<String, Function>,
 }
 
 impl AST {
@@ -23,19 +23,23 @@ impl AST {
                 TokenType::KEYWORD if token.value == Some("fn".to_string()) => {
                     let function = Function::parse(tokens)?;
                     program.insert(function.name.clone(), function);
-                },
+                }
                 TokenType::ENDL => continue,
-                token_type => return Err(format!("Unexpected token {:?} {:?}", token_type, token.value))
+                token_type => {
+                    return Err(format!(
+                        "Unexpected token {:?} {:?}",
+                        token_type, token.value
+                    ))
+                }
             }
         }
 
-        Ok(Self {
-            functions: program
-        })
+        Ok(Self { functions: program })
     }
 
     fn print_block<'a, T>(block: T, f: &mut fmt::Formatter<'_>, level: i32) -> fmt::Result
-    where T: IntoIterator<Item = &'a Box<Node>>
+    where
+        T: IntoIterator<Item = &'a Box<Node>>,
     {
         let mut prefix = String::new();
         for a in 0..level {
@@ -52,43 +56,64 @@ impl AST {
                 Node::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
                 Node::Assignment { lparam, rparam } => {
                     writeln!(f, "{}Assignment", prefix)?;
-                    Self::print_block(vec![lparam], f, level+1)?;
-                    Self::print_block(vec![rparam], f, level+1)?;
-                },
-                Node::Operation { lparam, rparam, operation } => {
+                    Self::print_block(vec![lparam], f, level + 1)?;
+                    Self::print_block(vec![rparam], f, level + 1)?;
+                }
+                Node::Operation {
+                    lparam,
+                    rparam,
+                    operation,
+                } => {
                     writeln!(f, "{}Operation {:?}", prefix, operation)?;
                     Self::print_block(vec![lparam], f, level + 1)?;
                     Self::print_block(vec![rparam], f, level + 1)?;
-                },
-                Node::Comparison { lparam, rparam, comparison } => {
+                }
+                Node::Print { value } => {
+                    writeln!(f, "{}Print", prefix)?;
+                    Self::print_block(vec![value], f, level + 1)?;
+                }
+                Node::Comparison {
+                    lparam,
+                    rparam,
+                    comparison,
+                } => {
                     writeln!(f, "{}Comparison {:?}", prefix, comparison)?;
                     Self::print_block(vec![lparam], f, level + 1)?;
                     Self::print_block(vec![rparam], f, level + 1)?;
-                },
+                }
                 Node::WhileLoop { condition, content } => {
                     writeln!(f, "{}While", prefix)?;
                     Self::print_block(vec![condition], f, level + 1)?;
                     writeln!(f, "{}Do", prefix)?;
                     Self::print_block(content, f, level + 1)?;
-                },
+                }
                 Node::Loop { content } => {
                     writeln!(f, "{}Loop", prefix)?;
                     Self::print_block(content, f, level + 1)?;
-                },
+                }
                 Node::IfCondition { condition, content } => {
                     writeln!(f, "{}If", prefix)?;
                     Self::print_block(vec![condition], f, level + 1)?;
                     writeln!(f, "{}Do", prefix)?;
                     Self::print_block(content, f, level + 1)?;
                 }
-                Node::FunctionCall { function_name, parameters } => {
+                Node::FunctionCall {
+                    function_name,
+                    parameters,
+                } => {
                     writeln!(f, "{}Call {}", prefix, function_name)?;
                     Self::print_block(parameters, f, level + 1)?;
                 }
                 Node::Return { value } => {
                     writeln!(f, "{}Return", prefix)?;
                     if let Some(value) = value {
-                        Self::print_block(vec![&Box::from(Node::Identifier { name: value.clone() })], f, level+1)?;
+                        Self::print_block(
+                            vec![&Box::from(Node::Identifier {
+                                name: value.clone(),
+                            })],
+                            f,
+                            level + 1,
+                        )?;
                     }
                 }
             }

@@ -1,5 +1,5 @@
 [package]
-name = "AFG"
+name = "afg"
 description = "Automated Fighting Game"
 version = "0.1.0"
 edition = "2021"
@@ -13,8 +13,13 @@ opt-level = 1
 [dependencies]
 bevy = "0.15.1"
 bevy_common_assets = { version = "0.12.0", features = ["toml"] }
-bevy_rapier2d = { version = "0.28.0", features = ["simd-stable", "wasm-bindgen"] }
+bevy_rapier2d = { version = "0.28.0", features = [
+    "simd-stable",
+    "wasm-bindgen",
+] }
 clap = { version = "4.5.26", features = ["derive"] }
+colog = "1.3.0"
+log = "0.4.25"
 petgraph = "0.7.1"
 rand = "0.8.5"
 regex = "1.11.1"

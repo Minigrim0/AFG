@@ -228,7 +228,7 @@ pub fn allocate(
 
                 // Save the result into the destination variable
                 let (new_instructions, new_pointer) = store_variable(
-                    instruction.operands.get(2),
+                    instruction.operands.get(0),
                     "'GPA",
                     &mut variable_map,
                     memory_top_pointer,
@@ -287,7 +287,7 @@ pub fn allocate(
                 memory_top_pointer = new_pointer;
                 next_instructions.extend(new_instructions);
             }
-            "push" => {
+            "push" | "print" => {
                 // Load the variable into GPA
                 let (new_instructions, new_pointer) = load_variable(
                     instruction.operands.get(0),

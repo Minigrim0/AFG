@@ -43,8 +43,7 @@ impl PASMInstruction {
     }
 
     pub fn get_live_and_dead(&self) -> (Vec<String>, Vec<String>) {
-        let mut operand_0 = if let Some(OperandType::Identifier { name }) = self.operands.get(0)
-        {
+        let mut operand_0 = if let Some(OperandType::Identifier { name }) = self.operands.get(0) {
             if !name.starts_with("$") && !name.starts_with("'") {
                 vec![name.clone()]
             } else {
@@ -72,6 +71,16 @@ impl PASMInstruction {
             }
             _ => (vec![], vec![]),
         }
+    }
+
+    /// If this instruction is a jump, returns the label to jump to
+    pub fn jump_to(&self) -> Option<String> {
+        if self.opcode.starts_with("j") || self.opcode == "call" {
+            if let Some(OperandType::Identifier { name }) = self.operands.get(0) {
+                return Some(name.clone());
+            }
+        }
+        None
     }
 }
 
@@ -665,12 +674,27 @@ fn ret_to_asm(value: &Option<String>) -> MaybeInstructions {
     Ok(instructions)
 }
 
+fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
+    match &**node {
+        Node::Identifier { name } => Ok(vec![PASMInstruction::new(
+            "print".to_string(),
+            vec![OperandType::Identifier { name: name.clone() }],
+        )]),
+        Node::Litteral { value } => Ok(vec![PASMInstruction::new(
+            "print".to_string(),
+            vec![OperandType::Literal { value: *value }],
+        )]),
+        _ => Err("Invalid value to print".to_string()),
+    }
+}
+
 fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
     match &**node {
         Node::Assignment { lparam, rparam } => Ok(assignment_to_asm(lparam, rparam)?),
         Node::IfCondition { condition, content } => Ok(if_to_asm(condition, content, None)?),
         Node::Loop { content } => Ok(loop_to_asm(content)?),
         Node::WhileLoop { condition, content } => Ok(while_to_asm(condition, content)?),
+        Node::Print { value } => Ok(print_to_asm(value)?),
         Node::FunctionCall {
             function_name,
             parameters,
