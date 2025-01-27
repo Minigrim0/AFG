@@ -1,0 +1,118 @@
+store $VelocityY #500
+mov 'GPA #0
+store #0 'GPA
+load 'GPA $Ray3Type
+load 'GPB #0
+cmp 'GPA 'GPB
+jz #14
+mov 'GPA #1000
+store #1 'GPA
+load 'GPA $Ray3Dist
+load 'GPB #1
+cmp 'GPA 'GPB
+jp #8
+store $VelocityY #0
+mov 'GPA #-1
+push 'GPA
+mov 'GPA #-90
+push 'GPA
+call #25
+store $VelocityY #500
+jmp #-19
+pop 'GPA
+store #2 'GPA
+mov 'GPA #0
+store #3 'GPA
+load 'GPA #3
+load 'GPB #2
+cmp 'GPA 'GPB
+jn #12
+mov 'GPA #0
+store #4 'GPA
+load 'GPA #4
+load 'GPB #2
+sub 'GPA 'GPB
+store #4 'GPA
+load 'GPA #4
+store #2 'GPA
+load 'GPA #2
+mov 'FRP 'GPA
+ret
+load 'GPA #2
+mov 'FRP 'GPA
+ret
+pop 'GPA
+store #5 'GPA
+pop 'GPA
+store #6 'GPA
+load 'GPA $Rotation
+store #7 'GPA
+load 'GPA #7
+load 'GPB #5
+add 'GPA 'GPB
+store #7 'GPA
+load 'GPA #7
+store #8 'GPA
+mov 'GPA #0
+store #9 'GPA
+load 'GPA #9
+load 'GPB #8
+cmp 'GPA 'GPB
+jn #9
+mov 'GPA #360
+store #10 'GPA
+load 'GPA #10
+load 'GPB #8
+add 'GPA 'GPB
+store #10 'GPA
+load 'GPA #10
+store #8 'GPA
+load 'GPA #8
+store #11 'GPA
+load 'GPA #11
+mov 'GPB #360
+mod 'GPA 'GPB
+store #11 'GPA
+load 'GPA #11
+store #8 'GPA
+load 'GPA #6
+store #12 'GPA
+load 'GPA #12
+mov 'GPB #10
+mul 'GPA 'GPB
+store #12 'GPA
+load 'GPA #12
+store $Moment 'GPA
+load 'GPA #8
+store #13 'GPA
+load 'GPA #13
+load 'GPB $Rotation
+sub 'GPA 'GPB
+store #13 'GPA
+load 'GPA #13
+store #14 'GPA
+load 'GPA #14
+push 'GPA
+call #-74
+store #14 'GPA
+mov 'GPA #3
+store #15 'GPA
+load 'GPA #15
+load 'GPB #14
+cmp 'GPA 'GPB
+jp #14
+load 'GPA #8
+store #16 'GPA
+load 'GPA #16
+load 'GPB $Rotation
+sub 'GPA 'GPB
+store #16 'GPA
+load 'GPA #16
+store #14 'GPA
+load 'GPA #14
+push 'GPA
+call #-92
+store #14 'GPA
+jmp #-18
+store $Moment #0
+ret

@@ -1,21 +1,26 @@
 fn abs(value) {
     if value < 0 {
         set value = 0 - value;
+        return value;
     }
     return value;
 }
 
 fn turn(angle, direction) {
-    set initial_rotation = $Rotation;
-    if direction != 0 {
-        set initial_rotation = 0 - $Rotation;
+    set target_angle = $Rotation + angle;
+    if target_angle < 0 {
+        set target_angle = 360 + target_angle;
     }
+    set target_angle = target_angle % 360;
 
-    set current_rot = $Rotation - initial_rotation;
-    set current_rot = abs(current_rot);
-    while current_rot < angle {
-        set current_rot = $Rotation - initial_rotation;
+    set $Moment = direction * 10;
+    set current_delta = target_angle - $Rotation;
+    set current_delta = abs(current_delta);
+    while current_delta > 3 { // While greater than 10 degrees
+        set current_delta = target_angle - $Rotation;
+        set current_delta = abs(current_delta);
     }
+    set $Moment = 0;
     return;
 }
 
@@ -27,7 +32,7 @@ fn main() {
         if $Ray3Type != 0 {
             if $Ray3Dist <= 1000 {
                 set $VelocityY = 0;
-                call turn(90);
+                call turn(-90, -1);  // 1 is left, -1 is right
                 set $VelocityY = 500;
             }
         }
