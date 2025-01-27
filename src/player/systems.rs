@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::color::palettes::css::{GREEN, RED, BLUE};
+use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
@@ -8,7 +8,7 @@ use rand::Rng;
 use crate::virtual_machine::{assets::Program, VirtualMachine};
 use crate::{map::MapHandle, Map};
 
-use super::components::{Gun, GunType, Health, Bot};
+use super::components::{Bot, Gun, GunType, Health};
 use super::entities::PlayerBundle;
 
 // System to setup the player entity
@@ -23,23 +23,26 @@ pub fn setup(
             let possibilities = map.spawn_places.0;
             println!("Spawning within {:?}", map.spawn_places);
             (
-                rand::thread_rng().gen_range(possibilities.0..possibilities.0 + possibilities.2) as f32
-                    * map.tile_size as f32 + map.tile_size as f32 / 2.0,
-                rand::thread_rng().gen_range(possibilities.1..possibilities.1 + possibilities.3) as f32
-                    * map.tile_size as f32 + map.tile_size as f32 / 2.0,
+                rand::thread_rng().gen_range(possibilities.0..possibilities.0 + possibilities.2)
+                    as f32
+                    * map.tile_size as f32
+                    + map.tile_size as f32 / 2.0,
+                rand::thread_rng().gen_range(possibilities.1..possibilities.1 + possibilities.3)
+                    as f32
+                    * map.tile_size as f32
+                    + map.tile_size as f32 / 2.0,
             )
         } else {
             println!("No position found");
             (0.0, 0.0)
         };
 
-        let player_program: Handle<Program> = asset_server.load("programs/turn.asmfg");
+        let player_program: Handle<Program> = asset_server.load("programs/new_turn.asmfg");
 
         // Spawn the player entity with all its components
         commands.spawn(PlayerBundle {
             bot: Bot,
-            virtual_machine: VirtualMachine::new()
-                .with_program(player_program),
+            virtual_machine: VirtualMachine::new().with_program(player_program),
             health: Health::new(100),
             gun: Gun::new(GunType::Pistol),
             sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
@@ -65,24 +68,38 @@ pub fn update_player(
         vm.tick(&programs);
         vm.update_mmp(&mut transform, &mut vel);
 
-        let initial_angle = transform.rotation.to_axis_angle().0.z * transform.rotation.to_axis_angle().1 + (PI / 2.0);
+        let initial_angle = transform.rotation.to_axis_angle().0.z
+            * transform.rotation.to_axis_angle().1
+            + (PI / 2.0);
 
         if let Ok(context) = rapier_context.get_single() {
-            let rays = (0..ray_amount).map(|ray_id| {
-                let ray_dir = Vec2::from_angle(initial_angle - (view_angle / 2.0) + ray_id as f32 * (view_angle / ((ray_amount - 1) as f32)));
-                if let Some((entity, toi)) = context.cast_ray(transform.translation.truncate(), ray_dir, viewing_distance, false, QueryFilter::new().exclude_collider(current_bot)) {
-                    let hit_point = transform.translation.truncate() + ray_dir * toi;
-                    gizmos.line(transform.translation, hit_point.extend(0.0), RED);
-                    Some((entity, toi))
-                } else {
-                    gizmos.line(
-                        transform.translation,
-                        (transform.translation.truncate() + ray_dir * viewing_distance).extend(0.0),
-                        BLUE
+            let rays = (0..ray_amount)
+                .map(|ray_id| {
+                    let ray_dir = Vec2::from_angle(
+                        initial_angle - (view_angle / 2.0)
+                            + ray_id as f32 * (view_angle / ((ray_amount - 1) as f32)),
                     );
-                    None
-                }
-            }).collect::<Vec<Option<(Entity, f32)>>>();
+                    if let Some((entity, toi)) = context.cast_ray(
+                        transform.translation.truncate(),
+                        ray_dir,
+                        viewing_distance,
+                        false,
+                        QueryFilter::new().exclude_collider(current_bot),
+                    ) {
+                        let hit_point = transform.translation.truncate() + ray_dir * toi;
+                        gizmos.line(transform.translation, hit_point.extend(0.0), RED);
+                        Some((entity, toi))
+                    } else {
+                        gizmos.line(
+                            transform.translation,
+                            (transform.translation.truncate() + ray_dir * viewing_distance)
+                                .extend(0.0),
+                            BLUE,
+                        );
+                        None
+                    }
+                })
+                .collect::<Vec<Option<(Entity, f32)>>>();
             vm.update_rays(rays);
         }
     }

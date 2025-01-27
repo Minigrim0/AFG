@@ -1,18 +1,33 @@
+use std::fmt;
+
+pub mod assets;
+pub mod errors;
 mod machine;
 mod parser;
-pub mod errors;
-pub mod assets;
 
 #[cfg(test)]
 mod tests;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OperandType {
-    Literal { value: i32 },
-    Register { idx: i32 },
+    Literal {
+        value: i32,
+    },
+    Register {
+        idx: i32,
+    },
     #[default]
     None,
+}
+
+impl fmt::Display for OperandType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OperandType::Literal { value } => write!(f, "#{}", value),
+            OperandType::Register { idx } => write!(f, "'{}", idx),
+            OperandType::None => write!(f, ""),
+        }
+    }
 }
 
 pub fn get_special_variables() -> Vec<String> {
@@ -72,31 +87,33 @@ pub enum Registers {
     GPC = 0x02, // General Purpose
     GPD = 0x03, // General Purpose
     FRP = 0x04,
-    PC = 0x08,  // Program Counter
-    SP = 0x0A,  // Stack Pointer (used for function calls)
-    RP = 0x0B,  // Return Pointer (used for function calls)
+    PC = 0x08, // Program Counter
+    SP = 0x0A, // Stack Pointer (used for function calls)
+    RP = 0x0B, // Return Pointer (used for function calls)
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Instructions {
-    NOP,    // No operation
-    MOV,    // r<op1> = #r<op2>
-    STORE,  // [#r<op1>] = #r<op2>
-    LOAD,   // r<op1> = [#r<op2>]
-    ADD,    // r<op1> = #r<op1> + #r<op2>
-    SUB,    // Subs into <Register <operand 1>> <Register <operand 2>>
-    MUL,    // Mul into <Register <operand 1>> <Register <operand 2>>
-    DIV,    // r<op1> = #<r<op1>> / #<r<op2>>
-    CMP,    // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
-    JMP,    // Unconditional jump to instruction #<op1>
-    JZ,     // Jump if previous operation resulted in 0
-    JNZ,    // Jump if previous operation was not 0
-    JN,     // Jump if previous operation was negative
-    JP,     // Jump if previous operation was positive
-    CALL,   // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
-    RET,    // Returns from function call          /!\ User is responsible for pushing and popping the stack
-    POP,    // Pops a value from the stack into <r<op1>>
-    PUSH,   // Pushes to the stack the value of <r<op1>>
+    NOP,   // No operation
+    MOV,   // r<op1> = #r<op2>
+    STORE, // [#r<op1>] = #r<op2>
+    LOAD,  // r<op1> = [#r<op2>]
+    ADD,   // r<op1> = #r<op1> + #r<op2>
+    SUB,   // Subs into <Register <operand 1>> <Register <operand 2>>
+    MUL,   // Mul into <Register <operand 1>> <Register <operand 2>>
+    DIV,   // r<op1> = #<r<op1>> / #<r<op2>>
+    MOD,   // r<op1> = #<r<op1>> % #<r<op2>>
+    CMP, // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
+    JMP, // Unconditional jump to instruction #<op1>
+    JZ,  // Jump if previous operation resulted in 0
+    JNZ, // Jump if previous operation was not 0
+    JN,  // Jump if previous operation was negative
+    JP,  // Jump if previous operation was positive
+    CALL, // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
+    RET, // Returns from function call          /!\ User is responsible for pushing and popping the stack
+    POP, // Pops a value from the stack into <r<op1>>
+    PUSH, // Pushes to the stack the value of <r<op1>>
+    PRINT, // Prints the value of <r<op1>> to the console
 }
 
 pub enum MachineStatus {
