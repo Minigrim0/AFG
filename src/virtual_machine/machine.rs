@@ -202,7 +202,6 @@ impl VirtualMachine {
     fn get_stack(&mut self, base_register: usize, addition: bool, offset: usize) -> Result<i32, String> {
         let stack_index: usize = self.stack_index(base_register, addition, offset + 1)?;  // Offset is incremented by one here because the stack pointer actually points one above the last value
         if let Some(value) = self.stack.get(stack_index) {
-            println!("Getting {} from offset {} (idx: {})", value, offset, stack_index);
             Ok(*value)
         } else {
             self.status = MachineStatus::Dead;
@@ -213,7 +212,6 @@ impl VirtualMachine {
     fn set_stack(&mut self, base_register: usize, addition: bool, offset: usize, value: i32) -> Result<(), String> {
         let stack_index: usize = self.stack_index(base_register, addition, offset + 1)?;  // Offset is incremented by one here because the stack pointer actually points one above the last value
         if stack_index < self.stack.len() {
-            println!("Setting {} at offset {} (idx: {})", value, offset, stack_index);
             self.stack[stack_index] = value;
             Ok(())
         } else {
@@ -467,7 +465,6 @@ impl VirtualMachine {
                 }
             }
             Instructions::JP => {
-                println!("JP!");
                 if self.check_flag(Flags::PositiveFlag) {
                     next_jump = match instruction.operand_1 {
                         OperandType::Register { idx: op1 } => self.registers[op1 as usize],
@@ -475,8 +472,6 @@ impl VirtualMachine {
                         OperandType::StackValue { base_register, addition, offset } => self.get_stack(base_register, addition, offset)?,
                         OperandType::None => self.invalid_instruction("Missing first operand for store instruction")?
                     };
-                } else {
-                    println!("Not jumping, positive flag is false");
                 }
             }
             Instructions::CALL => {

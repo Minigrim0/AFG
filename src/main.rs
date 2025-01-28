@@ -78,7 +78,7 @@ fn main() {
             RapierDebugRenderPlugin::default(),
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
-        .insert_resource(Time::<Fixed>::from_hz(5.0))
+        .insert_resource(Time::<Fixed>::from_hz(120.0))
         .init_asset::<crate::virtual_machine::assets::Program>()
         .init_asset_loader::<crate::virtual_machine::assets::ProgramLoader>()
         .init_state::<AppState>()
