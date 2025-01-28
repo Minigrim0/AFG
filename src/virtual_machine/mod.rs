@@ -14,7 +14,12 @@ pub enum OperandType {
         value: i32,
     },
     Register {
-        idx: i32,
+        idx: usize,
+    },
+    StackValue {
+        base_register: usize,
+        addition: bool,
+        offset: usize,
     },
     #[default]
     None,
@@ -25,6 +30,7 @@ impl fmt::Display for OperandType {
         match self {
             OperandType::Literal { value } => write!(f, "#{}", value),
             OperandType::Register { idx } => write!(f, "'{}", idx),
+            OperandType::StackValue { base_register, addition, offset } => write!(f, "[{} {} {}]", base_register, if *addition { '+' } else { '-' }, offset),
             OperandType::None => write!(f, ""),
         }
     }
@@ -81,39 +87,42 @@ pub enum MemoryMappedProperties {
     Moment = 0xff1d,    // Writable Moment (clockwise+/counterclockwise-)
 }
 
+/// The list of registers in the virtual machine.
+/// The accumulator and parameter pointers are used to move actual data around, perform calculations, etc.
+/// SBP is the stack base pointer, It defines in the current callee the base of the stack. From this, the first element is the previously push SBP, then the return address, and then eventual parameters
+/// TSP is the top-stack pointer. It points to the top of the stack. It is increased each time a value is pushed on the stack and decreased upon each pop.
+/// FRV is the register used to transfer return parameters from callee to caller.
+/// CIP is the current instruction pointer. It is normally increased by one after each instruction except for branching instructions
 pub enum Registers {
-    GPA = 0x00, // General Purpose
-    GPB = 0x01, // General Purpose
-    GPC = 0x02, // General Purpose
-    GPD = 0x03, // General Purpose
-    FRP = 0x04,
-    PC = 0x08, // Program Counter
-    SP = 0x0A, // Stack Pointer (used for function calls)
-    RP = 0x0B, // Return Pointer (used for function calls)
+    GPA = 0,  // Accumulator
+    GPB = 1,  // Parameter
+    SBP = 2,  // Stack base pointer, defines the stack "scope" of the current function
+    TSP = 3,  // Stack Pointer, the current top of the stack
+    FRV = 4,  // Register containing function's return values
+    CIP = 5,  // Instruction pointer
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Instructions {
-    NOP,   // No operation
-    MOV,   // r<op1> = #r<op2>
-    STORE, // [#r<op1>] = #r<op2>
-    LOAD,  // r<op1> = [#r<op2>]
-    ADD,   // r<op1> = #r<op1> + #r<op2>
-    SUB,   // Subs into <Register <operand 1>> <Register <operand 2>>
-    MUL,   // Mul into <Register <operand 1>> <Register <operand 2>>
-    DIV,   // r<op1> = #<r<op1>> / #<r<op2>>
-    MOD,   // r<op1> = #<r<op1>> % #<r<op2>>
-    CMP, // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
-    JMP, // Unconditional jump to instruction #<op1>
-    JZ,  // Jump if previous operation resulted in 0
-    JNZ, // Jump if previous operation was not 0
-    JN,  // Jump if previous operation was negative
-    JP,  // Jump if previous operation was positive
-    CALL, // Call function at address #<r<op1>>  /!\ User is responsible for pushing and popping the stack
-    RET, // Returns from function call          /!\ User is responsible for pushing and popping the stack
-    POP, // Pops a value from the stack into <r<op1>>
-    PUSH, // Pushes to the stack the value of <r<op1>>
-    PRINT, // Prints the value of <r<op1>> to the console
+    MOV,     // r<op1> = #r<op2>
+    STORE,  // [#r<op1>] = #r<op2>
+    LOAD,   // r<op1> = [#r<op2>]
+    ADD,    // r<op1> = #r<op1> + #r<op2>
+    SUB,    // Subs into <Register <operand 1>> <Register <operand 2>>
+    MUL,    // Mul into <Register <operand 1>> <Register <operand 2>>
+    DIV,    // r<op1> = #<r<op1>> / #<r<op2>>
+    MOD,    // r<op1> = #<r<op1>> % #<r<op2>>
+    CMP,    // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
+    JMP,    // Unconditional jump to instruction #<op1>
+    JZ,     // Jump if previous operation resulted in 0
+    JNZ,    // Jump if previous operation was not 0
+    JN,     // Jump if previous operation was negative
+    JP,     // Jump if previous operation was positive
+    CALL,   // Call function at address #<r<op1>>   /!\ User is responsible for pushing and popping the stack
+    RET,    // Returns from function call           /!\ User is responsible for pushing and popping the stack
+    POP,    // Pops a value from the stack into <r<op1>>
+    PUSH,   // Pushes to the stack the value of <r<op1>>
+    PRINT,  // Prints the value of <r<op1>> to the console
 }
 
 pub enum MachineStatus {

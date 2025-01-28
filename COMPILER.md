@@ -134,7 +134,7 @@ function_abs_label:
 	sub @temp_arp_2 @value
 	mov @value @temp_arp_2
 temp_if_exit_0:
-	mov 'FRP @value
+	mov 'FRV @value
 	ret
 ```
 

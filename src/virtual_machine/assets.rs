@@ -37,7 +37,13 @@ impl AssetLoader for ProgramLoader {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let text: String = bytes.iter().map(|b| char::from(*b)).collect();
-        let instructions = parse(text)?;
+        let instructions = match parse(text) {
+            Err(e) => {
+                println!("Error: {}", e);
+                return Err(e.into())
+            },
+            Ok(i) => i
+        };
         Ok(Program { instructions })
     }
 }

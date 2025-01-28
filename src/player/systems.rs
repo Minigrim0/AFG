@@ -11,6 +11,10 @@ use crate::{map::MapHandle, Map};
 use super::components::{Bot, Gun, GunType, Health};
 use super::entities::PlayerBundle;
 
+#[derive(Component)]
+pub struct DebugMachineText;
+
+
 // System to setup the player entity
 pub fn setup(
     mut commands: Commands,
@@ -21,7 +25,6 @@ pub fn setup(
     for _ in 0..1 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
             let possibilities = map.spawn_places.0;
-            println!("Spawning within {:?}", map.spawn_places);
             (
                 rand::thread_rng().gen_range(possibilities.0..possibilities.0 + possibilities.2)
                     as f32
@@ -33,7 +36,6 @@ pub fn setup(
                     + map.tile_size as f32 / 2.0,
             )
         } else {
-            println!("No position found");
             (0.0, 0.0)
         };
 
@@ -50,8 +52,21 @@ pub fn setup(
             collider: Collider::ball(25.0),
             body: RigidBody::Dynamic,
             velocity: Velocity::default(),
-        });
+        }).insert(super::super::IsSelected);
     }
+
+    let font: Handle<Font> = asset_server.load("fonts/toxigenesis bd.otf");
+    let text_font = TextFont {
+        font: font.clone(),
+        font_size: 50.0,
+        ..default()
+    };
+    commands.spawn((
+        Text2d::new("translation"),
+        text_font.clone(),
+        TextLayout::new_with_justify(JustifyText::Left),
+        DebugMachineText
+    ));
 }
 
 pub fn update_player(
@@ -65,7 +80,9 @@ pub fn update_player(
     let viewing_distance = 2000.0;
 
     for (current_bot, mut vm, mut transform, mut vel) in query.iter_mut() {
-        vm.tick(&programs);
+        if let Err(e) = vm.tick(&programs) {
+            println!("Oh noes {}", e);
+        }
         vm.update_mmp(&mut transform, &mut vel);
 
         let initial_angle = transform.rotation.to_axis_angle().0.z
@@ -115,5 +132,26 @@ pub fn debug_player_direction(
             transform.translation + vel.linvel.extend(0.0) * 50.0,
             GREEN,
         );
+    }
+}
+
+pub fn display_selected_player_machine_debug(
+    vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
+    mut text_query: Query<&mut Text2d, With<DebugMachineText>>,
+    programs: Res<Assets<Program>>,
+) {
+    for machine in vm_query.iter() {
+        for mut text in text_query.iter_mut() {
+            text.0 = machine.get_current_instruction(&programs) + "\n" + machine.stack.iter().rev().enumerate().take(20).map(|(i, e)| format!("{} {}", i, e)).collect::<Vec<String>>().join("\n").as_str()
+        }
+    }
+}
+
+pub fn move_debug_text(
+    mut query: Query<&mut Transform, (With<Text2d>, With<DebugMachineText>)>,
+    q_camera: Query<&GlobalTransform, With<Camera>>,
+) {
+    for mut transform in query.iter_mut() {
+        transform.translation = q_camera.single().translation()
     }
 }

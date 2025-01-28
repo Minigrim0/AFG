@@ -1,7 +1,7 @@
 digraph {
     0 [ label = "(0) \"function_abs_label:\"\l\"pop @value\"\l\"mov @temp_crp_1 #0\"\l\"cmp @temp_crp_1 @value\"\l\"jn @temp_if_exit_0\"\l" ]
     1 [ label = "(5) \"mov @temp_arp_2 #0\"\l\"sub @temp_arp_2 @value\"\l\"mov @value @temp_arp_2\"\l" ]
-    2 [ label = "(8) \"temp_if_exit_0:\"\l\"mov 'FRP @value\"\l\"ret\"\l" ]
+    2 [ label = "(8) \"temp_if_exit_0:\"\l\"mov 'FRV @value\"\l\"ret\"\l" ]
     0 -> 2 [ ]
     0 -> 1 [ ]
     1 -> 2 [ ]

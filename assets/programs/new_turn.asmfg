@@ -1,118 +1,147 @@
+push 'SBP
+mov 'SBP 'TSP
 store $VelocityY #500
-mov 'GPA #0
-store #0 'GPA
+push #0
 load 'GPA $Ray3Type
-load 'GPB #0
+mov 'GPB ['SBP - 1]
 cmp 'GPA 'GPB
-jz #14
-mov 'GPA #1000
-store #1 'GPA
+jz #16
+push #1000
 load 'GPA $Ray3Dist
-load 'GPB #1
+mov 'GPB ['SBP - 2]
 cmp 'GPA 'GPB
-jp #8
+jp #11
 store $VelocityY #0
 mov 'GPA #-1
 push 'GPA
 mov 'GPA #-90
 push 'GPA
-call #25
-store $VelocityY #500
-jmp #-19
-pop 'GPA
-store #2 'GPA
-mov 'GPA #0
-store #3 'GPA
-load 'GPA #3
-load 'GPB #2
-cmp 'GPA 'GPB
-jn #12
-mov 'GPA #0
-store #4 'GPA
-load 'GPA #4
-load 'GPB #2
+call #56
+mov 'GPB #2
 sub 'GPA 'GPB
-store #4 'GPA
-load 'GPA #4
-store #2 'GPA
-load 'GPA #2
-mov 'FRP 'GPA
-ret
-load 'GPA #2
-mov 'FRP 'GPA
-ret
-pop 'GPA
-store #5 'GPA
-pop 'GPA
-store #6 'GPA
-load 'GPA $Rotation
-store #7 'GPA
-load 'GPA #7
-load 'GPB #5
+mov 'TSP 'GPA
+store $VelocityY #500
+jmp #-20
+pop 'SBP
+push 'SBP
+mov 'SBP 'TSP
+mov 'GPA ['SBP + 2]
+print 'GPA
+mov 'GPA ['SBP + 3]
+print 'GPA
+push ['SBP + 2]
+load 'GPA $Moment
+push 'GPA
+load 'GPA $Moment
+push 'GPA
+mov 'GPA ['SBP - 3]
+mov 'GPB ['SBP + 3]
 add 'GPA 'GPB
-store #7 'GPA
-load 'GPA #7
-store #8 'GPA
-mov 'GPA #0
-store #9 'GPA
-load 'GPA #9
-load 'GPB #8
+mov ['SBP - 3] 'GPA
+push ['SBP - 3]
+push ['SBP + 3]
+load 'GPA $Moment
+push 'GPA
+mov 'GPA ['SBP - 5]
+mov 'GPB ['SBP - 6]
+add 'GPA 'GPB
+mov ['SBP - 5] 'GPA
+push ['SBP - 5]
+store $VelocityY ['SBP - 1]
+store $Moment ['SBP + 3]
+pop 'SBP
+push 'SBP
+mov 'SBP 'TSP
+push #0
+mov 'GPA ['SBP - 1]
+mov 'GPB ['SBP + 2]
 cmp 'GPA 'GPB
-jn #9
-mov 'GPA #360
-store #10 'GPA
-load 'GPA #10
-load 'GPB #8
+jn #11
+push #0
+mov 'GPA ['SBP - 2]
+mov 'GPB ['SBP + 2]
+sub 'GPA 'GPB
+mov ['SBP - 2] 'GPA
+mov ['SBP + 2] ['SBP - 2]
+mov 'FRV ['SBP + 2]
+mov 'TSP 'SBP
+pop 'SBP
+ret
+mov 'FRV ['SBP + 2]
+mov 'TSP 'SBP
+pop 'SBP
+ret
+pop 'SBP
+push 'SBP
+mov 'SBP 'TSP
+load 'GPA $Rotation
+push 'GPA
+mov 'GPA ['SBP - 1]
+mov 'GPB ['SBP + 2]
 add 'GPA 'GPB
-store #10 'GPA
-load 'GPA #10
-store #8 'GPA
-load 'GPA #8
-store #11 'GPA
-load 'GPA #11
+mov ['SBP - 1] 'GPA
+push ['SBP - 1]
+push #0
+mov 'GPA ['SBP - 3]
+mov 'GPB ['SBP - 2]
+cmp 'GPA 'GPB
+jn #7
+push #360
+mov 'GPA ['SBP - 4]
+mov 'GPB ['SBP - 2]
+add 'GPA 'GPB
+mov ['SBP - 4] 'GPA
+mov ['SBP - 2] ['SBP - 4]
+push ['SBP - 2]
+mov 'GPA ['SBP - 5]
 mov 'GPB #360
 mod 'GPA 'GPB
-store #11 'GPA
-load 'GPA #11
-store #8 'GPA
-load 'GPA #6
-store #12 'GPA
-load 'GPA #12
+mov ['SBP - 5] 'GPA
+mov ['SBP - 2] ['SBP - 5]
+push ['SBP + 3]
+mov 'GPA ['SBP - 6]
 mov 'GPB #10
 mul 'GPA 'GPB
-store #12 'GPA
-load 'GPA #12
-store $Moment 'GPA
-load 'GPA #8
-store #13 'GPA
-load 'GPA #13
-load 'GPB $Rotation
-sub 'GPA 'GPB
-store #13 'GPA
-load 'GPA #13
-store #14 'GPA
-load 'GPA #14
+mov ['SBP - 6] 'GPA
+mov $Moment ['SBP - 6]
+push ['SBP - 2]
+load 'GPA $Rotation
 push 'GPA
-call #-74
-store #14 'GPA
-mov 'GPA #3
-store #15 'GPA
-load 'GPA #15
-load 'GPB #14
+mov 'GPA ['SBP - 7]
+mov 'GPB ['SBP - 8]
+sub 'GPA 'GPB
+mov ['SBP - 7] 'GPA
+push ['SBP - 7]
+mov 'GPA ['SBP - 9]
+push 'GPA
+call #-64
+mov 'GPB #1
+sub 'GPA 'GPB
+mov 'TSP 'GPA
+mov ['SBP - 9] 'FRV
+push #3
+mov 'GPA ['SBP - 10]
+mov 'GPB ['SBP - 9]
 cmp 'GPA 'GPB
-jp #14
-load 'GPA #8
-store #16 'GPA
-load 'GPA #16
-load 'GPB $Rotation
-sub 'GPA 'GPB
-store #16 'GPA
-load 'GPA #16
-store #14 'GPA
-load 'GPA #14
+jp #17
+push ['SBP - 2]
+load 'GPA $Rotation
 push 'GPA
-call #-92
-store #14 'GPA
-jmp #-18
+mov 'GPA ['SBP - 11]
+mov 'GPB ['SBP - 12]
+sub 'GPA 'GPB
+mov ['SBP - 11] 'GPA
+mov ['SBP - 9] ['SBP - 11]
+mov 'GPA ['SBP - 9]
+push 'GPA
+call #-84
+mov 'GPB #1
+sub 'GPA 'GPB
+mov 'TSP 'GPA
+mov ['SBP - 9] 'FRV
+jmp #-20
 store $Moment #0
+mov 'TSP 'SBP
+pop 'SBP
 ret
+pop 'SBP

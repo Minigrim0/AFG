@@ -121,7 +121,7 @@ mod semantic;
 mod token;
 
 pub use allocation::allocate;
-pub use asm::{PASMInstruction, PASMProgram};
+pub use asm::{PASMInstruction, PASMProgram, PASMAllocatedProgram};
 pub use ast::{node::Node, AST};
 pub use labels::resolve_labels;
 pub use liveness::PASMProgramWithInterferenceGraph;

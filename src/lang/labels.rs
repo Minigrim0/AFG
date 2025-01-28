@@ -10,6 +10,8 @@ pub fn resolve_labels(function: Vec<PASMInstruction>) -> Result<Vec<PASMInstruct
     for inst in function {
         if inst.is_label {
             label_map.insert(inst.opcode.clone(), current_line);
+        } else if inst.is_comment {
+           continue;
         } else {
             resolved.push(inst);
             current_line += 1;

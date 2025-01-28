@@ -1,0 +1,8 @@
+push #12
+push #15
+mov 'SBP 'TSP
+; Get function parameters with 'SBP
+mov 'GPA ['SBP + 1]
+print 'GPA
+mov 'GPA ['SBP + 0]
+print 'GPA

@@ -26,6 +26,24 @@ fn parse_instr<S: AsRef<str>>(instr: S) -> Result<Instructions, String> {
     }
 }
 
+fn parse_register<S: AsRef<str>>(register: S) -> Result<usize, String> {
+    match register.as_ref()
+    {
+        "GPA" => Ok(Registers::GPA as usize),
+        "GPB" => Ok(Registers::GPB as usize),
+        "SBP" => Ok(Registers::SBP as usize),
+        "TSP" => Ok(Registers::TSP as usize),
+        "FRV" => Ok(Registers::FRV as usize),
+        reg => Err(format!("Unknown register: {} (If you try to modify the instruction pointer, it cannot be written to direcctly, use branching instructions)", reg)),
+    }
+}
+
+fn parse_literal<S: AsRef<str>>(literal: S) -> Result<i32, String> {
+    literal.as_ref().to_string().parse::<i32>()
+    .map(|v| v)
+    .map_err(|e| format!("Unable to parse int : {}", e.to_string()))
+}
+
 fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
     match operand.as_ref().chars().next() {
         Some('$') => {
@@ -100,52 +118,47 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
                 var => Err(format!("Unknown variable: {}", var)),
             }
         }
-        Some('#') => {
-            println!("\tOperand is a litteral");
-            operand
+        Some('#') => Ok(OperandType::Literal {
+            value: parse_literal(operand
                 .as_ref()
                 .chars()
                 .skip(1)
                 .collect::<String>()
-                .parse::<i32>()
-                .map(|v| OperandType::Literal { value: v })
-                .map_err(|e| format!("Unable to parse int : {}", e.to_string()))
-        }
+            )?
+        }),
         Some('\'') => {
             println!("\tOperand is a register");
-            match operand
+            Ok(OperandType::Register { idx: parse_register(operand
                 .as_ref()
                 .chars()
                 .skip(1)
                 .collect::<String>()
-                .as_str()
-            {
-                "GPA" => Ok(OperandType::Register {
-                    idx: Registers::GPA as i32,
-                }),
-                "GPB" => Ok(OperandType::Register {
-                    idx: Registers::GPB as i32,
-                }),
-                "GPC" => Ok(OperandType::Register {
-                    idx: Registers::GPC as i32,
-                }),
-                "GPD" => Ok(OperandType::Register {
-                    idx: Registers::GPD as i32,
-                }),
-                "FRP" => Ok(OperandType::Register {
-                    idx: Registers::FRP as i32,
-                }),
-                reg => Err(format!("Unknown register: {}", reg)),
+                .as_str())?
+            })
+        }
+        Some('[') => {
+            println!("\tOperand is a stack access");
+            let operand = operand.as_ref().chars().filter_map(|c| if c == '[' || c == ']' { None } else { Some(c) }).collect::<String>();
+            let splitted = operand.as_str().split(" ").filter_map(|s| if s.trim().is_empty() { None } else { Some(s.to_string()) }).collect::<Vec<String>>();
+
+            if splitted.len() == 3 {
+                Ok(OperandType::StackValue {
+                    base_register: parse_register(&splitted[0].as_str().chars().skip(1).collect::<String>())?,
+                    addition: &splitted[1] == "+",
+                    offset: parse_literal(&splitted[2])? as usize
+                })
+            } else {
+                Err("Stack access must be composed of three operands".to_string())
             }
         }
-        Some(_) => operand
-            .as_ref()
-            .chars()
-            .skip(1)
-            .collect::<String>()
-            .parse::<i32>()
-            .map(|v| OperandType::Literal { value: v })
-            .map_err(|e| format!("Unable to parse int : {}", e.to_string())),
+        Some(_) => Ok(OperandType::Literal {
+            value: parse_literal(operand
+                .as_ref()
+                .chars()
+                .skip(1)
+                .collect::<String>()
+            )?
+        }),
         None => Err("No operand to parse !".to_string()),
     }
 }
@@ -163,30 +176,48 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
             continue;
         }
 
-        let splitted_line = line.split(" ").collect::<Vec<&str>>();
-        let mut splitted_line = splitted_line.iter();
+        let mut char_iter = line.chars().peekable();
+        let opcode = char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>();
+        let operand1 = {
+            if char_iter.peek() == Some(&'[') {
+                char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]"
+            } else {
+                char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>()
+            }
+        };
+        let operand2 = {
+            if char_iter.peek() == Some(&'[') {
+                char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]"
+            } else {
+                char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>()
+            }
+        };
+
         let instruction = Instruction {
-            opcode: match splitted_line.next() {
-                Some(instr) => match parse_instr(instr) {
+            opcode: match opcode {
+                instr if !instr.is_empty() => match parse_instr(instr) {
                     Ok(instr) => instr,
                     Err(e) => return Err(ParsingError::new(line_nbr as u32, e)),
                 },
-                None => {
+                _ => {
                     println!("No intruction found for line '{}'", line);
                     break 'main_loop;
                 }
             },
-            operand_1: match splitted_line.next() {
-                Some(op) => match parse_operand(op) {
+            operand_1: match operand1 {
+                op if !op.is_empty() => match parse_operand(op) {
                     Ok(op) => op,
                     Err(e) => return Err(ParsingError::new(line_nbr as u32, e)),
                 },
-                None => OperandType::None,
+                _ => OperandType::None,
             },
-            operand_2: splitted_line
-                .next()
-                .and_then(|operand| parse_operand(operand).ok())
-                .unwrap_or(OperandType::None),
+            operand_2: match operand2 {
+                op if !op.is_empty() => match parse_operand(op) {
+                    Ok(op) => op,
+                    Err(e) => return Err(ParsingError::new(line_nbr as u32, e)),
+                },
+                _ => OperandType::None,
+            },
         };
         instructions.push(instruction);
     }

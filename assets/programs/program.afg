@@ -1,3 +1,16 @@
+fn test_stuff(var_1, var_2) {
+    print var_1;
+    print var_2;
+
+    set local_variable = var_1;
+    set local_variable_2 = $Moment;
+    set local_variable_3 = $Moment + var_2;
+    set local_variable_4 = var_2 + $Moment;
+
+    set $VelocityY = local_variable;
+    set $Moment = var_2;
+}
+
 fn abs(value) {
     if value < 0 {
         set value = 0 - value;

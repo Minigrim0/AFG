@@ -6,7 +6,7 @@ use colog;
 use log::{error, info, warn};
 
 use afg::lang::{
-    allocate, analyze, resolve_labels, PASMInstruction, PASMProgram, SemanticError, TokenStream,
+    allocate, analyze, resolve_labels, PASMInstruction, PASMProgram, SemanticError, TokenStream, PASMAllocatedProgram,
     AST,
 };
 
@@ -73,16 +73,13 @@ fn main() -> Result<(), String> {
         // let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
     } else {
         info!("Using EAG method");
-        let mut memory_top_pointer = 0;
-        PASMProgram {
+        PASMAllocatedProgram {
             functions: pasm
                 .functions
                 .iter()
                 .map(
                     |(function_name, function)| -> Result<(String, Vec<PASMInstruction>), String> {
-                        let res = allocate(function, memory_top_pointer)?;
-                        memory_top_pointer = res.1;
-                        Ok((function_name.clone(), res.0))
+                        Ok((function_name.clone(), allocate(function)?))
                     },
                 )
                 .collect::<Result<HashMap<String, Vec<PASMInstruction>>, String>>()?,
@@ -106,6 +103,7 @@ fn main() -> Result<(), String> {
         if function_name == "main" {
             continue;
         }
+        final_code.push(PASMInstruction::new_comment(format!("Function {}", function_name)));
         final_code.extend(function);
     }
 

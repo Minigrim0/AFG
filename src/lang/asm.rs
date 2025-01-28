@@ -16,11 +16,67 @@ type MaybeInstructions = Result<Vec<PASMInstruction>, String>;
 pub enum OperandType {
     Identifier { name: String },
     Literal { value: i32 },
+    Stack { register: Box<OperandType>, operation: String, offset: usize }
+}
+
+impl OperandType {
+    pub fn new_literal(value: i32) -> Self {
+        OperandType::Literal { value }
+    }
+
+    pub fn new_stack(register: String, offset: i32) -> Self {
+        OperandType::Stack {
+            register: Box::from(OperandType::Identifier { name: register }),
+            operation: if offset < 0 {
+                "+".to_string()
+            } else {
+                "-".to_string()
+            },
+            offset: offset.abs() as usize
+        }
+    }
+
+    pub fn is_register(&self) -> bool {
+        match self {
+            OperandType::Identifier { name } => name.starts_with("'"),
+            _ => false
+        }
+    }
+
+    pub fn is_memory(&self) -> bool {
+        match self {
+            OperandType::Identifier { name } => name.starts_with("$"),
+            _ => false
+        }
+    }
+
+    pub fn is_frame_variable(&self) -> bool {
+        !self.is_register() && !self.is_memory()
+    }
+
+    pub fn get_register_name(&self) -> Option<String> {
+        match self {
+            OperandType::Identifier { name } if name.starts_with("'")  => Some(name.clone()),
+            _ => None
+        }
+    }
+}
+
+impl fmt::Display for OperandType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OperandType::Identifier { name } => write!(f, "{}", name),
+            OperandType::Literal { value } => write!(f, "#{}", value),
+            OperandType::Stack { register, operation, offset } => write!(f, "[{} {} {}]", register, operation, offset)
+        }
+    }
 }
 
 #[derive(Clone)]
+/// A Pseudo-assembly instruction.
 pub struct PASMInstruction {
     pub is_label: bool,             // Whether this is just a label or not
+    pub is_comment: bool,             // Whether this is just a label or not
     pub opcode: String,             // Will not change until the end
     pub operands: Vec<OperandType>, // Up to two operands
 }
@@ -29,7 +85,17 @@ impl PASMInstruction {
     pub fn new_label(name: String) -> Self {
         Self {
             is_label: true,
+            is_comment: false,
             opcode: name,
+            operands: vec![],
+        }
+    }
+
+    pub fn new_comment(comment: String) -> Self {
+        Self {
+            is_label: false,
+            is_comment: true,
+            opcode: comment,
             operands: vec![],
         }
     }
@@ -37,6 +103,7 @@ impl PASMInstruction {
     pub fn new(instr: String, operands: Vec<OperandType>) -> Self {
         Self {
             is_label: false,
+            is_comment: false,
             opcode: instr,
             operands,
         }
@@ -94,6 +161,8 @@ impl fmt::Display for PASMInstruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_label {
             write!(f, "{}:", self.opcode)
+        } else if self.is_comment {
+            write!(f, "; {}", self.opcode)
         } else {
             write!(f, "{}", self.opcode)?;
             for operand in self.operands.iter() {
@@ -106,6 +175,7 @@ impl fmt::Display for PASMInstruction {
                         }
                     }
                     OperandType::Literal { value } => write!(f, " #{}", value)?,
+                    OperandType::Stack { register, operation, offset } => write!(f, " [{} {} {}]", register, operation, offset)?
                 }
             }
             Ok(())
@@ -114,10 +184,14 @@ impl fmt::Display for PASMInstruction {
 }
 
 pub struct PASMProgram {
+    pub functions: HashMap<String, (Vec<String>, Vec<PASMInstruction>)>,
+}
+
+pub struct PASMAllocatedProgram {
     pub functions: HashMap<String, Vec<PASMInstruction>>,
 }
 
-impl fmt::Display for PASMProgram {
+impl fmt::Display for PASMAllocatedProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (_, function) in self.functions.iter() {
             for instruction in function {
@@ -132,9 +206,74 @@ impl fmt::Display for PASMProgram {
     }
 }
 
+impl fmt::Display for PASMProgram {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (_, function) in self.functions.iter() {
+            for instruction in &function.1 {
+                if instruction.is_label {
+                    writeln!(f, "{} ", instruction)?;
+                } else {
+                    writeln!(f, "\t{}", instruction)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Creates a new identifier for a variable with the given pattern
 fn create_temp_variable_name<S: AsRef<str>>(pattern: S) -> String {
     let counter = TEMP_VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
     format!("temp_{}_{}", pattern.as_ref(), counter)
+}
+
+fn operation_to_asm(operation: &OperationType, lparam: &Box<Node>, rparam: &Box<Node>) -> Result<(String, Vec<PASMInstruction>), String> {
+    let temp = create_temp_variable_name("oplpar");
+    let mut instructions = vec![];
+
+    let operation = match operation {
+        OperationType::Addition => "add",
+        OperationType::Substraction => "sub",
+        OperationType::Multiplication => "mul",
+        OperationType::Division => "div",
+        OperationType::Modulo => "mod",
+    };
+
+    let lparam_ins = assignment_to_asm(
+        &Box::from(Node::Identifier { name: temp.clone() }),
+       lparam
+    )?;
+    instructions.extend(lparam_ins);
+
+    let new_rparam = match &**rparam {
+        Node::Identifier { name } if !name.starts_with("$") => OperandType::Identifier { name: name.clone() },
+        Node::Identifier { name: _ } => {
+            let temp = create_temp_variable_name("oprpar");
+            let rparam_ins = assignment_to_asm(
+                &Box::from(Node::Identifier { name: temp.clone() }),
+               rparam
+            )?;
+            instructions.extend(rparam_ins);
+            OperandType::Identifier { name: temp.clone() }
+        },
+        Node::Litteral { value } => OperandType::Literal { value: *value },
+        _ => {
+            return Err(
+                "lparam of operation should be either a literal or an identifier"
+                    .to_string(),
+            )
+        }
+    };
+
+    instructions.push(PASMInstruction::new(
+        operation.to_string(),
+        vec![
+            OperandType::Identifier { name: temp.clone() },
+            new_rparam,
+        ],
+    ));
+
+    Ok((temp, instructions))
 }
 
 fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstructions {
@@ -159,50 +298,7 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
         } => {
             // Need to perform the operation to assign
             // Need to create temporary variable
-            let temp = create_temp_variable_name("arp");
-            let mut instructions = vec![];
-
-            let operation = match operation {
-                OperationType::Addition => "add",
-                OperationType::Substraction => "sub",
-                OperationType::Multiplication => "mul",
-                OperationType::Division => "div",
-                OperationType::Modulo => "mod",
-            };
-
-            instructions.push(PASMInstruction::new(
-                "mov".to_string(),
-                vec![
-                    OperandType::Identifier { name: temp.clone() },
-                    match &**lparam {
-                        Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
-                        Node::Litteral { value } => OperandType::Literal { value: *value },
-                        _ => {
-                            return Err(
-                                "lparam of operation should be either a literal or an identifier"
-                                    .to_string(),
-                            )
-                        }
-                    },
-                ],
-            ));
-
-            instructions.push(PASMInstruction::new(
-                operation.to_string(),
-                vec![
-                    OperandType::Identifier { name: temp.clone() },
-                    match &**rparam {
-                        Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
-                        Node::Litteral { value } => OperandType::Literal { value: *value },
-                        _ => {
-                            return Err(
-                                "lparam of operation should be either a literal or an identifier"
-                                    .to_string(),
-                            )
-                        }
-                    },
-                ],
-            ));
+            let (temp, mut instructions) = operation_to_asm(operation, lparam, rparam)?;
 
             instructions.push(PASMInstruction::new(
                 "mov".to_string(),
@@ -235,7 +331,7 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
         Node::Identifier { name } => {
             if name.starts_with("$") {
                 if memory_operation {
-                    let temp = create_temp_variable_name("memory_operation");
+                    let temp = create_temp_variable_name("mem_op");
                     Ok(vec![
                         PASMInstruction::new(
                             "load".to_string(),
@@ -302,7 +398,7 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                         vec![
                             OperandType::Identifier { name: temp.clone() },
                             OperandType::Identifier {
-                                name: "'FRP".to_string(),
+                                name: "'FRV".to_string(),
                             },
                         ],
                     ),
@@ -323,7 +419,7 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                     vec![
                         OperandType::Identifier { name: assignee },
                         OperandType::Identifier {
-                            name: "'FRP".to_string(),
+                            name: "'FRV".to_string(),
                         },
                     ],
                 ));
@@ -633,22 +729,41 @@ fn loop_to_asm(content: &Vec<Box<Node>>) -> MaybeInstructions {
 fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> MaybeInstructions {
     let mut instructions = vec![];
 
+    // Push parameters in reverse order
     for node in parameters.iter().rev() {
-        instructions.push(PASMInstruction::new(
-            "push".to_string(),
-            vec![match &**node {
-                Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
-                Node::Litteral { value } => OperandType::Literal { value: *value },
-                _ => {
-                    return Err(
-                        "Invalid value in function call, only identifiers and literals are allowed"
-                            .to_string(),
+        match &**node {
+            Node::Identifier { name } => instructions.push(
+                PASMInstruction::new(
+                    "push".to_string(),
+                    vec![OperandType::Identifier { name: name.clone() }]
+                )
+            ),
+            Node::Litteral { value } => instructions.push(
+                PASMInstruction::new(
+                    "push".to_string(),
+                    vec![OperandType::Literal { value: *value }]
+                )
+            ),
+            Node::Operation { lparam, rparam, operation } => {
+                let (temp, operation_instructions) = operation_to_asm(operation, lparam, rparam)?;
+                instructions.extend(operation_instructions);
+                instructions.push(
+                    PASMInstruction::new(
+                        "push".to_string(),
+                        vec![OperandType::Identifier { name: temp }]
                     )
-                }
-            }],
-        ))
+                )
+            }
+            _ => {
+                return Err(
+                    "Invalid value in function call, only identifiers, literals and operations are allowed"
+                        .to_string(),
+                )
+            }
+        }
     }
 
+    // Call the actual function, the return address will be pushed by the VM
     instructions.push(PASMInstruction::new(
         "call".to_string(),
         vec![OperandType::Identifier {
@@ -656,24 +771,65 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
         }],
     ));
 
+    // Restore the stack pointer
+    instructions.push(
+        PASMInstruction::new(
+            "sub".to_string(),
+            vec![
+                OperandType::Identifier { name: "'TSP".to_string() },
+                OperandType::Literal { value: parameters.len() as i32 }
+            ]
+        )
+    );
+
     Ok(instructions)
 }
 
+/// Produces the instructions needed for a function return.
+/// 1. Puts the return value into the 'FRV register
+/// 2. Restores the stack pointer to its original value
+/// 3. Restores the base pointer to its original value
+/// 4. actual ret instruction
 fn ret_to_asm(value: &Option<String>) -> MaybeInstructions {
     let mut instructions = vec![];
 
+    // Return value goes in FRV
     if let Some(v) = value {
         instructions.extend(assignment_to_asm(
             &Box::from(Node::Identifier {
-                name: "'FRP".to_string(),
+                name: "'FRV".to_string(),
             }),
             &Box::from(Node::Identifier { name: v.clone() }),
         )?);
     }
+
+    // Restore stack pointer
+    instructions.push(
+        PASMInstruction::new(
+            "mov".to_string(),
+            vec![
+                OperandType::Identifier { name: "'TSP".to_string() },
+                OperandType::Identifier { name: "'SBP".to_string() }
+            ]
+        )
+    );
+
+    // Restore base pointer
+    instructions.push(
+        PASMInstruction::new(
+            "pop".to_string(),
+            vec![
+                OperandType::Identifier { name: "'SBP".to_string() }
+            ]
+        )
+    );
+
+    // Actual return instruction
     instructions.push(PASMInstruction::new("ret".to_string(), vec![]));
     Ok(instructions)
 }
 
+/// Produces a print instruction from the AST nodes
 fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
     match &**node {
         Node::Identifier { name } => Ok(vec![PASMInstruction::new(
@@ -714,18 +870,36 @@ impl PASMProgram {
                 function_name
             ))];
 
-            for argument in fun.parameters {
-                instructions.push(PASMInstruction::new(
-                    "pop".to_string(),
-                    vec![OperandType::Identifier { name: argument }],
-                ));
-            }
+            // First, push SBP
+            instructions.push(
+                PASMInstruction::new(
+                    "push".to_string(),
+                    vec![OperandType::Identifier { name: "'SBP".to_string() }]
+                )
+            );
+
+            // Make stack pointer the base pointer
+            instructions.push(
+                PASMInstruction::new(
+                    "mov".to_string(),
+                    vec![
+                        OperandType::Identifier { name: "'SBP".to_string() },
+                        OperandType::Identifier { name: "'TSP".to_string() }
+                    ]
+                )
+            );
 
             for inst in fun.content {
                 instructions.extend(inst_to_pasm(&inst)?);
             }
 
-            functions.insert(function_name, instructions);
+            // Finally pop SBP
+            instructions.push(PASMInstruction::new(
+                "pop".to_string(),
+                vec![OperandType::Identifier { name: "'SBP".to_string() }]
+            ));
+
+            functions.insert(function_name, (fun.parameters, instructions));
         }
 
         Ok(PASMProgram { functions })

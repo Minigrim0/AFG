@@ -1,5 +1,7 @@
 use std::fs;
 
+use crate::virtual_machine::OperandType;
+
 use super::super::parser::parse;
 use super::super::{Instruction, Instructions, Registers, MemoryMappedProperties};
 
@@ -11,24 +13,24 @@ fn test_parser() {
 
     let expected = vec![
         Instruction {
-            opcode: Instructions::MOVI,
-            operand_1: (Registers::GPA as i32),
-            operand_2: Some(MemoryMappedProperties::VelocityY as i32),
+            opcode: Instructions::MOV,
+            operand_1: OperandType::Register { idx: Registers::GPA as usize },
+            operand_2: OperandType::Literal { value: MemoryMappedProperties::VelocityY as i32 },
         },
         Instruction {
-            opcode: Instructions::MOVI,
-            operand_1: (Registers::GPB as i32),
-            operand_2: Some(MemoryMappedProperties::Moment as i32),
+            opcode: Instructions::MOV,
+            operand_1: OperandType::Register { idx: Registers::GPB as usize },
+            operand_2: OperandType::Literal { value: MemoryMappedProperties::Moment as i32 },
         },
         Instruction {
-            opcode: Instructions::STOREI,
-            operand_1: (Registers::GPA as i32),
-            operand_2: Some(100),
+            opcode: Instructions::STORE,
+            operand_1: OperandType::Register { idx: Registers::GPA as usize },
+            operand_2: OperandType::Literal { value: 100 },
         },
         Instruction {
-            opcode: Instructions::STOREI,
-            operand_1: (Registers::GPB as i32),
-            operand_2: Some(-100),
+            opcode: Instructions::STORE,
+            operand_1: OperandType::Register { idx: Registers::GPB as usize },
+            operand_2: OperandType::Literal { value: -100 },
         }
     ];
 

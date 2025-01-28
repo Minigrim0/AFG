@@ -55,9 +55,9 @@ impl PASMProgramWithInterferenceGraph {
     pub fn analyse(program: &PASMProgram) -> Result<Self, String> {
         for (fname, function) in program.functions.iter() {
             // Summarizes amount of loops & such
-            Self::function_live_analysis(function);
+            Self::function_live_analysis(&function.1);
 
-            let blocks = Block::from_function(function)?;
+            let blocks = Block::from_function(&function.1)?;
 
             let ast_output = format!("graph_{}.viz", fname);
             if let Err(e) = fs::write(
