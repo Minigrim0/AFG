@@ -1,6 +1,7 @@
-use crate::lang::ast::node::{parse_block, CodeBlock};
+use crate::lang::prelude::*;
 use crate::lang::token::TokenType;
-use crate::lang::TokenStream;
+
+use super::node::{CodeBlock, parse_block};
 
 #[derive(Debug)]
 pub struct Function {

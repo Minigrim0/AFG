@@ -14,6 +14,11 @@ use super::entities::PlayerBundle;
 #[derive(Component)]
 pub struct DebugMachineText;
 
+#[derive(Component)]
+pub struct StackText;
+
+#[derive(Component)]
+pub struct RegisterText;
 
 // System to setup the player entity
 pub fn setup(
@@ -65,7 +70,21 @@ pub fn setup(
         Text2d::new("translation"),
         text_font.clone(),
         TextLayout::new_with_justify(JustifyText::Left),
+        StackText
+    ));
+
+    commands.spawn((
+        Text2d::new("translation"),
+        text_font.clone(),
+        TextLayout::new_with_justify(JustifyText::Left),
         DebugMachineText
+    ));
+
+    commands.spawn((
+        Text2d::new("translation"),
+        text_font.clone(),
+        TextLayout::new_with_justify(JustifyText::Left),
+        RegisterText
     ));
 }
 
@@ -135,23 +154,43 @@ pub fn debug_player_direction(
     }
 }
 
-pub fn display_selected_player_machine_debug(
+pub fn debug_current_instruction(
+    mut query: Query<(&mut Transform, &mut Text2d), With<DebugMachineText>>,
     vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
-    mut text_query: Query<&mut Text2d, With<DebugMachineText>>,
+    q_camera: Query<&GlobalTransform, With<Camera>>,
     programs: Res<Assets<Program>>,
 ) {
-    for machine in vm_query.iter() {
-        for mut text in text_query.iter_mut() {
-            text.0 = machine.get_current_instruction(&programs) + "\n" + machine.stack.iter().rev().enumerate().take(20).map(|(i, e)| format!("{} {}", i, e)).collect::<Vec<String>>().join("\n").as_str()
-        }
+    let machine = vm_query.single();
+
+    for (mut transform, mut text) in query.iter_mut() {
+        transform.translation = q_camera.single().translation() + Transform::from_xyz(0.0, 500.0, 0.0).translation;
+        text.0 = format!("Current Instruction\n{}", machine.get_current_instruction(&programs));
     }
 }
 
-pub fn move_debug_text(
-    mut query: Query<&mut Transform, (With<Text2d>, With<DebugMachineText>)>,
+
+pub fn debug_stack_frame(
+    mut query: Query<(&mut Transform, &mut Text2d), With<StackText>>,
+    vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
     q_camera: Query<&GlobalTransform, With<Camera>>,
 ) {
-    for mut transform in query.iter_mut() {
-        transform.translation = q_camera.single().translation()
+    let machine = vm_query.single();
+
+    for (mut transform, mut text) in query.iter_mut() {
+        transform.translation = q_camera.single().translation() + Transform::from_xyz(-300.0, 0.0, 0.0).translation;
+        text.0 = format!("Stack Frame\n{}", machine.get_stack_frame());
+    }
+}
+
+pub fn debug_registers(
+    mut query: Query<(&mut Transform, &mut Text2d), With<RegisterText>>,
+    vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
+    q_camera: Query<&GlobalTransform, With<Camera>>,
+) {
+    let machine = vm_query.single();
+
+    for (mut transform, mut text) in query.iter_mut() {
+        transform.translation = q_camera.single().translation() + Transform::from_xyz(200.0, 0.0, 0.0).translation;
+        text.0 = format!("Registers\n{}", machine.get_registers_display());
     }
 }

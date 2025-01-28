@@ -142,7 +142,7 @@ impl VirtualMachine {
 
     fn invalid_instruction<S: AsRef<str>, R>(&mut self, msg: S) -> Result<R, String> {
         self.status = MachineStatus::Dead;
-        Err(format!("FATAL: {}", msg.as_ref()))
+        Err(format!("FATAL: {} (CIP: {})", msg.as_ref(), self.registers[Registers::CIP as usize]))
     }
 
     fn update_flags(flags: u8, value: i32) -> u8 {
@@ -179,14 +179,46 @@ impl VirtualMachine {
         }
     }
 
+    pub fn get_stack_frame(&self) -> String {
+        let mut stack_frame = String::new();
+        for i in self.registers[Registers::TSP as usize]..self.registers[Registers::SBP as usize] {
+            stack_frame.push_str(&format!("[{}] = {}\n", i, self.stack[i as usize]));
+        }
+        stack_frame
+    }
+
+    pub fn get_registers_display(&self) -> String {
+        format!(
+            "GPA: {:5}\nGPB: {:5}\nSBP: {:5}\nTSP: {:5}\nFRV: {:5}\nCIP: {:5}",
+            self.registers[Registers::GPA as usize],
+            self.registers[Registers::GPB as usize],
+            self.registers[Registers::SBP as usize],
+            self.registers[Registers::TSP as usize],
+            self.registers[Registers::FRV as usize],
+            self.registers[Registers::CIP as usize]
+        )
+    }
+
     fn get_stack(&mut self, base_register: usize, addition: bool, offset: usize) -> Result<i32, String> {
         let stack_index: usize = self.stack_index(base_register, addition, offset + 1)?;  // Offset is incremented by one here because the stack pointer actually points one above the last value
         if let Some(value) = self.stack.get(stack_index) {
-            println!("[{} {} {}] = {}",  base_register, if addition { '+' } else { '-' }, offset, value);
+            println!("Getting {} from offset {} (idx: {})", value, offset, stack_index);
             Ok(*value)
         } else {
             self.status = MachineStatus::Dead;
             Err(format!("Unable to get stack value at index: {}", stack_index))
+        }
+    }
+
+    fn set_stack(&mut self, base_register: usize, addition: bool, offset: usize, value: i32) -> Result<(), String> {
+        let stack_index: usize = self.stack_index(base_register, addition, offset + 1)?;  // Offset is incremented by one here because the stack pointer actually points one above the last value
+        if stack_index < self.stack.len() {
+            println!("Setting {} at offset {} (idx: {})", value, offset, stack_index);
+            self.stack[stack_index] = value;
+            Ok(())
+        } else {
+            self.status = MachineStatus::Dead;
+            Err(format!("Unable to set stack value at index: {}", stack_index))
         }
     }
 
@@ -244,15 +276,19 @@ impl VirtualMachine {
 
         match instruction.opcode {
             Instructions::MOV => {
-                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
-                    match instruction.operand_2 {
-                        OperandType::Register { idx: op2 } => {
-                            self.registers[op1 as usize] = self.registers[op2 as usize]
-                        }
-                        OperandType::Literal { value: op2 } => self.registers[op1 as usize] = op2,
-                        OperandType::StackValue { base_register, addition, offset } => self.registers[op1 as usize] = self.get_stack(base_register, addition, offset)?,
-                        OperandType::None => self.invalid_instruction("Missing second operand for mov instruction")?
+                let to_store = match instruction.operand_2 {
+                    OperandType::Register { idx: op2 } => {
+                        self.registers[op2 as usize]
                     }
+                    OperandType::Literal { value: op2 } => op2,
+                    OperandType::StackValue { base_register, addition, offset } => self.get_stack(base_register, addition, offset)?,
+                    OperandType::None => self.invalid_instruction("Missing second operand for mov instruction")?
+                };
+
+                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
+                    self.registers[op1 as usize] = to_store;
+                } else if let OperandType::StackValue { base_register, addition, offset } = instruction.operand_1 {
+                    self.set_stack(base_register as usize, addition, offset, to_store)?;
                 } else {
                     self.invalid_instruction("Missing first operand for mov instruction")?
                 }
@@ -300,7 +336,7 @@ impl VirtualMachine {
                             self.registers[op1 as usize] += self.registers[op2 as usize]
                         }
                         OperandType::Literal { value: op2 } => self.registers[op1 as usize] += op2,
-                        OperandType::StackValue { base_register, addition, offset } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
+                        OperandType::StackValue { base_register: _, addition: _, offset: _ } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
                         OperandType::None => self.invalid_instruction("Missing second operand for add instruction")?
                     }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
@@ -315,7 +351,7 @@ impl VirtualMachine {
                             self.registers[op1 as usize] -= self.registers[op2 as usize]
                         }
                         OperandType::Literal { value: op2 } => self.registers[op1 as usize] -= op2,
-                        OperandType::StackValue { base_register, addition, offset } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
+                        OperandType::StackValue { base_register: _, addition: _, offset: _ } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
                         OperandType::None => self.invalid_instruction("Missing second operand for sub instruction")?
                     }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
@@ -330,7 +366,7 @@ impl VirtualMachine {
                             self.registers[op1 as usize] *= self.registers[op2 as usize]
                         }
                         OperandType::Literal { value: op2 } => self.registers[op1 as usize] *= op2,
-                        OperandType::StackValue { base_register, addition, offset } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
+                        OperandType::StackValue { base_register: _, addition: _, offset: _ } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
                         OperandType::None => self.invalid_instruction("Missing second operand for mul instruction")?
                     }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
@@ -345,7 +381,7 @@ impl VirtualMachine {
                             self.registers[op1 as usize] /= self.registers[op2 as usize]
                         }
                         OperandType::Literal { value: op2 } => self.registers[op1 as usize] /= op2,
-                        OperandType::StackValue { base_register, addition, offset } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
+                        OperandType::StackValue { base_register: _, addition: _, offset: _ } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
                         OperandType::None => self.invalid_instruction("Missing second operand for div instruction")?
                     }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
@@ -360,7 +396,7 @@ impl VirtualMachine {
                             self.registers[op1 as usize] %= self.registers[op2 as usize]
                         }
                         OperandType::Literal { value: op2 } => self.registers[op1 as usize] %= op2,
-                        OperandType::StackValue { base_register, addition, offset } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
+                        OperandType::StackValue { base_register: _, addition: _, offset: _ } =>  self.invalid_instruction("Cannot use stack operation as operand for arithmetic instruction")?,
                         OperandType::None => self.invalid_instruction("Missing second operand for mod instruction")?
                     }
                     next_flags = Self::update_flags(next_flags, self.registers[op1 as usize]);
@@ -372,16 +408,20 @@ impl VirtualMachine {
                 if let OperandType::Register { idx: op1 } = instruction.operand_1 {
                     match instruction.operand_2 {
                         OperandType::Register { idx: op2 } => {
-                            next_flags = Self::update_flags(
-                                next_flags,
-                                self.registers[op1 as usize] - self.registers[op2 as usize],
-                            )
+                            println!("{}, FOR CMP: {} - {} = {}", self.registers[Registers::CIP as usize], self.registers[op1 as usize], self.registers[op2 as usize], self.registers[op1 as usize] - self.registers[op2 as usize]);
+                                next_flags = Self::update_flags(
+                                    next_flags,
+                                    self.registers[op1 as usize] - self.registers[op2 as usize],
+                                );
+                                (self.flags, next_flags) = (next_flags, self.flags);
+                                println!("Flags: P{} N{} Z{}", self.check_flag(Flags::PositiveFlag), self.check_flag(Flags::NegativeFlag), self.check_flag(Flags::ZeroFlag));
+                                (self.flags, next_flags) = (next_flags, self.flags);
                         }
                         OperandType::Literal { value: op2 } => {
                             next_flags =
                                 Self::update_flags(next_flags, self.registers[op1 as usize] - op2)
                         }
-                        OperandType::StackValue { base_register, addition, offset } => self.invalid_instruction("Cannot use stack operation as operand for comparison instruction")?,
+                        OperandType::StackValue { base_register: _, addition: _, offset: _ } => self.invalid_instruction("Cannot use stack operation as operand for comparison instruction")?,
                         OperandType::None => self.invalid_instruction("Missing second operand for sub instruction")?
                     }
                 } else {
@@ -427,6 +467,7 @@ impl VirtualMachine {
                 }
             }
             Instructions::JP => {
+                println!("JP!");
                 if self.check_flag(Flags::PositiveFlag) {
                     next_jump = match instruction.operand_1 {
                         OperandType::Register { idx: op1 } => self.registers[op1 as usize],
@@ -434,6 +475,8 @@ impl VirtualMachine {
                         OperandType::StackValue { base_register, addition, offset } => self.get_stack(base_register, addition, offset)?,
                         OperandType::None => self.invalid_instruction("Missing first operand for store instruction")?
                     };
+                } else {
+                    println!("Not jumping, positive flag is false");
                 }
             }
             Instructions::CALL => {

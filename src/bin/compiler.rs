@@ -5,10 +5,7 @@ use std::fs;
 use colog;
 use log::{error, info, warn};
 
-use afg::lang::{
-    allocate, analyze, resolve_labels, PASMInstruction, PASMProgram, SemanticError, TokenStream, PASMAllocatedProgram,
-    AST,
-};
+use afg::lang::prelude::*;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]

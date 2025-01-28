@@ -1,11 +1,7 @@
 use std::fs;
 use petgraph::dot::{Dot, Config};
 
-use super::{
-    asm::PASMInstruction,
-    PASMProgram,
-};
-
+use super::prelude::{PASMProgram, PASMInstruction};
 
 mod block;
 mod liveness_tree;

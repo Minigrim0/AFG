@@ -78,7 +78,7 @@ fn main() {
             RapierDebugRenderPlugin::default(),
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
-        .insert_resource(Time::<Fixed>::from_hz(1.0))
+        .insert_resource(Time::<Fixed>::from_hz(5.0))
         .init_asset::<crate::virtual_machine::assets::Program>()
         .init_asset_loader::<crate::virtual_machine::assets::ProgramLoader>()
         .init_state::<AppState>()
@@ -102,8 +102,9 @@ fn main() {
                 (
                     player_systems::update_player,
                     player_systems::debug_player_direction,
-                    player_systems::display_selected_player_machine_debug,
-                    player_systems::move_debug_text,
+                    player_systems::debug_current_instruction,
+                    player_systems::debug_registers,
+                    player_systems::debug_stack_frame,
                     camera::update_camera,
                     mouse_button_events,
                 )

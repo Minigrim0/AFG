@@ -1,9 +1,8 @@
-use crate::lang::asm::OperandType;
-
-use super::super::asm::PASMInstruction;
 use core::fmt;
 use petgraph::graph::DiGraph;
 use std::collections::{HashMap, HashSet};
+
+use crate::lang::pasm::{OperandType, PASMInstruction};
 
 #[derive(Debug, Clone, Copy)]
 pub enum BlockTags {

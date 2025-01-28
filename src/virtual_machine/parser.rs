@@ -47,7 +47,6 @@ fn parse_literal<S: AsRef<str>>(literal: S) -> Result<i32, String> {
 fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
     match operand.as_ref().chars().next() {
         Some('$') => {
-            println!("\tOperand is a special variable");
             match operand
                 .as_ref()
                 .chars()
@@ -126,18 +125,14 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
                 .collect::<String>()
             )?
         }),
-        Some('\'') => {
-            println!("\tOperand is a register");
-            Ok(OperandType::Register { idx: parse_register(operand
+        Some('\'') => Ok(OperandType::Register { idx: parse_register(operand
                 .as_ref()
                 .chars()
                 .skip(1)
                 .collect::<String>()
                 .as_str())?
-            })
-        }
+            }),
         Some('[') => {
-            println!("\tOperand is a stack access");
             let operand = operand.as_ref().chars().filter_map(|c| if c == '[' || c == ']' { None } else { Some(c) }).collect::<String>();
             let splitted = operand.as_str().split(" ").filter_map(|s| if s.trim().is_empty() { None } else { Some(s.to_string()) }).collect::<Vec<String>>();
 
@@ -166,13 +161,7 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
 pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
     let mut instructions = vec![];
     'main_loop: for (line_nbr, line) in text.as_ref().split("\n").enumerate() {
-        println!("Working on line: {}", line);
-        if line.chars().next() == Some(';') {
-            println!("\tComment line, skipping");
-            continue;
-        }
-        if line.len() == 0 {
-            println!("\tEmpty line, skipping");
+        if line.chars().next() == Some(';') || line.len() == 0 {
             continue;
         }
 
@@ -180,11 +169,14 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
         let opcode = char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>();
         let operand1 = {
             if char_iter.peek() == Some(&'[') {
-                char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]"
+                let res = char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]";
+                char_iter.next();  // Consume the space
+                res
             } else {
                 char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>()
             }
         };
+
         let operand2 = {
             if char_iter.peek() == Some(&'[') {
                 char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]"

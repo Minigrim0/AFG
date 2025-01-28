@@ -30,9 +30,11 @@
 ///
 /// Example:
 /// ```rust
-/// use csai::lang::TokenStream;
+/// use afg::lang::token::TokenStream;
+///
 /// let input = String::from("set x = 12;");
-/// let lexed = TokenStream::lex(input);
+/// let lexed: TokenStream = TokenStream::lex(input);
+/// // Use the token stream to parse the code...
 /// ```
 ///
 /// ### 2. Parsing (Abstract Syntax Tree [AST] Generation)
@@ -63,18 +65,10 @@
 /// - Using an undeclared variable.
 /// - Invalid Operation (e.g. trying to assign a value to a literal)
 ///
-/// Example algorithm:
-/// ```rust
-/// use crate::lang::{AST, SemanticError};
-///
-/// fn analyze(ast: &AST) -> Result<(), SemanticError> {
-///     // Check for semantic issues, e.g., variable declarations and type correctness.
-/// }
-/// ```
-///
 /// ### 4. Code Generation
-/// In this stage, the validated AST is transformed into AsmFG code. The AsmFG output is a lower-level, assembly-style language
-/// that closely matches the target machine's architecture or a virtual machine.
+/// In this stage, the validated AST is transformed into Pseudo-AsmFG code. The Pseudo-AsmFG output is a lower-level, assembly-style language
+/// that closely matches the target virtual machine's architecture. This language supersets AsmFG and includes additional information such as
+/// variable names and labels.
 ///
 /// For example, the AFG code:
 /// ```AFG
@@ -83,12 +77,15 @@
 ///
 /// Might be translated to:
 /// ```AsmFG
-/// movi 'GPA #42
+/// mov @x #42
 /// ```
 ///
+/// **Module:** [`asm`](./asm/)
+/// - Contains data structures and functions for generating Pseudo-AsmFG code from the AST.
+/// - Implements a simple code generation algorithm that maps AST nodes to Pseudo-AsmFG instructions.
+///
 /// **Future Work:**
-/// - Add optimizations during code generation to produce more efficient AsmFG.
-/// - Support for more advanced AFG constructs such as loops, functions, and classes.
+/// - Add optimizations during code generation to produce more efficient Pseudo-AsmFG.
 ///
 /// ### 5. Optimization (Upcoming Feature)
 /// An optimization phase will be added to improve the efficiency of the generated AsmFG. This will include:
@@ -96,12 +93,7 @@
 /// - Constant folding (e.g., replacing `1 + 1` with `2` at compile time).
 /// - Inline expansion and other common compiler optimizations.
 ///
-/// Example Algorithm:
-/// ```ignore
-/// fn optimize(asm_fg: &mut AsmFG) {
-///     // Analyze and remove redundant instructions.
-/// }
-/// ```
+/// **Module:** [`optimization`](./optimization/)
 ///
 /// ## Roadmap
 /// - [x] Lexical analysis
@@ -112,18 +104,20 @@
 ///
 /// By defining these stages, this module ensures a structured approach to compiling AFG into AsmFG, making the process
 /// extensible and maintainable.
-mod allocation;
-mod asm;
-mod ast;
-mod labels;
-mod liveness;
-mod semantic;
-mod token;
+pub mod allocation;
+pub mod pasm;
+pub mod ast;
+pub mod labels;
+pub mod liveness;
+pub mod semantic;
+pub mod token;
 
-pub use allocation::allocate;
-pub use asm::{PASMInstruction, PASMProgram, PASMAllocatedProgram};
-pub use ast::{node::Node, AST};
-pub use labels::resolve_labels;
-pub use liveness::PASMProgramWithInterferenceGraph;
-pub use semantic::{analyze, SemanticError};
-pub use token::TokenStream;
+pub mod prelude {
+    pub use super::allocation::allocate;
+    pub use super::pasm::{PASMInstruction, PASMProgram, PASMAllocatedProgram};
+    pub use super::ast::{node::Node, AST};
+    pub use super::labels::resolve_labels;
+    pub use super::liveness::PASMProgramWithInterferenceGraph;
+    pub use super::semantic::{analyze, SemanticError};
+    pub use super::token::TokenStream;
+}

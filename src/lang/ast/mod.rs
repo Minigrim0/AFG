@@ -1,12 +1,14 @@
-use crate::lang::token::TokenType;
-use crate::lang::TokenStream;
 use std::collections::HashMap;
 use std::fmt;
+
+use crate::lang::token::TokenType;
+use crate::lang::ast::node::Node;
+
+use super::token::TokenStream;
 
 mod function;
 pub mod node;
 
-use crate::lang::ast::node::Node;
 use function::Function;
 
 #[derive(Debug)]
