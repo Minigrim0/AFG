@@ -77,7 +77,6 @@ pub fn allocate(
                             stack_offset_pointer = new_pointer;
                         }
                         let operand1_location = variable_map[name];
-                        println!("Operand one is frame variable, operand2: `{}` {}", instruction.operands[1], operand2_location.is_some());
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![

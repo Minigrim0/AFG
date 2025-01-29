@@ -1,4 +1,4 @@
-use crate::lang::ast::node::{CodeBlock, Node};
+use crate::ast::node::{CodeBlock, Node};
 use super::ast::AST;
 
 /// Semantic module
@@ -125,7 +125,7 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
 /// ```
 pub fn analyze(ast: &AST) -> Result<(), SemanticError> {
     for (_, func) in &ast.functions {
-        let mut in_scope = crate::virtual_machine::get_special_variables();
+        let mut in_scope = machine::get_special_variables();
         in_scope.extend(func.parameters.clone());
 
         analyze_block(&func.content, in_scope)?;

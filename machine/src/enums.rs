@@ -1,12 +1,16 @@
 use std::fmt;
 
-pub mod assets;
-pub mod errors;
-mod machine;
-mod parser;
-
-#[cfg(test)]
-mod tests;
+fn register_to_string(index: usize) -> String {
+    match index {
+        i if i == Registers::GPA as usize => "GPA".to_string(),
+        i if i == Registers::GPB as usize => "GPB".to_string(),
+        i if i == Registers::SBP as usize => "SBP".to_string(),
+        i if i == Registers::TSP as usize => "TSP".to_string(),
+        i if i == Registers::FRV as usize => "FRV".to_string(),
+        i if i == Registers::CIP as usize => "CIP".to_string(),
+        _ => "XXX".to_string(),
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OperandType {
@@ -29,36 +33,11 @@ impl fmt::Display for OperandType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             OperandType::Literal { value } => write!(f, "#{}", value),
-            OperandType::Register { idx } => write!(f, "'{}", idx),
-            OperandType::StackValue { base_register, addition, offset } => write!(f, "[{} {} {}]", base_register, if *addition { '+' } else { '-' }, offset),
+            OperandType::Register { idx } => write!(f, "'{}", register_to_string(*idx)),
+            OperandType::StackValue { base_register, addition, offset } => write!(f, "[{} {} {}]", register_to_string(*base_register), if *addition { '+' } else { '-' }, offset),
             OperandType::None => write!(f, ""),
         }
     }
-}
-
-pub fn get_special_variables() -> Vec<String> {
-    vec![
-        "$PositionX".to_string(),
-        "$PositionY".to_string(), // Read-only Vertical position
-        "$Rotation".to_string(),  // Read-only Rotation
-        "$Ray0Dist".to_string(),
-        "$Ray0Type".to_string(),
-        "$Ray1Dist".to_string(),
-        "$Ray1Type".to_string(),
-        "$Ray2Dist".to_string(),
-        "$Ray2Type".to_string(),
-        "$Ray3Dist".to_string(),
-        "$Ray3Type".to_string(),
-        "$Ray4Dist".to_string(),
-        "$Ray4Type".to_string(),
-        "$Ray5Dist".to_string(),
-        "$Ray5Type".to_string(),
-        "$Ray6Dist".to_string(),
-        "$Ray6Type".to_string(),
-        "$VelocityX".to_string(),
-        "$VelocityY".to_string(),
-        "$Moment".to_string(),
-    ]
 }
 
 pub enum MemoryMappedProperties {
@@ -103,7 +82,7 @@ pub enum Registers {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Instructions {
+pub enum OpCodes {
     MOV,     // r<op1> = #r<op2>
     STORE,  // [#r<op1>] = #r<op2>
     LOAD,   // r<op1> = [#r<op2>]
@@ -125,11 +104,25 @@ pub enum Instructions {
     PRINT,  // Prints the value of <r<op1>> to the console
 }
 
+/// Enum for the machine status
+/// Empty: The machine is empty, no program is loaded
+/// Ready: A program is loaded and the machine is ready to run
+/// Running: The machine is currently running (At least one tick has happened)
+/// Dead: The machine has encountered an error and is no longer running
+/// Complete: The machine has finished running the program
+#[derive(Default)]
 pub enum MachineStatus {
-    Ready = 0x0,
-    Running = 0x1,
-    Dead = 0x2,
-    Complete = 0x3,
+    #[default]
+    Empty = 0x0,
+    Ready = 0x1,
+    Running = 0x2,
+    Dead = 0x3,
+    Complete = 0x4,
 }
 
-pub use machine::*;
+pub enum Flags {
+    ZeroFlag = 0b00000001,
+    _OverflowFlag = 0b00000010,
+    NegativeFlag = 0b00000100,
+    PositiveFlag = 0b00001000,
+}

@@ -1,0 +1,19 @@
+[package]
+name = "afg-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.26", features = ["derive"] }
+petgraph = "0.7.1"
+afg-machine = { path = "../machine" }
+colog = "1.3.0"
+log = "0.4.25"
+
+[[bin]]
+name = "compiler"
+path = "src/bin.rs"
+
+[lib]
+name = "afgcompiler"
+path = "src/lib.rs"

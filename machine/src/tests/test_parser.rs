@@ -3,7 +3,7 @@ use std::fs;
 use crate::virtual_machine::OperandType;
 
 use super::super::parser::parse;
-use super::super::{Instruction, Instructions, Registers, MemoryMappedProperties};
+use super::super::{Instruction, OpCodes, Registers, MemoryMappedProperties};
 
 #[test]
 fn test_parser() {
@@ -13,22 +13,22 @@ fn test_parser() {
 
     let expected = vec![
         Instruction {
-            opcode: Instructions::MOV,
+            opcode: OpCodes::MOV,
             operand_1: OperandType::Register { idx: Registers::GPA as usize },
             operand_2: OperandType::Literal { value: MemoryMappedProperties::VelocityY as i32 },
         },
         Instruction {
-            opcode: Instructions::MOV,
+            opcode: OpCodes::MOV,
             operand_1: OperandType::Register { idx: Registers::GPB as usize },
             operand_2: OperandType::Literal { value: MemoryMappedProperties::Moment as i32 },
         },
         Instruction {
-            opcode: Instructions::STORE,
+            opcode: OpCodes::STORE,
             operand_1: OperandType::Register { idx: Registers::GPA as usize },
             operand_2: OperandType::Literal { value: 100 },
         },
         Instruction {
-            opcode: Instructions::STORE,
+            opcode: OpCodes::STORE,
             operand_1: OperandType::Register { idx: Registers::GPB as usize },
             operand_2: OperandType::Literal { value: -100 },
         }

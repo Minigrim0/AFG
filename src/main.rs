@@ -2,7 +2,7 @@ mod camera;
 mod map;
 mod player;
 mod state;
-mod virtual_machine;
+mod assets;
 
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
@@ -79,8 +79,8 @@ fn main() {
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
         .insert_resource(Time::<Fixed>::from_hz(120.0))
-        .init_asset::<crate::virtual_machine::assets::Program>()
-        .init_asset_loader::<crate::virtual_machine::assets::ProgramLoader>()
+        .init_asset::<machine::prelude::Program>()
+        .init_asset_loader::<assets::ProgramLoader>()
         .init_state::<AppState>()
         .add_systems(
             Startup,

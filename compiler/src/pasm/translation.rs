@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Transforms the AST of a function into pseudo-asm
-use crate::lang::ast::node::{Node, ComparisonType, OperationType};
+use crate::ast::node::{Node, ComparisonType, OperationType};
 use super::{PASMInstruction, OperandType, MaybeInstructions};
 
 static TEMP_VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);

@@ -1,27 +1,28 @@
 use super::errors::ParsingError;
-use super::{Instruction, Instructions, MemoryMappedProperties, OperandType, Registers};
+use super::enums::{OpCodes, MemoryMappedProperties, OperandType, Registers};
+use super::Instruction;
 
-fn parse_instr<S: AsRef<str>>(instr: S) -> Result<Instructions, String> {
+fn parse_instr<S: AsRef<str>>(instr: S) -> Result<OpCodes, String> {
     match instr.as_ref().to_lowercase().as_str() {
-        "mov" => Ok(Instructions::MOV),
-        "store" => Ok(Instructions::STORE),
-        "load" => Ok(Instructions::LOAD),
-        "add" => Ok(Instructions::ADD),
-        "sub" => Ok(Instructions::SUB),
-        "mul" => Ok(Instructions::MUL),
-        "div" => Ok(Instructions::DIV),
-        "mod" => Ok(Instructions::MOD),
-        "cmp" => Ok(Instructions::CMP),
-        "jmp" => Ok(Instructions::JMP),
-        "jz" => Ok(Instructions::JZ),
-        "jnz" => Ok(Instructions::JNZ),
-        "jn" => Ok(Instructions::JN),
-        "jp" => Ok(Instructions::JP),
-        "call" => Ok(Instructions::CALL),
-        "ret" => Ok(Instructions::RET),
-        "pop" => Ok(Instructions::POP),
-        "push" => Ok(Instructions::PUSH),
-        "print" => Ok(Instructions::PRINT),
+        "mov" => Ok(OpCodes::MOV),
+        "store" => Ok(OpCodes::STORE),
+        "load" => Ok(OpCodes::LOAD),
+        "add" => Ok(OpCodes::ADD),
+        "sub" => Ok(OpCodes::SUB),
+        "mul" => Ok(OpCodes::MUL),
+        "div" => Ok(OpCodes::DIV),
+        "mod" => Ok(OpCodes::MOD),
+        "cmp" => Ok(OpCodes::CMP),
+        "jmp" => Ok(OpCodes::JMP),
+        "jz" => Ok(OpCodes::JZ),
+        "jnz" => Ok(OpCodes::JNZ),
+        "jn" => Ok(OpCodes::JN),
+        "jp" => Ok(OpCodes::JP),
+        "call" => Ok(OpCodes::CALL),
+        "ret" => Ok(OpCodes::RET),
+        "pop" => Ok(OpCodes::POP),
+        "push" => Ok(OpCodes::PUSH),
+        "print" => Ok(OpCodes::PRINT),
         _ => Err(format!("Unknown instruction: {}", instr.as_ref())),
     }
 }

@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use super::{PASMInstruction, OperandType};
 use super::translation::inst_to_pasm;
 
-use crate::lang::ast::AST;
+use crate::ast::AST;
 
 fn get_frame_variables(function: &Vec<PASMInstruction>) -> Vec<String> {
     let mut frame_variables = HashSet::new();

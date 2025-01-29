@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::lang::token::{ensure_next_token, Token, TokenStream, TokenType};
+use crate::token::{ensure_next_token, Token, TokenStream, TokenType};
 
 #[derive(Debug, Default)]
 pub enum ComparisonType {
@@ -79,8 +79,10 @@ impl Default for Node {
 fn new_id_or_litteral(token: Token) -> Result<Node, String> {
     if token.token_type != TokenType::ID {
         return Err(format!(
-            "Unexpected token type {:?} expected and ID or a litteral",
-            token.token_type
+            "Unexpected token type {:?} expected an ID or a litteral (line: {} char: {})",
+            token.token_type,
+            token.line,
+            token.char
         ));
     }
 

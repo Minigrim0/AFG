@@ -1,0 +1,23 @@
+[package]
+name = "afg-machine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre = "0.6.3"
+crossterm = "0.28.1"
+ratatui = { version = "0.29.0" }
+clap = { version = "4.5.26", features = ["derive"] }
+thiserror = "2.0.11"
+bevy = {version = "0.15.1", optional = true}
+bevy_rapier2d = { version = "0.28.0", features = [ "simd-stable", "wasm-bindgen"], optional = true }
+[[bin]]
+name = "machine-tester"
+path = "src/bin.rs"
+
+[lib]
+name = "machine"
+path = "src/lib.rs"
+
+[features]
+bevy = ["dep:bevy", "dep:bevy_rapier2d"]

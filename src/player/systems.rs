@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 
-use crate::virtual_machine::{assets::Program, VirtualMachine};
+use machine::prelude::{Program, VirtualMachine};
 use crate::{map::MapHandle, Map};
 
 use super::components::{Bot, Gun, GunType, Health};
@@ -26,6 +26,7 @@ pub fn setup(
     map: Res<MapHandle>,
     maps: ResMut<Assets<Map>>,
     asset_server: Res<AssetServer>,
+    programs: Res<Assets<Program>>,
 ) {
     for _ in 0..1 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
@@ -44,12 +45,12 @@ pub fn setup(
             (0.0, 0.0)
         };
 
-        let player_program: Handle<Program> = asset_server.load("programs/new_turn.asmfg");
+        // let player_program = programs.iter().next().unwrap();
 
         // Spawn the player entity with all its components
         commands.spawn(PlayerBundle {
             bot: Bot,
-            virtual_machine: VirtualMachine::new().with_program(player_program),
+            virtual_machine: VirtualMachine::new(),
             health: Health::new(100),
             gun: Gun::new(GunType::Pistol),
             sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
@@ -91,7 +92,6 @@ pub fn setup(
 pub fn update_player(
     mut query: Query<(Entity, &mut VirtualMachine, &mut Transform, &mut Velocity)>,
     rapier_context: Query<&RapierContext>,
-    programs: Res<Assets<Program>>,
     mut gizmos: Gizmos,
 ) {
     let view_angle = 120.0 * PI / 180.0;
@@ -99,7 +99,7 @@ pub fn update_player(
     let viewing_distance = 2000.0;
 
     for (current_bot, mut vm, mut transform, mut vel) in query.iter_mut() {
-        if let Err(e) = vm.tick(&programs) {
+        if let Err(e) = vm.tick() {
             println!("Oh noes {}", e);
         }
         vm.update_mmp(&mut transform, &mut vel);
@@ -158,13 +158,12 @@ pub fn debug_current_instruction(
     mut query: Query<(&mut Transform, &mut Text2d), With<DebugMachineText>>,
     vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
     q_camera: Query<&GlobalTransform, With<Camera>>,
-    programs: Res<Assets<Program>>,
 ) {
     let machine = vm_query.single();
 
     for (mut transform, mut text) in query.iter_mut() {
         transform.translation = q_camera.single().translation() + Transform::from_xyz(0.0, 500.0, 0.0).translation;
-        text.0 = format!("Current Instruction\n{}", machine.get_current_instruction(&programs));
+        text.0 = format!("Current Instruction\n{}", machine.get_current_instruction().and_then(|i| Some(format!("{}", i))).unwrap_or("".to_string()));
     }
 }
 

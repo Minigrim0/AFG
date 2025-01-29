@@ -5,7 +5,7 @@ use std::fs;
 use colog;
 use log::{error, info, warn};
 
-use afg::lang::prelude::*;
+use afgcompiler::prelude::*;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]

@@ -1,5 +1,5 @@
-use crate::lang::prelude::*;
-use crate::lang::token::TokenType;
+use crate::prelude::*;
+use crate::token::TokenType;
 
 use super::node::{CodeBlock, parse_block};
 

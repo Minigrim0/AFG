@@ -2,14 +2,8 @@ use bevy::{
     asset::{io::Reader, AssetLoader, LoadContext},
     prelude::*,
 };
+use machine::prelude::{Program, ParsingError, parse};
 use thiserror::Error;
-
-use super::{errors::ParsingError, parser::parse, Instruction};
-
-#[derive(Asset, TypePath, Debug)]
-pub struct Program {
-    pub instructions: Vec<Instruction>,
-}
 
 #[non_exhaustive]
 #[derive(Debug, Error)]
@@ -44,6 +38,6 @@ impl AssetLoader for ProgramLoader {
             },
             Ok(i) => i
         };
-        Ok(Program { instructions })
+        Ok(Program { instructions, original_file: "unknown".to_string() })
     }
 }

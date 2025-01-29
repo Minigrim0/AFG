@@ -18,11 +18,13 @@ pub enum TokenType {
 pub struct Token {
     pub token_type: TokenType,
     pub value: Option<String>,
+    pub line: usize,
+    pub char: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, value: Option<String>) -> Self {
-        Self { token_type, value }
+    pub fn new(token_type: TokenType, value: Option<String>, line: usize, char: usize) -> Self {
+        Self { token_type, value, line, char }
     }
 
     pub fn is_literal(&self) -> bool {
@@ -72,41 +74,47 @@ impl TokenStream {
     }
 
     pub fn lex(text: String) -> Self {
-        let mut result: Vec<&str> = Vec::new();
+        let mut result: Vec<(&str, usize, usize)> = Vec::new();
         let mut last = 0;
+        let mut line: usize = 1;
         for (index, matched) in text.match_indices(|c| {
             c == ' ' || c == '(' || c == ')' || c == '{' || c == '}' || c == '\n' || c == ';'
         }) {
-            if last != index {
-                result.push(&text[last..index]);
+            if matched == "\n" {
+                line += 1;
             }
-            result.push(matched);
+
+            if last != index {
+                result.push((&text[last..index], line, last));
+            }
+            result.push((matched, line, index));
             last = index + matched.len();
         }
         if last < text.len() {
-            result.push(&text[last..]);
+            result.push((&text[last..], line, last));
         }
 
         let tokens = result
             .into_iter()
-            .filter(|t| *t != " ")
-            .filter_map(|t| match t {
+            .filter(|t| t.0 != " ")
+            .filter_map(|t| match t.0 {
                 "fn" | "while" | "set" | "if" | "else" | "return" | "loop" | "call" | "print" => {
-                    Some(Token::new(TokenType::KEYWORD, Some(t.to_string())))
+                    Some(Token::new(TokenType::KEYWORD, Some(t.0.to_string()), t.1, t.2))
                 }
                 "+" | "-" | "*" | "/" | "%" | "<" | "<=" | "==" | "!=" | "=" | ">=" | ">" => {
-                    Some(Token::new(TokenType::OP, Some(t.to_string())))
+                    Some(Token::new(TokenType::OP, Some(t.0.to_string()), t.1, t.2))
                 }
-                "(" => Some(Token::new(TokenType::LPAREN, None)),
-                ")" => Some(Token::new(TokenType::RPAREN, None)),
-                "{" => Some(Token::new(TokenType::LBRACE, None)),
-                "}" => Some(Token::new(TokenType::RBRACE, None)),
-                "//" => Some(Token::new(TokenType::COMMENT, None)),
-                "\n" | ";" => Some(Token::new(TokenType::ENDL, None)),
+                "(" => Some(Token::new(TokenType::LPAREN, None, t.1, t.2)),
+                ")" => Some(Token::new(TokenType::RPAREN, None, t.1, t.2)),
+                "{" => Some(Token::new(TokenType::LBRACE, None, t.1, t.2)),
+                "}" => Some(Token::new(TokenType::RBRACE, None, t.1, t.2)),
+                "//" => Some(Token::new(TokenType::COMMENT, None, t.1, t.2)),
+                "\n" | ";" => Some(Token::new(TokenType::ENDL, None, t.1, t.2)),
                 " " => None, // Skip whitespaces
-                t => Some(Token::new(
+                _ => Some(Token::new(
                     TokenType::ID,
-                    Some(t.to_string().replace(",", "")),
+                    Some(t.0.to_string().replace(",", "")),
+                    t.1, t.2
                 )),
             })
             .collect::<Vec<Token>>();

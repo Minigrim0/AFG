@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::lang::token::TokenType;
-use crate::lang::ast::node::Node;
-
-use super::token::TokenStream;
+use crate::token::{TokenType, TokenStream};
+use crate::ast::node::Node;
 
 mod function;
 pub mod node;

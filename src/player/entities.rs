@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_rapier2d::prelude::{Collider, RigidBody, Velocity};
 
-use crate::virtual_machine::VirtualMachine;
+use machine::prelude::VirtualMachine;
 
 use super::components::{Gun, Health, Bot};
 

@@ -17,12 +17,16 @@ bevy_rapier2d = { version = "0.28.0", features = [
     "simd-stable",
     "wasm-bindgen",
 ] }
-clap = { version = "4.5.26", features = ["derive"] }
-colog = "1.3.0"
-log = "0.4.25"
-petgraph = "0.7.1"
 rand = "0.8.5"
 regex = "1.11.1"
 serde = { version = "1.0.217", features = ["derive"] }
 thiserror = "2.0.11"
 toml = "0.8.19"
+afg-machine = { path = "machine", features = ["bevy"] }
+
+[workspace]
+members = [
+    "compiler",
+    "machine"
+]
+resolver = "2"
