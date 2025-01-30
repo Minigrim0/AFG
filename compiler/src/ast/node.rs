@@ -66,7 +66,7 @@ pub enum Node {
         parameters: CodeBlock, // A list of identifiers or literals
     },
     Return {
-        value: Option<String>,
+        value: Box<Node>,
     },
 }
 
@@ -80,9 +80,7 @@ fn new_id_or_litteral(token: Token) -> Result<Node, String> {
     if token.token_type != TokenType::ID {
         return Err(format!(
             "Unexpected token type {:?} expected an ID or a litteral (line: {} char: {})",
-            token.token_type,
-            token.line,
-            token.char
+            token.token_type, token.line, token.char
         ));
     }
 
@@ -151,8 +149,16 @@ fn new_comp_operator(
     })
 }
 
-fn new_return(value: Option<String>) -> Node {
-    Node::Return { value }
+fn new_return(token: Option<Token>) -> Result<Node, String> {
+    if let Some(token) = token {
+        Ok(Node::Return {
+            value: Box::from(new_id_or_litteral(token)?),
+        })
+    } else {
+        Ok(Node::Return {
+            value: Box::from(Node::Litteral { value: 0 }),
+        })
+    }
 }
 
 fn new_loop(stream: &mut TokenStream) -> Result<Node, String> {
@@ -383,8 +389,8 @@ pub fn parse_block(stream: &mut TokenStream) -> Result<CodeBlock, String> {
             TokenType::KEYWORD if token.value == Some("return".to_string()) => {
                 if let Some(token) = stream.next() {
                     match token.token_type {
-                        TokenType::ENDL => block_tree.push(Box::from(new_return(None))),
-                        TokenType::ID => block_tree.push(Box::from(new_return(token.value))),
+                        TokenType::ENDL => block_tree.push(Box::from(new_return(None)?)),
+                        TokenType::ID => block_tree.push(Box::from(new_return(Some(token))?)),
                         _ => continue,
                     }
                 }

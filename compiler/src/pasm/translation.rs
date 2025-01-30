@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use super::{MaybeInstructions, OperandType, PASMInstruction};
 /// Transforms the AST of a function into pseudo-asm
-use crate::ast::node::{Node, ComparisonType, OperationType};
-use super::{PASMInstruction, OperandType, MaybeInstructions};
+use crate::ast::node::{ComparisonType, Node, OperationType};
 
 static TEMP_VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -12,7 +12,11 @@ fn create_temp_variable_name<S: AsRef<str>>(pattern: S) -> String {
     format!("temp_{}_{}", pattern.as_ref(), counter)
 }
 
-fn operation_to_asm(operation: &OperationType, lparam: &Box<Node>, rparam: &Box<Node>) -> Result<(String, Vec<PASMInstruction>), String> {
+fn operation_to_asm(
+    operation: &OperationType,
+    lparam: &Box<Node>,
+    rparam: &Box<Node>,
+) -> Result<(String, Vec<PASMInstruction>), String> {
     let temp = create_temp_variable_name("oplpar");
     let mut instructions = vec![];
 
@@ -24,38 +28,32 @@ fn operation_to_asm(operation: &OperationType, lparam: &Box<Node>, rparam: &Box<
         OperationType::Modulo => "mod",
     };
 
-    let lparam_ins = assignment_to_asm(
-        &Box::from(Node::Identifier { name: temp.clone() }),
-       lparam
-    )?;
+    let lparam_ins =
+        assignment_to_asm(&Box::from(Node::Identifier { name: temp.clone() }), lparam)?;
     instructions.extend(lparam_ins);
 
     let new_rparam = match &**rparam {
-        Node::Identifier { name } if !name.starts_with("$") => OperandType::Identifier { name: name.clone() },
+        Node::Identifier { name } if !name.starts_with("$") => {
+            OperandType::Identifier { name: name.clone() }
+        }
         Node::Identifier { name: _ } => {
             let temp = create_temp_variable_name("oprpar");
-            let rparam_ins = assignment_to_asm(
-                &Box::from(Node::Identifier { name: temp.clone() }),
-               rparam
-            )?;
+            let rparam_ins =
+                assignment_to_asm(&Box::from(Node::Identifier { name: temp.clone() }), rparam)?;
             instructions.extend(rparam_ins);
             OperandType::Identifier { name: temp.clone() }
-        },
+        }
         Node::Litteral { value } => OperandType::Literal { value: *value },
         _ => {
             return Err(
-                "lparam of operation should be either a literal or an identifier"
-                    .to_string(),
+                "lparam of operation should be either a literal or an identifier".to_string(),
             )
         }
     };
 
     instructions.push(PASMInstruction::new(
         operation.to_string(),
-        vec![
-            OperandType::Identifier { name: temp.clone() },
-            new_rparam,
-        ],
+        vec![OperandType::Identifier { name: temp.clone() }, new_rparam],
     ));
 
     Ok((temp, instructions))
@@ -89,7 +87,9 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                 instructions.push(PASMInstruction::new(
                     "mov".to_string(),
                     vec![
-                        OperandType::Identifier { name: "'GPA".to_string() },
+                        OperandType::Identifier {
+                            name: "'GPA".to_string(),
+                        },
                         OperandType::Identifier { name: temp.clone() },
                     ],
                 ));
@@ -97,7 +97,9 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                     "store".to_string(),
                     vec![
                         OperandType::Identifier { name: assignee },
-                        OperandType::Identifier { name: "'GPA".to_string() },
+                        OperandType::Identifier {
+                            name: "'GPA".to_string(),
+                        },
                     ],
                 ));
             } else {
@@ -574,15 +576,17 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
     ));
 
     // Restore the stack pointer
-    instructions.push(
-        PASMInstruction::new(
-            "sub".to_string(),
-            vec![
-                OperandType::Identifier { name: "'TSP".to_string() },
-                OperandType::Literal { value: parameters.len() as i32 }
-            ]
-        )
-    );
+    instructions.push(PASMInstruction::new(
+        "add".to_string(),
+        vec![
+            OperandType::Identifier {
+                name: "'TSP".to_string(),
+            },
+            OperandType::Literal {
+                value: parameters.len() as i32,
+            },
+        ],
+    ));
 
     Ok(instructions)
 }
@@ -592,39 +596,70 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
 /// 2. Restores the stack pointer to its original value
 /// 3. Restores the base pointer to its original value
 /// 4. actual ret instruction
-fn ret_to_asm(value: &Option<String>) -> MaybeInstructions {
+fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
     let mut instructions = vec![];
 
     // Return value goes in FRV
-    if let Some(v) = value {
-        instructions.extend(assignment_to_asm(
-            &Box::from(Node::Identifier {
-                name: "'FRV".to_string(),
-            }),
-            &Box::from(Node::Identifier { name: v.clone() }),
-        )?);
+    match &**value {
+        Node::Identifier { name } => {
+            if name.starts_with("$") {
+                instructions.push(PASMInstruction::new(
+                    "load".to_string(),
+                    vec![
+                        OperandType::Identifier {
+                            name: "'FRV".to_string(),
+                        },
+                        OperandType::Identifier { name: name.clone() },
+                    ],
+                ));
+            } else {
+                instructions.push(PASMInstruction::new(
+                    "mov".to_string(),
+                    vec![
+                        OperandType::Identifier {
+                            name: "'FRV".to_string(),
+                        },
+                        OperandType::Identifier { name: name.clone() },
+                    ],
+                ));
+            }
+        }
+        Node::Litteral { value } => {
+            instructions.push(PASMInstruction::new(
+                "mov".to_string(),
+                vec![
+                    OperandType::Identifier {
+                        name: "'FRV".to_string(),
+                    },
+                    OperandType::Literal { value: *value },
+                ],
+            ));
+        }
+        _ => {
+            return Err("Invalid return value".to_string());
+        }
     }
 
     // Restore stack pointer
-    instructions.push(
-        PASMInstruction::new(
-            "mov".to_string(),
-            vec![
-                OperandType::Identifier { name: "'TSP".to_string() },
-                OperandType::Identifier { name: "'SBP".to_string() }
-            ]
-        )
-    );
+    instructions.push(PASMInstruction::new(
+        "mov".to_string(),
+        vec![
+            OperandType::Identifier {
+                name: "'TSP".to_string(),
+            },
+            OperandType::Identifier {
+                name: "'SBP".to_string(),
+            },
+        ],
+    ));
 
     // Restore base pointer
-    instructions.push(
-        PASMInstruction::new(
-            "pop".to_string(),
-            vec![
-                OperandType::Identifier { name: "'SBP".to_string() }
-            ]
-        )
-    );
+    instructions.push(PASMInstruction::new(
+        "pop".to_string(),
+        vec![OperandType::Identifier {
+            name: "'SBP".to_string(),
+        }],
+    ));
 
     // Actual return instruction
     instructions.push(PASMInstruction::new("ret".to_string(), vec![]));

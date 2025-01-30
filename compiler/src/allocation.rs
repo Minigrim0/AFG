@@ -17,7 +17,11 @@ fn allocate_memory(
     }
 }
 
-fn get_operand_location(operand: &OperandType, variable_map: &mut HashMap<String, i32>, stack_offset_pointer: usize) -> (Option<i32>, usize) {
+fn get_operand_location(
+    operand: &OperandType,
+    variable_map: &mut HashMap<String, i32>,
+    stack_offset_pointer: usize,
+) -> (Option<i32>, usize) {
     if let OperandType::Identifier { name } = operand {
         if name.starts_with("$") || name.starts_with("'") {
             (None, stack_offset_pointer)
@@ -43,10 +47,10 @@ pub fn allocate(
     // The variable map associates variables in the code to memory locations
     let mut variable_map: HashMap<String, i32> = HashMap::new();
     let mut next_instructions: Vec<PASMInstruction> = Vec::new();
-    let mut stack_offset_pointer = 1;  // 0 Is reserved for 'SBP already
+    let mut stack_offset_pointer = 1; // 0 Is reserved for 'SBP already
 
     for (index, parameter) in function.0.iter().enumerate() {
-        variable_map.insert(parameter.clone(), - (index as i32 + 2));
+        variable_map.insert(parameter.clone(), -(index as i32 + 2));
     }
 
     for instruction in function.1.iter() {
@@ -65,15 +69,24 @@ pub fn allocate(
             "mov" => {
                 // If operand2_location has a value, its the offset of this variable in the stack.
                 // If not, the operands is a literal or a register (meaning cimply copy it)
-                let (operand2_location, new_pointer) = get_operand_location(&instruction.operands[1], &mut variable_map, stack_offset_pointer);
+                let (operand2_location, new_pointer) = get_operand_location(
+                    &instruction.operands[1],
+                    &mut variable_map,
+                    stack_offset_pointer,
+                );
                 stack_offset_pointer = new_pointer;
 
                 match &instruction.operands[0] {
-                    OperandType::Identifier { name } if instruction.operands[0].is_frame_variable() => {
+                    OperandType::Identifier { name }
+                        if instruction.operands[0].is_frame_variable() =>
+                    {
                         // moving into a known variable
                         if !variable_map.contains_key(name) {
-                            let (_, new_pointer) =
-                                allocate_memory(&mut variable_map, stack_offset_pointer, name.clone());
+                            let (_, new_pointer) = allocate_memory(
+                                &mut variable_map,
+                                stack_offset_pointer,
+                                name.clone(),
+                            );
                             stack_offset_pointer = new_pointer;
                         }
                         let operand1_location = variable_map[name];
@@ -85,57 +98,69 @@ pub fn allocate(
                                     OperandType::new_stack("'SBP".to_string(), operand2_location)
                                 } else {
                                     instruction.operands[1].clone()
-                                }
-                            ]
+                                },
+                            ],
                         ));
                     }
                     // moving to a register
-                    _ => {
-                        next_instructions.push(PASMInstruction::new(
-                            "mov".to_string(),
-                            vec![
-                                instruction.operands[0].clone(),
-                                if let Some(operand2_location) = operand2_location {
-                                    OperandType::new_stack("'SBP".to_string(), operand2_location)
-                                } else {
-                                   instruction.operands[1].clone()
-                                }
-                            ]
-                        ))
-                    }
+                    _ => next_instructions.push(PASMInstruction::new(
+                        "mov".to_string(),
+                        vec![
+                            instruction.operands[0].clone(),
+                            if let Some(operand2_location) = operand2_location {
+                                OperandType::new_stack("'SBP".to_string(), operand2_location)
+                            } else {
+                                instruction.operands[1].clone()
+                            },
+                        ],
+                    )),
                 };
             }
             "load" => {
                 // If operand1_location has a value, its the offset of this variable in the stack.
                 // If not, the operands is a literal or a register (meaning cimply copy it)
-                let (operand1_location, new_pointer) = get_operand_location(&instruction.operands[0], &mut variable_map, stack_offset_pointer);
+                let (operand1_location, new_pointer) = get_operand_location(
+                    &instruction.operands[0],
+                    &mut variable_map,
+                    stack_offset_pointer,
+                );
                 stack_offset_pointer = new_pointer;
 
                 next_instructions.push(PASMInstruction::new(
                     "load".to_string(),
                     vec![
-                        if operand1_location.is_some() {  // The operand is a variable, load it into a register
-                            OperandType::Identifier { name: "'GPA".to_string() }
+                        if operand1_location.is_some() {
+                            // The operand is a variable, load it into a register
+                            OperandType::Identifier {
+                                name: "'GPA".to_string(),
+                            }
                         } else {
                             instruction.operands[0].clone()
                         },
-                        instruction.operands[1].clone()
-                    ]
+                        instruction.operands[1].clone(),
+                    ],
                 ));
-                if let Some(operand1_location) = operand1_location {  // Still work to do, move the result into the variable
+                if let Some(operand1_location) = operand1_location {
+                    // Still work to do, move the result into the variable
                     next_instructions.push(PASMInstruction::new(
                         "mov".to_string(),
                         vec![
                             OperandType::new_stack("'SBP".to_string(), operand1_location),
-                            OperandType::Identifier { name: "'GPA".to_string() }
-                        ]
+                            OperandType::Identifier {
+                                name: "'GPA".to_string(),
+                            },
+                        ],
                     ));
                 }
             }
             "store" => {
                 // If operand2_location has a value, its the offset of this variable in the stack.
                 // If not, the operands is a literal or a register (meaning cimply copy it)
-                let (operand2_location, new_pointer) = get_operand_location(&instruction.operands[1], &mut variable_map, stack_offset_pointer);
+                let (operand2_location, new_pointer) = get_operand_location(
+                    &instruction.operands[1],
+                    &mut variable_map,
+                    stack_offset_pointer,
+                );
                 stack_offset_pointer = new_pointer;
 
                 next_instructions.push(PASMInstruction::new(
@@ -145,38 +170,51 @@ pub fn allocate(
                         if let Some(operand2_location) = operand2_location {
                             OperandType::new_stack("'SBP".to_string(), operand2_location)
                         } else {
-                           instruction.operands[1].clone()  // Either a register or an immediate value
-                        }
-                    ]
+                            instruction.operands[1].clone() // Either a register or an immediate value
+                        },
+                    ],
                 ))
             }
             "add" | "sub" | "mul" | "div" | "mod" => {
                 // If operandX_location has a value, its the offset of this variable in the stack.
                 // If not, the operands is a literal or a register (meaning simply copy it)
-                let (operand1_location, new_pointer) = get_operand_location(&instruction.operands[0], &mut variable_map, stack_offset_pointer);
-                let (operand2_location, new_pointer) = get_operand_location(&instruction.operands[1], &mut variable_map, new_pointer);
+                let (operand1_maybe_location, new_pointer) = get_operand_location(
+                    &instruction.operands[0],
+                    &mut variable_map,
+                    stack_offset_pointer,
+                );
+                let (operand2_maybe_location, new_pointer) =
+                    get_operand_location(&instruction.operands[1], &mut variable_map, new_pointer);
                 stack_offset_pointer = new_pointer;
 
                 let operand1_location = {
-                    if let Some(offset1) = operand1_location {
+                    if let Some(offset1) = operand1_maybe_location {
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier { name: "'GPA".to_string() },
+                                OperandType::Identifier {
+                                    name: "'GPA".to_string(),
+                                },
                                 OperandType::new_stack("'SBP".to_string(), offset1),
-                            ]
+                            ],
                         ));
-                        OperandType::Identifier { name: "'GPA".to_string() }
+                        OperandType::Identifier {
+                            name: "'GPA".to_string(),
+                        }
                     } else {
                         if instruction.operands[0].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier { name: "'GPA".to_string() },
-                                    instruction.operands[0].clone()
-                                ]
+                                    OperandType::Identifier {
+                                        name: "'GPA".to_string(),
+                                    },
+                                    instruction.operands[0].clone(),
+                                ],
                             ));
-                            OperandType::Identifier { name: "'GPA".to_string() }
+                            OperandType::Identifier {
+                                name: "'GPA".to_string(),
+                            }
                         } else {
                             instruction.operands[0].clone()
                         }
@@ -184,25 +222,33 @@ pub fn allocate(
                 };
 
                 let operand2_location = {
-                    if let Some(offset2) = operand2_location {
+                    if let Some(offset2) = operand2_maybe_location {
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier { name: "'GPB".to_string() },
+                                OperandType::Identifier {
+                                    name: "'GPB".to_string(),
+                                },
                                 OperandType::new_stack("'SBP".to_string(), offset2),
-                            ]
+                            ],
                         ));
-                        OperandType::Identifier { name: "'GPB".to_string() }
+                        OperandType::Identifier {
+                            name: "'GPB".to_string(),
+                        }
                     } else {
                         if instruction.operands[1].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier { name: "'GPB".to_string() },
-                                    instruction.operands[1].clone()
-                                ]
+                                    OperandType::Identifier {
+                                        name: "'GPB".to_string(),
+                                    },
+                                    instruction.operands[1].clone(),
+                                ],
                             ));
-                            OperandType::Identifier { name: "'GPB".to_string() }
+                            OperandType::Identifier {
+                                name: "'GPB".to_string(),
+                            }
                         } else {
                             instruction.operands[1].clone()
                         }
@@ -211,13 +257,31 @@ pub fn allocate(
 
                 next_instructions.push(PASMInstruction::new(
                     instruction.opcode.clone(),
-                    vec![operand1_location, operand2_location]
+                    vec![operand1_location, operand2_location],
                 ));
+
+                // Store the result in the destination variable
+                if let Some(offset1) = operand1_maybe_location {
+                    next_instructions.push(PASMInstruction::new(
+                        "mov".to_string(),
+                        vec![
+                            OperandType::new_stack("'SBP".to_string(), offset1),
+                            OperandType::Identifier {
+                                name: "'GPA".to_string(),
+                            },
+                        ],
+                    ));
+                }
             }
             "cmp" => {
                 // load first operand into GPA
-                let (operand1_location, new_pointer) = get_operand_location(&instruction.operands[0], &mut variable_map, stack_offset_pointer);
-                let (operand2_location, new_pointer) = get_operand_location(&instruction.operands[1], &mut variable_map, new_pointer);
+                let (operand1_location, new_pointer) = get_operand_location(
+                    &instruction.operands[0],
+                    &mut variable_map,
+                    stack_offset_pointer,
+                );
+                let (operand2_location, new_pointer) =
+                    get_operand_location(&instruction.operands[1], &mut variable_map, new_pointer);
                 stack_offset_pointer = new_pointer;
 
                 let operand1_location = {
@@ -225,21 +289,29 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier { name: "'GPA".to_string() },
+                                OperandType::Identifier {
+                                    name: "'GPA".to_string(),
+                                },
                                 OperandType::new_stack("'SBP".to_string(), offset1),
-                            ]
+                            ],
                         ));
-                        OperandType::Identifier { name: "'GPA".to_string() }
+                        OperandType::Identifier {
+                            name: "'GPA".to_string(),
+                        }
                     } else {
                         if instruction.operands[0].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier { name: "'GPA".to_string() },
-                                    instruction.operands[0].clone()
-                                ]
+                                    OperandType::Identifier {
+                                        name: "'GPA".to_string(),
+                                    },
+                                    instruction.operands[0].clone(),
+                                ],
                             ));
-                            OperandType::Identifier { name: "'GPA".to_string() }
+                            OperandType::Identifier {
+                                name: "'GPA".to_string(),
+                            }
                         } else {
                             instruction.operands[0].clone()
                         }
@@ -251,21 +323,29 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier { name: "'GPB".to_string() },
+                                OperandType::Identifier {
+                                    name: "'GPB".to_string(),
+                                },
                                 OperandType::new_stack("'SBP".to_string(), offset2),
-                            ]
+                            ],
                         ));
-                        OperandType::Identifier { name: "'GPB".to_string() }
+                        OperandType::Identifier {
+                            name: "'GPB".to_string(),
+                        }
                     } else {
                         if instruction.operands[1].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier { name: "'GPB".to_string() },
-                                    instruction.operands[1].clone()
-                                ]
+                                    OperandType::Identifier {
+                                        name: "'GPB".to_string(),
+                                    },
+                                    instruction.operands[1].clone(),
+                                ],
                             ));
-                            OperandType::Identifier { name: "'GPB".to_string() }
+                            OperandType::Identifier {
+                                name: "'GPB".to_string(),
+                            }
                         } else {
                             instruction.operands[1].clone()
                         }
@@ -279,7 +359,11 @@ pub fn allocate(
                 ));
             }
             "push" | "print" => {
-                let (operand1_location, new_pointer) = get_operand_location(&instruction.operands[0], &mut variable_map, stack_offset_pointer);
+                let (operand1_location, new_pointer) = get_operand_location(
+                    &instruction.operands[0],
+                    &mut variable_map,
+                    stack_offset_pointer,
+                );
                 stack_offset_pointer = new_pointer;
 
                 let operand1_location = {
@@ -287,21 +371,29 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier { name: "'GPA".to_string() },
+                                OperandType::Identifier {
+                                    name: "'GPA".to_string(),
+                                },
                                 OperandType::new_stack("'SBP".to_string(), offset1),
-                            ]
+                            ],
                         ));
-                        OperandType::Identifier { name: "'GPA".to_string() }
+                        OperandType::Identifier {
+                            name: "'GPA".to_string(),
+                        }
                     } else {
                         if instruction.operands[0].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier { name: "'GPA".to_string() },
-                                    instruction.operands[0].clone()
-                                ]
+                                    OperandType::Identifier {
+                                        name: "'GPA".to_string(),
+                                    },
+                                    instruction.operands[0].clone(),
+                                ],
                             ));
-                            OperandType::Identifier { name: "'GPA".to_string() }
+                            OperandType::Identifier {
+                                name: "'GPA".to_string(),
+                            }
                         } else {
                             instruction.operands[0].clone()
                         }

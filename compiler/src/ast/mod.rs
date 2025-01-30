@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::token::{TokenType, TokenStream};
 use crate::ast::node::Node;
+use crate::token::{TokenStream, TokenType};
 
 mod function;
 pub mod node;
@@ -106,15 +106,7 @@ impl AST {
                 }
                 Node::Return { value } => {
                     writeln!(f, "{}Return", prefix)?;
-                    if let Some(value) = value {
-                        Self::print_block(
-                            vec![&Box::from(Node::Identifier {
-                                name: value.clone(),
-                            })],
-                            f,
-                            level + 1,
-                        )?;
-                    }
+                    Self::print_block(vec![value], f, level + 1)?;
                 }
             }
         }
