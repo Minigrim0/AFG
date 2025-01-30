@@ -34,7 +34,17 @@ impl fmt::Display for OperandType {
         match self {
             OperandType::Literal { value } => write!(f, "#{}", value),
             OperandType::Register { idx } => write!(f, "'{}", register_to_string(*idx)),
-            OperandType::StackValue { base_register, addition, offset } => write!(f, "[{} {} {}]", register_to_string(*base_register), if *addition { '+' } else { '-' }, offset),
+            OperandType::StackValue {
+                base_register,
+                addition,
+                offset,
+            } => write!(
+                f,
+                "[{} {} {}]",
+                register_to_string(*base_register),
+                if *addition { '+' } else { '-' },
+                offset
+            ),
             OperandType::None => write!(f, ""),
         }
     }
@@ -73,35 +83,35 @@ pub enum MemoryMappedProperties {
 /// FRV is the register used to transfer return parameters from callee to caller.
 /// CIP is the current instruction pointer. It is normally increased by one after each instruction except for branching instructions
 pub enum Registers {
-    GPA = 0,  // Accumulator
-    GPB = 1,  // Parameter
-    SBP = 2,  // Stack base pointer, defines the stack "scope" of the current function
-    TSP = 3,  // Stack Pointer, the current top of the stack
-    FRV = 4,  // Register containing function's return values
-    CIP = 5,  // Instruction pointer
+    GPA = 0, // Accumulator
+    GPB = 1, // Parameter
+    SBP = 2, // Stack base pointer, defines the stack "scope" of the current function
+    TSP = 3, // Stack Pointer, the current top of the stack
+    FRV = 4, // Register containing function's return values
+    CIP = 5, // Instruction pointer
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OpCodes {
-    MOV,     // r<op1> = #r<op2>
-    STORE,  // [#r<op1>] = #r<op2>
-    LOAD,   // r<op1> = [#r<op2>]
-    ADD,    // r<op1> = #r<op1> + #r<op2>
-    SUB,    // Subs into <Register <operand 1>> <Register <operand 2>>
-    MUL,    // Mul into <Register <operand 1>> <Register <operand 2>>
-    DIV,    // r<op1> = #<r<op1>> / #<r<op2>>
-    MOD,    // r<op1> = #<r<op1>> % #<r<op2>>
-    CMP,    // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
-    JMP,    // Unconditional jump to instruction #<op1>
-    JZ,     // Jump if previous operation resulted in 0
-    JNZ,    // Jump if previous operation was not 0
-    JN,     // Jump if previous operation was negative
-    JP,     // Jump if previous operation was positive
-    CALL,   // Call function at address #<r<op1>>   /!\ User is responsible for pushing and popping the stack
-    RET,    // Returns from function call           /!\ User is responsible for pushing and popping the stack
-    POP,    // Pops a value from the stack into <r<op1>>
-    PUSH,   // Pushes to the stack the value of <r<op1>>
-    PRINT,  // Prints the value of <r<op1>> to the console
+    MOV,   // r<op1> = #r<op2>
+    STORE, // [#r<op1>] = #r<op2>
+    LOAD,  // r<op1> = [#r<op2>]
+    ADD,   // r<op1> = #r<op1> + #r<op2>
+    SUB,   // Subs into <Register <operand 1>> <Register <operand 2>>
+    MUL,   // Mul into <Register <operand 1>> <Register <operand 2>>
+    DIV,   // r<op1> = #<r<op1>> / #<r<op2>>
+    MOD,   // r<op1> = #<r<op1>> % #<r<op2>>
+    CMP, // Performs a comparison by subbing its two register operands, without saving the result, just changing the flags
+    JMP, // Unconditional jump to instruction #<op1>
+    JZ,  // Jump if previous operation resulted in 0
+    JNZ, // Jump if previous operation was not 0
+    JN,  // Jump if previous operation was negative
+    JP,  // Jump if previous operation was positive
+    CALL, // Call function at address #<r<op1>>   /!\ User is responsible for pushing and popping the stack
+    RET, // Returns from function call           /!\ User is responsible for pushing and popping the stack
+    POP, // Pops a value from the stack into <r<op1>>
+    PUSH, // Pushes to the stack the value of <r<op1>>
+    PRINT, // Prints the value of <r<op1>> to the console
 }
 
 /// Enum for the machine status
@@ -120,9 +130,32 @@ pub enum MachineStatus {
     Complete = 0x4,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Flags {
     ZeroFlag = 0b00000001,
-    _OverflowFlag = 0b00000010,
+    OverflowFlag = 0b00000010,
     NegativeFlag = 0b00000100,
     PositiveFlag = 0b00001000,
+}
+
+impl Flags {
+    pub fn iter() -> impl Iterator<Item = Flags> {
+        [
+            Flags::ZeroFlag,
+            Flags::OverflowFlag,
+            Flags::NegativeFlag,
+            Flags::PositiveFlag,
+        ]
+        .iter()
+        .copied()
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Flags::ZeroFlag => "ZF".to_string(),
+            Flags::OverflowFlag => "OF".to_string(),
+            Flags::NegativeFlag => "NF".to_string(),
+            Flags::PositiveFlag => "PF".to_string(),
+        }
+    }
 }

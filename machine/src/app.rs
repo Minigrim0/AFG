@@ -4,7 +4,9 @@ use std::fmt;
 
 use machine::prelude::*;
 
-use crate::blocks::{AppBlock, InstructionsBlock, RegisterBlock, StackBlock};
+use crate::blocks::{
+    AppBlock, InstructionsBlock, MachineOutputBlock, MachineStatusBlock, RegisterBlock, StackBlock,
+};
 
 use ratatui::{
     layout::{Constraint, Layout},
@@ -37,7 +39,14 @@ pub struct App<'a> {
     pub machine: VirtualMachine,
     pub status: AppStatus,
     pub selected_block: usize, // Selected block for modifications (Instructions, Stack, registers)
-    pub blocks: [Box<dyn AppBlock>; 3],
+    pub blocks: (
+        InstructionsBlock,
+        StackBlock,
+        RegisterBlock,
+        MachineOutputBlock,
+        MachineStatusBlock,
+    ),
+    pub breakpoints: Vec<usize>,
 }
 
 impl App<'_> {
@@ -48,11 +57,14 @@ impl App<'_> {
             machine,
             status: AppStatus::default(),
             selected_block: 0, // Instructions
-            blocks: [
-                Box::new(InstructionsBlock::new()),
-                Box::new(StackBlock::new()),
-                Box::new(RegisterBlock::new()),
-            ],
+            blocks: (
+                InstructionsBlock::new(),
+                StackBlock::new(),
+                RegisterBlock::new(),
+                MachineOutputBlock::new(),
+                MachineStatusBlock::new(),
+            ),
+            breakpoints: vec![],
         }
     }
 
@@ -66,11 +78,29 @@ impl App<'_> {
     }
 
     pub fn on_key(&mut self, key: KeyEvent) {
-        self.blocks[self.selected_block].on_key(key);
+        match key.code {
+            crossterm::event::KeyCode::Char('b') => {
+                let index = self.blocks.0.get_selected_cip();
+                if let Some(position) = self.breakpoints.iter().position(|v| *v == index) {
+                    self.breakpoints.remove(position);
+                } else {
+                    self.breakpoints.push(index);
+                }
+                self.blocks.0.update_breakpoints(self.breakpoints.clone());
+            }
+            _ => match self.selected_block {
+                0 => self.blocks.0.on_key(key),
+                1 => self.blocks.1.on_key(key),
+                2 => self.blocks.2.on_key(key),
+                3 => self.blocks.3.on_key(key),
+                4 => self.blocks.4.on_key(key),
+                _ => unreachable!(),
+            },
+        }
     }
 
     pub fn on_next_block(&mut self) {
-        self.selected_block = (self.selected_block + 1) % self.blocks.len();
+        self.selected_block = (self.selected_block + 1) % 5;
     }
 
     /// Toggles the app between "Ticking" and "Continuing" states
@@ -88,6 +118,13 @@ impl App<'_> {
     /// Update the machine if the app is in the "Continuing" state
     pub fn update(&mut self) {
         if matches!(self.status, AppStatus::Continuing) {
+            if self
+                .breakpoints
+                .contains(&(self.machine.get_cip() as usize))
+            {
+                self.on_continue();
+                return;
+            }
             if let Err(e) = self.machine.tick() {
                 self.status = AppStatus::Err(e.to_string());
             };
@@ -101,16 +138,51 @@ impl App<'_> {
     pub fn draw(&mut self, frame: &mut Frame) {
         let chunks = Layout::horizontal([
             Constraint::Min(20),
-            Constraint::Min(15),
-            Constraint::Min(11),
-        ]);
-        for (idx, (block, area)) in self
-            .blocks
-            .iter()
-            .zip(chunks.split(frame.area()).iter())
-            .enumerate()
-        {
-            block.draw(frame, &mut self.machine, idx == self.selected_block, area);
-        }
+            Constraint::Length(40),
+            Constraint::Length(30),
+        ])
+        .split(frame.area());
+
+        self.blocks.0.draw(
+            frame,
+            &mut self.machine,
+            self.selected_block == 0,
+            &chunks[0],
+        );
+
+        self.blocks.1.draw(
+            frame,
+            &mut self.machine,
+            self.selected_block == 1,
+            &chunks[1],
+        );
+
+        let sub_layout = Layout::vertical([
+            Constraint::Min(12),
+            Constraint::Min(5),
+            Constraint::Length(3),
+        ])
+        .split(chunks[2]);
+
+        self.blocks.2.draw(
+            frame,
+            &mut self.machine,
+            self.selected_block == 2,
+            &sub_layout[0],
+        );
+
+        self.blocks.3.draw(
+            frame,
+            &mut self.machine,
+            self.selected_block == 3,
+            &sub_layout[1],
+        );
+
+        self.blocks.4.draw(
+            frame,
+            &mut self.machine,
+            self.selected_block == 4,
+            &sub_layout[2],
+        );
     }
 }

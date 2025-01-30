@@ -10,6 +10,7 @@ pub struct VirtualMachine {
     memory: [i32; 65536], // 64KB of memory
     status: MachineStatus,
     program: Option<Vec<Instruction>>,
+    current_output: Option<String>,
 }
 
 impl Default for VirtualMachine {
@@ -22,6 +23,7 @@ impl Default for VirtualMachine {
             memory: [0; 65536], // 64KB of memory
             status: MachineStatus::Empty,
             program: None,
+            current_output: None,
         }
     }
 }
@@ -31,7 +33,7 @@ impl VirtualMachine {
         let mut vm = VirtualMachine::default();
 
         // Stack pointer
-        vm.registers[Registers::TSP as usize] = vm.stack.len() as i32 - 1;
+        vm.registers[Registers::TSP as usize] = vm.stack.len() as i32;
         vm
     }
 
@@ -41,17 +43,56 @@ impl VirtualMachine {
         self
     }
 
+    pub fn get_status(&self) -> String {
+        match self.status {
+            MachineStatus::Empty => "Empty".to_string(),
+            MachineStatus::Ready => "Ready".to_string(),
+            MachineStatus::Running => "Running".to_string(),
+            MachineStatus::Dead => "Dead".to_string(),
+            MachineStatus::Complete => "Complete".to_string(),
+        }
+    }
+
     /// Checks if a flag is currently set.
     fn check_flag(&self, flag: Flags) -> bool {
         self.flags & flag as u8 != 0
     }
 
-    fn update_flags(&mut self, value: i32) -> u8 {
-        match value {
+    /// Checks if a flag is currently set.
+    fn check_next_flag(&self, flag: Flags) -> bool {
+        self.next_flags & flag as u8 != 0
+    }
+
+    fn update_flags(&mut self, value: i32) {
+        self.next_flags = match value {
             0 => self.next_flags | Flags::ZeroFlag as u8,
             n if n < 0 => self.next_flags | Flags::NegativeFlag as u8,
             _ => self.next_flags | Flags::PositiveFlag as u8,
-        }
+        };
+    }
+
+    pub fn has_completed(&self) -> bool {
+        matches!(self.status, MachineStatus::Complete)
+    }
+
+    pub fn get_flags(&self) -> Vec<(String, String, String)> {
+        Flags::iter()
+            .map(|f| {
+                (
+                    f.to_string(),
+                    if self.check_flag(f) {
+                        "t".to_string()
+                    } else {
+                        "f".to_string()
+                    },
+                    if self.check_next_flag(f) {
+                        "t".to_string()
+                    } else {
+                        "f".to_string()
+                    },
+                )
+            })
+            .collect()
     }
 
     // Update memory mapped properties to reflect the bot's sensors & react to the program's instructions
@@ -179,6 +220,35 @@ impl VirtualMachine {
         }
     }
 
+    pub fn get_stack_slice(&self, offset: usize, amount: usize) -> Vec<(usize, i32)> {
+        self.stack
+            .iter()
+            .rev()
+            .skip(offset)
+            .take(amount)
+            .enumerate()
+            .map(|(idx, i)| (self.stack.len() - 1 - idx - offset, *i))
+            .collect()
+    }
+
+    pub fn get_register(&self, register: usize) -> i32 {
+        if register >= self.registers.len() {
+            return 0;
+        }
+        self.registers[register]
+    }
+
+    pub fn get_registers(&self) -> [(String, i32); 6] {
+        [
+            ("GPA".to_string(), self.registers[Registers::GPA as usize]),
+            ("GPB".to_string(), self.registers[Registers::GPB as usize]),
+            ("SBP".to_string(), self.registers[Registers::SBP as usize]),
+            ("TSP".to_string(), self.registers[Registers::TSP as usize]),
+            ("FRV".to_string(), self.registers[Registers::FRV as usize]),
+            ("CIP".to_string(), self.registers[Registers::CIP as usize]),
+        ]
+    }
+
     pub fn get_current_instruction(&self) -> Option<Instruction> {
         if let Some(program) = &self.program {
             if let Some(inst) = program.get(self.registers[Registers::CIP as usize] as usize) {
@@ -221,7 +291,7 @@ impl VirtualMachine {
         addition: bool,
         offset: usize,
     ) -> Result<i32, String> {
-        let stack_index: usize = self.stack_index(base_register, addition, offset + 1)?; // Offset is incremented by one here because the stack pointer actually points one above the last value
+        let stack_index: usize = self.stack_index(base_register, addition, offset)?; // Offset is incremented by one here because the stack pointer actually points one above the last value
         if let Some(value) = self.stack.get(stack_index) {
             Ok(*value)
         } else {
@@ -240,7 +310,7 @@ impl VirtualMachine {
         offset: usize,
         value: i32,
     ) -> Result<(), String> {
-        let stack_index: usize = self.stack_index(base_register, addition, offset + 1)?; // Offset is incremented by one here because the stack pointer actually points one above the last value
+        let stack_index: usize = self.stack_index(base_register, addition, offset)?; // Offset is incremented by one here because the stack pointer actually points one above the last value
         if stack_index < self.stack.len() {
             self.stack[stack_index] = value;
             Ok(())
@@ -259,8 +329,8 @@ impl VirtualMachine {
             return Err("Stack overflow".to_string());
         }
 
-        self.stack[self.registers[Registers::TSP as usize] as usize] = value;
         self.registers[Registers::TSP as usize] -= 1;
+        self.stack[self.registers[Registers::TSP as usize] as usize] = value;
 
         Ok(())
     }
@@ -271,10 +341,14 @@ impl VirtualMachine {
             return Err("Stack underflow".to_string());
         }
 
-        self.registers[Registers::TSP as usize] -= 1;
         let value = self.stack[self.registers[Registers::TSP as usize] as usize];
+        self.registers[Registers::TSP as usize] += 1;
 
         Ok(value)
+    }
+
+    pub fn get_current_output(&self) -> Option<String> {
+        self.current_output.clone()
     }
 
     pub fn tick(&mut self) -> Result<(), String> {
@@ -299,6 +373,7 @@ impl VirtualMachine {
         }?;
 
         let mut next_jump: i32 = 1;
+        self.current_output = None;
 
         match instruction.opcode {
             OpCodes::MOV => {
@@ -509,7 +584,7 @@ impl VirtualMachine {
                             );
                         }
                         OperandType::Literal { value: op2 } => {
-                            self.next_flags = self.update_flags(self.registers[op1 as usize] - op2)
+                            self.update_flags(self.registers[op1 as usize] - op2);
                         }
                         OperandType::StackValue {
                             base_register: _,
@@ -645,7 +720,7 @@ impl VirtualMachine {
             },
             OpCodes::PRINT => {
                 if let OperandType::Register { idx: op1 } = instruction.operand_1 {
-                    println!("PRINT {}", self.registers[op1 as usize]);
+                    self.current_output = Some(format!("{}", self.registers[op1 as usize]));
                 } else {
                     self.invalid_instruction("Missing operand for print instruction")?
                 }

@@ -6,14 +6,14 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{prelude::Backend, Terminal};
 
 use colog;
-use log::info;
+use log::{error, info};
 
 use machine::prelude::{Program, VirtualMachine};
 
 mod app;
 mod blocks;
 
-use app::App;
+use app::{App, AppStatus};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -22,6 +22,12 @@ struct Args {
     input: String,
     #[arg(short, long, help = "The output file to write the output to")]
     output: Option<String>,
+    #[arg(
+        short,
+        long,
+        help = "Executes the program all at once, outputting only the program's outout"
+    )]
+    no_tui: bool,
 }
 
 fn main() -> Result<(), String> {
@@ -34,21 +40,35 @@ fn main() -> Result<(), String> {
     let program = Program::new(args.input)?;
 
     info!("Building machine");
-    let machine = VirtualMachine::new().with_program(program.instructions);
+    let mut machine = VirtualMachine::new().with_program(program.instructions);
 
-    let app = App::new("Crossterm Demo", machine);
+    if !args.no_tui {
+        let app = App::new("Virtual Machine", machine);
 
-    color_eyre::install().map_err(|e| e.to_string())?;
-    let mut terminal = ratatui::init();
+        color_eyre::install().map_err(|e| e.to_string())?;
+        let mut terminal = ratatui::init();
 
-    let result = run_app(
-        &mut terminal,
-        app,
-        Duration::from_millis((1000.0 / 60.0) as u64),
-    );
+        let result = run_app(
+            &mut terminal,
+            app,
+            Duration::from_millis((1000.0 / 60.0) as u64),
+        );
 
-    ratatui::restore();
-    result.map_err(|e| e.to_string())
+        ratatui::restore();
+        result.map_err(|e| e.to_string())
+    } else {
+        info!("Starting execution");
+        loop {
+            if let Err(e) = machine.tick() {
+                error!("Machine encountered an error: {}", e);
+                break Err(e);
+            }
+            if machine.has_completed() {
+                info!("Machine has completed its execution");
+                break Ok(());
+            }
+        }
+    }
 }
 
 fn run_app<S: Backend>(
@@ -57,6 +77,7 @@ fn run_app<S: Backend>(
     tick_rate: Duration,
 ) -> Result<()> {
     let mut last_tick = Instant::now();
+    app.status = AppStatus::Ticking;
     loop {
         terminal.draw(|f| app.draw(f))?;
 
