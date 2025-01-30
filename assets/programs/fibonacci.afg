@@ -1,0 +1,20 @@
+fn fibo(n) {
+    if n == 1 {
+        return 1;
+    }
+    if n == 0 {
+        return 0;
+    }
+    set prev = n - 1;
+    set prev2 = n - 2;
+    set prev = fibo(prev);
+    set prev2 = fibo(prev2);
+    set res = prev + prev2;
+    return res;
+}
+
+fn main() {
+    set n = 5;
+    set res = fibo(n);
+    print res;
+}
