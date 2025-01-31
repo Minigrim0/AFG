@@ -14,7 +14,7 @@ fn fibo(n) {
 }
 
 fn main() {
-    set n = 5;
+    set n = 10;
     set res = fibo(n);
     print res;
 }

@@ -39,7 +39,6 @@ pub fn spawn_map(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     if let Some(map) = maps.get(map.0.id()) {
-        println!("Spawning map {}", map.title);
         let tile_size = map.tile_size as f32;
         for wall in map.walls.iter() {
             commands.spawn((
@@ -60,7 +59,6 @@ pub fn spawn_map(
                 MeshMaterial2d(materials.add(Color::srgb(0.2, 0.2, 0.3))),
             ));
         }
+        state.set(AppState::Running);
     }
-
-    state.set(AppState::Level);
 }

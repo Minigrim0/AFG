@@ -4,5 +4,5 @@ use bevy::prelude::*;
 pub enum AppState {
     #[default]
     Loading,
-    Level,
+    Running,
 }

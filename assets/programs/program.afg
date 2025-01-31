@@ -34,7 +34,7 @@ fn main() {
                 print #1212;
                 set $VelocityY = 0;
                 call turn(-90, -1);  // 1 is left, -1 is right
-                set $VelocityY = 10;
+                set $VelocityY = 250;
             }
         }
     }

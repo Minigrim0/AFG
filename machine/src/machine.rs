@@ -43,6 +43,11 @@ impl VirtualMachine {
         self
     }
 
+    pub fn load_program(&mut self, program: Vec<Instruction>) {
+        self.program = Some(program);
+        self.status = MachineStatus::Ready;
+    }
+
     pub fn get_status(&self) -> String {
         match self.status {
             MachineStatus::Empty => "Empty".to_string(),

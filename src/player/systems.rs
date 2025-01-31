@@ -5,20 +5,11 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 
-use machine::prelude::{Program, VirtualMachine};
 use crate::{map::MapHandle, Map};
+use machine::prelude::{Program, VirtualMachine};
 
 use super::components::{Bot, Gun, GunType, Health};
-use super::entities::PlayerBundle;
-
-#[derive(Component)]
-pub struct DebugMachineText;
-
-#[derive(Component)]
-pub struct StackText;
-
-#[derive(Component)]
-pub struct RegisterText;
+use super::entities::{PlayerBundle, ProgramHandle};
 
 // System to setup the player entity
 pub fn setup(
@@ -26,7 +17,6 @@ pub fn setup(
     map: Res<MapHandle>,
     maps: ResMut<Assets<Map>>,
     asset_server: Res<AssetServer>,
-    programs: Res<Assets<Program>>,
 ) {
     for _ in 0..1 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
@@ -45,48 +35,37 @@ pub fn setup(
             (0.0, 0.0)
         };
 
-        // let player_program = programs.iter().next().unwrap();
+        let program = asset_server.load("programs/new_turn.asmfg");
 
         // Spawn the player entity with all its components
-        commands.spawn(PlayerBundle {
-            bot: Bot,
-            virtual_machine: VirtualMachine::new(),
-            health: Health::new(100),
-            gun: Gun::new(GunType::Pistol),
-            sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
-            transform: Transform::from_xyz(spawn_position.0, spawn_position.1, 0.0),
-            collider: Collider::ball(25.0),
-            body: RigidBody::Dynamic,
-            velocity: Velocity::default(),
-        }).insert(super::super::IsSelected);
+        commands
+            .spawn(PlayerBundle {
+                bot: Bot,
+                virtual_machine: VirtualMachine::new(),
+                program_handle: ProgramHandle(program),
+                health: Health::new(100),
+                gun: Gun::new(GunType::Pistol),
+                sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
+                transform: Transform::from_xyz(spawn_position.0, spawn_position.1, 0.0),
+                collider: Collider::ball(25.0),
+                body: RigidBody::Dynamic,
+                velocity: Velocity::default(),
+            })
+            .insert(super::super::IsSelected);
     }
+}
 
-    let font: Handle<Font> = asset_server.load("fonts/toxigenesis bd.otf");
-    let text_font = TextFont {
-        font: font.clone(),
-        font_size: 50.0,
-        ..default()
-    };
-    commands.spawn((
-        Text2d::new("translation"),
-        text_font.clone(),
-        TextLayout::new_with_justify(JustifyText::Left),
-        StackText
-    ));
-
-    commands.spawn((
-        Text2d::new("translation"),
-        text_font.clone(),
-        TextLayout::new_with_justify(JustifyText::Left),
-        DebugMachineText
-    ));
-
-    commands.spawn((
-        Text2d::new("translation"),
-        text_font.clone(),
-        TextLayout::new_with_justify(JustifyText::Left),
-        RegisterText
-    ));
+pub fn attach_program_to_player(
+    mut query: Query<(Entity, &mut VirtualMachine, &ProgramHandle)>,
+    programs: Res<Assets<Program>>,
+    mut commands: Commands,
+) {
+    for (entity, mut machine, program) in query.iter_mut() {
+        if let Some(program) = programs.get(&program.0) {
+            machine.load_program(program.instructions.clone());
+            commands.entity(entity).remove::<ProgramHandle>();
+        }
+    }
 }
 
 pub fn update_player(
@@ -138,58 +117,5 @@ pub fn update_player(
                 .collect::<Vec<Option<(Entity, f32)>>>();
             vm.update_rays(rays);
         }
-    }
-}
-
-pub fn debug_player_direction(
-    mut gizmos: Gizmos,
-    query: Query<(&VirtualMachine, &Transform, &Velocity)>,
-) {
-    for (_vm, transform, vel) in query.iter() {
-        gizmos.line(
-            transform.translation,
-            transform.translation + vel.linvel.extend(0.0) * 50.0,
-            GREEN,
-        );
-    }
-}
-
-pub fn debug_current_instruction(
-    mut query: Query<(&mut Transform, &mut Text2d), With<DebugMachineText>>,
-    vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
-    q_camera: Query<&GlobalTransform, With<Camera>>,
-) {
-    let machine = vm_query.single();
-
-    for (mut transform, mut text) in query.iter_mut() {
-        transform.translation = q_camera.single().translation() + Transform::from_xyz(0.0, 500.0, 0.0).translation;
-        text.0 = format!("Current Instruction\n{}", machine.get_current_instruction().and_then(|i| Some(format!("{}", i))).unwrap_or("".to_string()));
-    }
-}
-
-
-pub fn debug_stack_frame(
-    mut query: Query<(&mut Transform, &mut Text2d), With<StackText>>,
-    vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
-    q_camera: Query<&GlobalTransform, With<Camera>>,
-) {
-    let machine = vm_query.single();
-
-    for (mut transform, mut text) in query.iter_mut() {
-        transform.translation = q_camera.single().translation() + Transform::from_xyz(-300.0, 0.0, 0.0).translation;
-        text.0 = format!("Stack Frame\n{}", machine.get_stack_frame());
-    }
-}
-
-pub fn debug_registers(
-    mut query: Query<(&mut Transform, &mut Text2d), With<RegisterText>>,
-    vm_query: Query<&VirtualMachine, With<super::super::IsSelected>>,
-    q_camera: Query<&GlobalTransform, With<Camera>>,
-) {
-    let machine = vm_query.single();
-
-    for (mut transform, mut text) in query.iter_mut() {
-        transform.translation = q_camera.single().translation() + Transform::from_xyz(200.0, 0.0, 0.0).translation;
-        text.0 = format!("Registers\n{}", machine.get_registers_display());
     }
 }

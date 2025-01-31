@@ -1,8 +1,8 @@
+mod assets;
 mod camera;
 mod map;
 mod player;
 mod state;
-mod assets;
 
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
@@ -19,6 +19,9 @@ use player::systems as player_systems;
 
 #[derive(Component)]
 struct IsSelected;
+
+#[derive(Resource)]
+struct AssetsLoading(Vec<UntypedHandle>);
 
 fn gravity_setup(mut rapier_config: Query<&mut RapierConfiguration>) {
     rapier_config.single_mut().gravity = Vec2::new(0.0, 0.0);
@@ -79,6 +82,7 @@ fn main() {
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
         .insert_resource(Time::<Fixed>::from_hz(120.0))
+        .insert_resource(AssetsLoading(vec![]))
         .init_asset::<machine::prelude::Program>()
         .init_asset_loader::<assets::ProgramLoader>()
         .init_state::<AppState>()
@@ -86,30 +90,20 @@ fn main() {
             Startup,
             (camera::camera_setup, gravity_setup, map::setup_map),
         )
+        .add_systems(Update, (map::spawn_map).run_if(in_state(AppState::Loading)))
         .add_systems(
-            OnEnter(AppState::Level),
-            (player_systems::setup, camera::move_camera),
+            OnEnter(AppState::Running),
+            (camera::move_camera, player_systems::setup),
         )
+        .add_systems(Update, (camera::update_camera_zoom, camera::update_camera))
         .add_systems(
-            Update,
-            (
-                camera::update_camera_zoom,
-            ),
-        )
-        .add_systems(
-            FixedUpdate, (
-                map::spawn_map.run_if(in_state(AppState::Loading)),
-                (
-                    player_systems::update_player,
-                    player_systems::debug_player_direction,
-                    player_systems::debug_current_instruction,
-                    player_systems::debug_registers,
-                    player_systems::debug_stack_frame,
-                    camera::update_camera,
-                    mouse_button_events,
-                )
-                    .run_if(in_state(AppState::Level)),
+            FixedUpdate,
+            ((
+                player_systems::attach_program_to_player,
+                player_systems::update_player,
+                mouse_button_events,
             )
+                .run_if(in_state(AppState::Running)),),
         )
         .run();
 }
