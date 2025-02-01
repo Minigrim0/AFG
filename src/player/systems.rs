@@ -17,9 +17,13 @@ pub fn setup(
     maps: ResMut<Assets<Map>>,
     asset_server: Res<AssetServer>,
 ) {
-    for _ in 0..1 {
+    for index in 0..10 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
-            let possibilities = map.spawn_places.0;
+            let possibilities = if index % 2 == 0 {
+                map.spawn_places.0
+            } else {
+                map.spawn_places.1
+            };
             (
                 rand::thread_rng().gen_range(possibilities.0..possibilities.0 + possibilities.2)
                     as f32

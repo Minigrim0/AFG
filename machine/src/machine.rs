@@ -34,6 +34,7 @@ impl VirtualMachine {
 
         // Stack pointer
         vm.registers[Registers::TSP as usize] = vm.stack.len() as i32;
+        vm.registers[Registers::SBP as usize] = vm.stack.len() as i32;
         vm
     }
 

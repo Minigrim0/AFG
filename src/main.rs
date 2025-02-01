@@ -95,7 +95,15 @@ fn main() {
             OnEnter(AppState::Running),
             (camera::move_camera, player_systems::setup),
         )
-        .add_systems(Update, (camera::update_camera_zoom, camera::update_camera))
+        .add_systems(
+            Update,
+            (
+                camera::update_camera_zoom,
+                camera::update_camera,
+                camera::switch_camera_mode,
+                camera::update_follow_camera,
+            ),
+        )
         .add_systems(
             FixedUpdate,
             ((
