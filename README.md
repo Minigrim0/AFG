@@ -39,13 +39,17 @@ To program the bots, you can use either the assembly-like language `asmfg` or th
 
 ## Languages
 
-### asmfg
-This is an assembly language for the AFG virtual machine. The machine consists of;
-* A stack, used for function calls or for saving various data.
-* 4 general purpose registers (`GPA`, `GPB`, `GPC`, `GPD`)
+### Machine specifications
+The machine consists of;
+* A stack, used to save function state, allocation of local variables, ... The stack is 256 integers long. (1KB)
+* 2 registers (`GPA`, `GPB`). `GPA` holds the results of arithmetic operations anf `GPB` is used as a temporary register.
 * The `FRV` register, which holds the data returns from function calls
-* `PC` the program counter
-* `RP` the return pointer, set by the machine upon `call` invocations, for the function to know where to return to
+* `CIP` the program counter
+* `SBP` the base pointer for the stack (Anything higher comes from the caller, anything lower (down to `TSP`) is local to the function)
+* `TSP` the top of the stack
+
+### ASMFG
+The assembly-like language used by the machine.
 
 #### Syntax
 * Registers are prefixed with `'`
@@ -58,7 +62,7 @@ This is an assembly language for the AFG virtual machine. The machine consists o
 |-------------|-----------|-------------|-------------|
 | `mov`       | reg/stk   | reg/imm/stk | Moves data from one register or an immediate value to a register. |
 | `store`     | reg/imm   | reg/imm/stk | stores value of op2 into memory address op1 |
-| `load`      | reg       | reg/imm/stk | loads address of op1 into register op1 |
+| `load`      | reg       | reg/imm/stk | loads address of op2 into register op1 |
 | `add`       | reg       | reg/imm     | Adds op2 to op1 in place |
 | `sub`       | reg       | reg/imm     | Subtracts op2 from op1 in place |
 | `mul`       | reg       | reg/imm     | Multiplies op1 with op2 in place |
@@ -74,16 +78,16 @@ This is an assembly language for the AFG virtual machine. The machine consists o
 | `call`      | imm       |      /      | Calls the function at the given offset |
 | `ret`       |     /     |      /      | Returns from a function call using the address in the `RP` register. |
 
-### afg
-Details about the programming language `afg` and its compilation process to `asmfg` will be provided here.
+> Notes:
+> `load` operation can only load data into a register. The address to load from must be in a register, an immediate value or an offset on the stack.
+> `store` operation can store data from register, an immediate value or an offset on the stack. The memory address can be a register, an immediate value or an offset on the stack.
+> All math operations are done in the registers or with a register and an immediate value. The result is stored in the first register.
+> Popping from the stack is done into a register.
 
+### afg
 Details on the compiler are provided in the [COMPILER](./COMPILER.md) file.
+
+Details about the programming language `afg` and its compilation process to `asmfg` will be provided here.
 
 ## Bot Sensors
 Information about the different sensors available to bots and how they can be used to gather information about the game environment will be provided here.
-
-## Contributing
-Guidelines for contributing to the project will be provided here.
-
-## License
-Information about the project's license will be provided here.

@@ -26,15 +26,15 @@ fn turn(angle, direction) {
 
 fn main() {
     // Change velocity to 500
-    set $VelocityY = 250;
+    set $VelocityY = 500;
 
     loop {
         if $Ray3Type != 0 {
-            if $Ray3Dist <= 1000 {
+            if $Ray3Dist <= 200 {  // 100 is around one meter
                 print #1212;
-                set $VelocityY = 0;
+                set $VelocityY = 10;
                 call turn(-90, -1);  // 1 is left, -1 is right
-                set $VelocityY = 250;
+                set $VelocityY = 500;
             }
         }
     }

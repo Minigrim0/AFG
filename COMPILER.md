@@ -7,10 +7,11 @@ This is a simple compiler, that translates the AFG language into ASMFG, a pseudo
 3. [Semantic Analysis](#semantic-analysis)
 4. [Pseudo-assembly generation](#pseudo-assembly-generation)
 5. [Basic block identification](#basic-block-identification)
-6. [Live variable analysis](#live-variable-analysis)
-7. [Register allocation](#register-allocation)
-8. [Address resolution](#address-resolution)
-9. [Final assembly generation](#final-assembly-generation)
+6. ~~[Live variable analysis](#live-variable-analysis)~~ (scraped)
+7. ~~[Register allocation](#register-allocation)~~ (scraped)
+6. [Stack Allocation](#stack-allocation)
+7. [Address resolution](#address-resolution)
+8. [Final assembly generation](#final-assembly-generation)
 
 ## Tokenization
 The tokenization is done using a simple lexer, that reads the input file, splits it into possible tokens by splitting at the following characters: ` (){}\n;`.
