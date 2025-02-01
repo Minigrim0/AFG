@@ -1,5 +1,3 @@
-push 'SBP
-mov 'SBP 'TSP
 sub 'TSP #7
 store $VelocityY #500
 mov ['SBP - 1] #0
@@ -17,32 +15,11 @@ print 'GPA
 store $VelocityY #10
 push #-1
 push #-90
-call #26
+call #5
 add 'TSP #2
 store $VelocityY #500
 jmp #-18
-push 'SBP
-mov 'SBP 'TSP
-sub 'TSP #3
-mov ['SBP - 1] #0
-mov 'GPA ['SBP - 1]
-mov 'GPB ['SBP + 2]
-cmp 'GPA 'GPB
-jn #11
-mov ['SBP - 2] #0
-mov 'GPA ['SBP - 2]
-mov 'GPB ['SBP + 2]
-sub 'GPA 'GPB
-mov ['SBP - 2] 'GPA
-mov ['SBP + 2] ['SBP - 2]
-mov 'FRV ['SBP + 2]
-mov 'TSP 'SBP
-pop 'SBP
-ret
-mov 'FRV ['SBP + 2]
-mov 'TSP 'SBP
-pop 'SBP
-ret
+halt
 push 'SBP
 mov 'SBP 'TSP
 sub 'TSP #16
@@ -85,7 +62,7 @@ mov ['SBP - 7] 'GPA
 mov ['SBP - 9] ['SBP - 7]
 mov 'GPA ['SBP - 9]
 push 'GPA
-call #-64
+call #27
 add 'TSP #1
 mov ['SBP - 9] 'FRV
 mov ['SBP - 10] #3
@@ -103,12 +80,34 @@ mov ['SBP - 11] 'GPA
 mov ['SBP - 9] ['SBP - 11]
 mov 'GPA ['SBP - 9]
 push 'GPA
-call #-82
+call #9
 add 'TSP #1
 mov ['SBP - 9] 'FRV
 jmp #-18
 store $Moment #0
 mov 'FRV #0
+mov 'TSP 'SBP
+pop 'SBP
+ret
+push 'SBP
+mov 'SBP 'TSP
+sub 'TSP #3
+mov ['SBP - 1] #0
+mov 'GPA ['SBP - 1]
+mov 'GPB ['SBP + 2]
+cmp 'GPA 'GPB
+jn #11
+mov ['SBP - 2] #0
+mov 'GPA ['SBP - 2]
+mov 'GPB ['SBP + 2]
+sub 'GPA 'GPB
+mov ['SBP - 2] 'GPA
+mov ['SBP + 2] ['SBP - 2]
+mov 'FRV ['SBP + 2]
+mov 'TSP 'SBP
+pop 'SBP
+ret
+mov 'FRV ['SBP + 2]
 mov 'TSP 'SBP
 pop 'SBP
 ret

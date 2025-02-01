@@ -1,14 +1,14 @@
-push 'SBP
 mov 'SBP 'TSP
 sub 'TSP #3
 mov ['SBP - 1] #10
 mov 'GPA ['SBP - 1]
 push 'GPA
-call #5
+call #6
 add 'TSP #1
 mov ['SBP - 2] 'FRV
 mov 'GPA ['SBP - 2]
 print 'GPA
+halt
 push 'SBP
 mov 'SBP 'TSP
 sub 'TSP #11

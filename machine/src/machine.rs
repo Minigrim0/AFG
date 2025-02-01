@@ -730,6 +730,7 @@ impl VirtualMachine {
                     self.invalid_instruction("Missing operand for print instruction")?
                 }
             }
+            OpCodes::HLT => self.status = MachineStatus::Complete,
         }
 
         self.flags = self.next_flags;

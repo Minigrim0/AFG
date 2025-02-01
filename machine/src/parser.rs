@@ -1,5 +1,5 @@
+use super::enums::{MemoryMappedProperties, OpCodes, OperandType, Registers};
 use super::errors::ParsingError;
-use super::enums::{OpCodes, MemoryMappedProperties, OperandType, Registers};
 use super::Instruction;
 
 fn parse_instr<S: AsRef<str>>(instr: S) -> Result<OpCodes, String> {
@@ -23,6 +23,7 @@ fn parse_instr<S: AsRef<str>>(instr: S) -> Result<OpCodes, String> {
         "pop" => Ok(OpCodes::POP),
         "push" => Ok(OpCodes::PUSH),
         "print" => Ok(OpCodes::PRINT),
+        "halt" => Ok(OpCodes::HLT),
         _ => Err(format!("Unknown instruction: {}", instr.as_ref())),
     }
 }
@@ -40,9 +41,12 @@ fn parse_register<S: AsRef<str>>(register: S) -> Result<usize, String> {
 }
 
 fn parse_literal<S: AsRef<str>>(literal: S) -> Result<i32, String> {
-    literal.as_ref().to_string().parse::<i32>()
-    .map(|v| v)
-    .map_err(|e| format!("Unable to parse int : {}", e.to_string()))
+    literal
+        .as_ref()
+        .to_string()
+        .parse::<i32>()
+        .map(|v| v)
+        .map_err(|e| format!("Unable to parse int : {}", e.to_string()))
 }
 
 fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
@@ -119,41 +123,50 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
             }
         }
         Some('#') => Ok(OperandType::Literal {
-            value: parse_literal(operand
-                .as_ref()
-                .chars()
-                .skip(1)
-                .collect::<String>()
-            )?
+            value: parse_literal(operand.as_ref().chars().skip(1).collect::<String>())?,
         }),
-        Some('\'') => Ok(OperandType::Register { idx: parse_register(operand
+        Some('\'') => Ok(OperandType::Register {
+            idx: parse_register(
+                operand
+                    .as_ref()
+                    .chars()
+                    .skip(1)
+                    .collect::<String>()
+                    .as_str(),
+            )?,
+        }),
+        Some('[') => {
+            let operand = operand
                 .as_ref()
                 .chars()
-                .skip(1)
-                .collect::<String>()
-                .as_str())?
-            }),
-        Some('[') => {
-            let operand = operand.as_ref().chars().filter_map(|c| if c == '[' || c == ']' { None } else { Some(c) }).collect::<String>();
-            let splitted = operand.as_str().split(" ").filter_map(|s| if s.trim().is_empty() { None } else { Some(s.to_string()) }).collect::<Vec<String>>();
+                .filter_map(|c| if c == '[' || c == ']' { None } else { Some(c) })
+                .collect::<String>();
+            let splitted = operand
+                .as_str()
+                .split(" ")
+                .filter_map(|s| {
+                    if s.trim().is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
+                })
+                .collect::<Vec<String>>();
 
             if splitted.len() == 3 {
                 Ok(OperandType::StackValue {
-                    base_register: parse_register(&splitted[0].as_str().chars().skip(1).collect::<String>())?,
+                    base_register: parse_register(
+                        &splitted[0].as_str().chars().skip(1).collect::<String>(),
+                    )?,
                     addition: &splitted[1] == "+",
-                    offset: parse_literal(&splitted[2])? as usize
+                    offset: parse_literal(&splitted[2])? as usize,
                 })
             } else {
                 Err("Stack access must be composed of three operands".to_string())
             }
         }
         Some(_) => Ok(OperandType::Literal {
-            value: parse_literal(operand
-                .as_ref()
-                .chars()
-                .skip(1)
-                .collect::<String>()
-            )?
+            value: parse_literal(operand.as_ref().chars().skip(1).collect::<String>())?,
         }),
         None => Err("No operand to parse !".to_string()),
     }
@@ -167,22 +180,39 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
         }
 
         let mut char_iter = line.chars().peekable();
-        let opcode = char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>();
+        let opcode = char_iter
+            .by_ref()
+            .take_while(|c| *c != ' ')
+            .collect::<String>();
         let operand1 = {
             if char_iter.peek() == Some(&'[') {
-                let res = char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]";
-                char_iter.next();  // Consume the space
+                let res = char_iter
+                    .by_ref()
+                    .take_while(|c| *c != ']')
+                    .collect::<String>()
+                    + "]";
+                char_iter.next(); // Consume the space
                 res
             } else {
-                char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>()
+                char_iter
+                    .by_ref()
+                    .take_while(|c| *c != ' ')
+                    .collect::<String>()
             }
         };
 
         let operand2 = {
             if char_iter.peek() == Some(&'[') {
-                char_iter.by_ref().take_while(|c| *c != ']').collect::<String>() + "]"
+                char_iter
+                    .by_ref()
+                    .take_while(|c| *c != ']')
+                    .collect::<String>()
+                    + "]"
             } else {
-                char_iter.by_ref().take_while(|c| *c != ' ').collect::<String>()
+                char_iter
+                    .by_ref()
+                    .take_while(|c| *c != ' ')
+                    .collect::<String>()
             }
         };
 

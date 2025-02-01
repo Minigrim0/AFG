@@ -112,6 +112,7 @@ pub enum OpCodes {
     POP, // Pops a value from the stack into <r<op1>>
     PUSH, // Pushes to the stack the value of <r<op1>>
     PRINT, // Prints the value of <r<op1>> to the console
+    HLT, // Halts the machine
 }
 
 /// Enum for the machine status

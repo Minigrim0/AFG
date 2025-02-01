@@ -58,10 +58,14 @@ fn main() -> Result<(), String> {
         result.map_err(|e| e.to_string())
     } else {
         info!("Starting execution");
+        println!("Output:");
         loop {
             if let Err(e) = machine.tick() {
                 error!("Machine encountered an error: {}", e);
                 break Err(e);
+            }
+            if let Some(output) = machine.get_current_output() {
+                println!("> {}", output);
             }
             if machine.has_completed() {
                 info!("Machine has completed its execution");

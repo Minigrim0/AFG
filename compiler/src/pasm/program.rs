@@ -1,9 +1,8 @@
-use std::fmt;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
-
-use super::{PASMInstruction, OperandType};
 use super::translation::inst_to_pasm;
+use super::{OperandType, PASMInstruction};
 
 use crate::ast::AST;
 
@@ -70,47 +69,59 @@ impl PASMProgram {
             ))];
 
             // First, push SBP
-            instructions.push(
-                PASMInstruction::new(
+            if function_name != "main" {
+                instructions.push(PASMInstruction::new(
                     "push".to_string(),
-                    vec![OperandType::Identifier { name: "'SBP".to_string() }]
-                )
-            );
-
+                    vec![OperandType::Identifier {
+                        name: "'SBP".to_string(),
+                    }],
+                ));
+            }
             // Make stack pointer the base pointer
-            instructions.push(
-                PASMInstruction::new(
-                    "mov".to_string(),
-                    vec![
-                        OperandType::Identifier { name: "'SBP".to_string() },
-                        OperandType::Identifier { name: "'TSP".to_string() }
-                    ]
-                )
-            );
+            instructions.push(PASMInstruction::new(
+                "mov".to_string(),
+                vec![
+                    OperandType::Identifier {
+                        name: "'SBP".to_string(),
+                    },
+                    OperandType::Identifier {
+                        name: "'TSP".to_string(),
+                    },
+                ],
+            ));
 
             let mut inner_instructions = vec![];
             for inst in fun.content {
                 inner_instructions.extend(inst_to_pasm(&inst)?);
             }
 
+            // Allocate stack
             let frame_variables = get_frame_variables(&inner_instructions);
-            let stack_size = frame_variables.into_iter().filter(
-                |variable| !fun.parameters.iter().position(|v| v == variable).is_some()
-            ).collect::<Vec<String>>().len();
+            let stack_size = frame_variables
+                .into_iter()
+                .filter(|variable| !fun.parameters.iter().position(|v| v == variable).is_some())
+                .collect::<Vec<String>>()
+                .len();
 
-            instructions.push(
-                PASMInstruction::new(
-                    "sub".to_string(),
-                    vec![
-                        OperandType::Identifier { name: "'TSP".to_string() },
-                        OperandType::Literal { value: stack_size as i32 }
-                    ]
-                )
-            );
+            instructions.push(PASMInstruction::new(
+                "sub".to_string(),
+                vec![
+                    OperandType::Identifier {
+                        name: "'TSP".to_string(),
+                    },
+                    OperandType::Literal {
+                        value: stack_size as i32,
+                    },
+                ],
+            ));
 
             // Restoring the stack pointer & base pointer and moving the return value to the FRV register
             // is handled by the return instruction translation unit
             instructions.extend(inner_instructions);
+
+            if function_name == "main" {
+                instructions.push(PASMInstruction::new("halt".to_string(), vec![]));
+            }
 
             functions.insert(function_name, (fun.parameters, instructions));
         }
