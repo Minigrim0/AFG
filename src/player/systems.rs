@@ -1,15 +1,14 @@
-use std::f32::consts::PI;
-
-use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 
+use crate::player::components::Crashed;
 use crate::{map::MapHandle, Map};
 use machine::prelude::{Program, VirtualMachine};
 
-use super::components::{Bot, Gun, GunType, Health};
+use super::components::{Bot, BotClass, Gun, GunType, Health};
 use super::entities::{PlayerBundle, ProgramHandle};
+use super::utils::compute_rays;
 
 // System to setup the player entity
 pub fn setup(
@@ -40,7 +39,9 @@ pub fn setup(
         // Spawn the player entity with all its components
         commands
             .spawn(PlayerBundle {
-                bot: Bot,
+                bot: Bot {
+                    class: BotClass::new_basic(),
+                },
                 virtual_machine: VirtualMachine::new(),
                 program_handle: ProgramHandle(program),
                 health: Health::new(100),
@@ -63,58 +64,47 @@ pub fn attach_program_to_player(
     for (entity, mut machine, program) in query.iter_mut() {
         if let Some(program) = programs.get(&program.0) {
             machine.load_program(program.instructions.clone());
-            commands.entity(entity).remove::<ProgramHandle>();
+            commands
+                .entity(entity)
+                .remove::<ProgramHandle>()
+                .insert(super::components::ProgramLoaded);
         }
     }
 }
 
 pub fn update_player(
-    mut query: Query<(Entity, &mut VirtualMachine, &mut Transform, &mut Velocity)>,
+    mut query: Query<
+        (
+            Entity,
+            &Bot,
+            &mut VirtualMachine,
+            &mut Transform,
+            &mut Velocity,
+        ),
+        (Without<Crashed>, With<super::components::ProgramLoaded>),
+    >,
     rapier_context: Query<&RapierContext>,
     mut gizmos: Gizmos,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
-    let view_angle = 120.0 * PI / 180.0;
-    let ray_amount = 7;
-    let viewing_distance = 2000.0;
-
-    for (current_bot, mut vm, mut transform, mut vel) in query.iter_mut() {
+    for (entity, bot, mut vm, mut transform, mut vel) in query.iter_mut() {
         if let Err(e) = vm.tick() {
+            // The bot crashed or completed its execution
             println!("Oh noes {}", e);
+            commands
+                .entity(entity)
+                .insert(Crashed)
+                .remove::<Sprite>()
+                .insert(Sprite::from_image(
+                    asset_server.load("sprites/soldier-dead.png"),
+                ));
+            return;
         }
         vm.update_mmp(&mut transform, &mut vel);
 
-        let initial_angle = transform.rotation.to_axis_angle().0.z
-            * transform.rotation.to_axis_angle().1
-            + (PI / 2.0);
-
         if let Ok(context) = rapier_context.get_single() {
-            let rays = (0..ray_amount)
-                .map(|ray_id| {
-                    let ray_dir = Vec2::from_angle(
-                        initial_angle - (view_angle / 2.0)
-                            + ray_id as f32 * (view_angle / ((ray_amount - 1) as f32)),
-                    );
-                    if let Some((entity, toi)) = context.cast_ray(
-                        transform.translation.truncate(),
-                        ray_dir,
-                        viewing_distance,
-                        false,
-                        QueryFilter::new().exclude_collider(current_bot),
-                    ) {
-                        let hit_point = transform.translation.truncate() + ray_dir * toi;
-                        gizmos.line(transform.translation, hit_point.extend(0.0), RED);
-                        Some((entity, toi))
-                    } else {
-                        gizmos.line(
-                            transform.translation,
-                            (transform.translation.truncate() + ray_dir * viewing_distance)
-                                .extend(0.0),
-                            BLUE,
-                        );
-                        None
-                    }
-                })
-                .collect::<Vec<Option<(Entity, f32)>>>();
+            let rays = compute_rays((bot, transform, entity), context, &mut gizmos);
             vm.update_rays(rays);
         }
     }

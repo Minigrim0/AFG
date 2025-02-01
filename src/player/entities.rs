@@ -8,7 +8,7 @@ use bevy_rapier2d::prelude::{Collider, RigidBody, Velocity};
 
 use machine::{prelude::VirtualMachine, Program};
 
-use super::components::{Bot, Gun, Health};
+use super::components::{Bot, BotClass, Gun, Health};
 
 #[derive(Component)]
 pub struct ProgramHandle(pub Handle<Program>);
