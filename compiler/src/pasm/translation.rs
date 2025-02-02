@@ -69,6 +69,10 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             }
             name
         }
+        Node::MemoryValue { base, offset } => {
+            memory_operation = true;
+            // TODO implement
+        }
         _ => return Err("assignee should be an identifier".to_string()),
     }
     .to_string();

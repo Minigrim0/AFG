@@ -33,15 +33,26 @@ fn main() -> Result<(), String> {
     let text = fs::read_to_string(&args.input).map_err(|e| e.to_string())?;
 
     info!("Extracting tokens");
-    let mut tokens = TokenStream::lex(text);
+    let mut tokens = lex(text);
     if args.save_intermediate {
         let token_output = args.input.clone() + ".tokens";
         info!("Saving tokens to {}", token_output);
-        fs::write(&token_output, format!("{}", tokens)).map_err(|e| e.to_string())?;
+        // fs::write(
+        //     &token_output,
+        //     format!(
+        //         "{}",
+        //         tokens
+        //             .clone()
+        //             .map(|t| format!("{}", t))
+        //             .collect::<Vec<String>>()
+        //             .join("\n")
+        //     ),
+        // )
+        // .map_err(|e| e.to_string())?;
     }
 
     info!("Parsing AST from tokens");
-    let program = AST::parse(&mut tokens)?;
+    let program = AST::parse(&mut tokens.peekable())?;
     if args.save_intermediate {
         let ast_output = args.input.clone() + ".ast";
         info!("Saving AST to {}", ast_output);
@@ -100,7 +111,10 @@ fn main() -> Result<(), String> {
         if function_name == "main" {
             continue;
         }
-        final_code.push(PASMInstruction::new_comment(format!("Function {}", function_name)));
+        final_code.push(PASMInstruction::new_comment(format!(
+            "Function {}",
+            function_name
+        )));
         final_code.extend(function);
     }
 

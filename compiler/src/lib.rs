@@ -105,19 +105,19 @@
 /// By defining these stages, this module ensures a structured approach to compiling AFG into AsmFG, making the process
 /// extensible and maintainable.
 pub mod allocation;
-pub mod pasm;
 pub mod ast;
 pub mod labels;
 pub mod liveness;
+pub mod pasm;
 pub mod semantic;
 pub mod token;
 
 pub mod prelude {
     pub use super::allocation::allocate;
-    pub use super::pasm::{PASMInstruction, PASMProgram, PASMAllocatedProgram};
     pub use super::ast::{node::Node, AST};
     pub use super::labels::resolve_labels;
     pub use super::liveness::PASMProgramWithInterferenceGraph;
+    pub use super::pasm::{PASMAllocatedProgram, PASMInstruction, PASMProgram};
     pub use super::semantic::{analyze, SemanticError};
-    pub use super::token::TokenStream;
+    pub use super::token::lex;
 }

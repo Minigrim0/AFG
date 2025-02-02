@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::iter::Peekable;
 
 use crate::ast::node::Node;
-use crate::token::{TokenStream, TokenType};
+use crate::token::{Token, TokenType};
 
 mod function;
 pub mod node;
@@ -15,7 +16,7 @@ pub struct AST {
 }
 
 impl AST {
-    pub fn parse(tokens: &mut TokenStream) -> Result<Self, String> {
+    pub fn parse<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Self, String> {
         let mut program = HashMap::new();
 
         while let Some(token) = tokens.next() {
@@ -54,6 +55,11 @@ impl AST {
             match &**inst {
                 Node::Identifier { name } => writeln!(f, "{}ID {}", prefix, name)?,
                 Node::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
+                Node::MemoryValue { base, offset } => {
+                    writeln!(f, "MEM")?;
+                    Self::print_block(vec![base], f, level + 1)?;
+                    Self::print_block(vec![offset], f, level + 1)?;
+                }
                 Node::Assignment { lparam, rparam } => {
                     writeln!(f, "{}Assignment", prefix)?;
                     Self::print_block(vec![lparam], f, level + 1)?;
