@@ -59,10 +59,13 @@ pub enum Node {
     Identifier {
         name: String,
     },
+    Register {
+        name: String,
+    },
     MemoryValue {
         // a[0], a[b], ...
         base: Box<Node>,
-        offset: Box<Node>,
+        offset: usize,
     },
     Litteral {
         value: i32,
@@ -109,6 +112,7 @@ impl fmt::Display for Node {
         match self {
             Node::Identifier { name } => write!(f, "ID {}", name),
             Node::Litteral { value } => write!(f, "LIT {}", value),
+            Node::Register { name } => write!(f, "REG {}", name),
             Node::MemoryValue { base, offset } => write!(f, "MV\n{}\n{}", base, offset),
             Node::Assignment { lparam, rparam } => write!(f, "Assignment: {} {}", lparam, rparam),
             Node::Comparison {
@@ -205,14 +209,20 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
             None => return Err("Token should have a value".to_string()),
         };
 
-        println!("Extracted base identifier: {}", base_identifier);
-
         if tokens.peek().and_then(|t| Some(&t.token_type)) == Some(&TokenType::LBRACKET) {
             tokens.next();
-            println!("Found lbracket");
             let result = Ok(Node::MemoryValue {
                 base: Box::from(base_identifier),
-                offset: Box::from(new_id_or_litteral(tokens)?),
+                offset: tokens
+                    .next()
+                    .ok_or("Missing token for memory offset")
+                    .and_then(|t| {
+                        t.value
+                            .ok_or("offset token should have a value")
+                            .and_then(|v| {
+                                v.parse::<usize>().map_err(|_| "offset should be a number")
+                            })
+                    })?,
             });
             ensure_next_token(tokens, TokenType::RBRACKET, None)?;
             result
@@ -318,24 +328,6 @@ where
     new_comp_operator(operator, Box::from(lparam), Box::from(rparam))
 }
 
-/// Parses a tri-operation expression (e.g. $a + 10)
-/// Tokens is expected to have been verified as 3 items long !
-fn parse_triop<T>(tokens: &mut Peekable<T>) -> Result<Node, String>
-where
-    T: Iterator<Item = Token>,
-{
-    let lparam = new_id_or_litteral(tokens)?;
-
-    let operator = tokens
-        .next()
-        .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
-        .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
-
-    let rparam = new_id_or_litteral(tokens)?;
-
-    new_operator(operator, Box::from(lparam), Box::from(rparam))
-}
-
 fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
     let mut loop_condition_token_stream = get_until(stream, TokenType::LBRACE, false);
 
@@ -362,21 +354,11 @@ fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<No
 fn parse_assignment<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
     let mut assignment_stream = get_until(stream, TokenType::ENDL, false);
 
-    println!("Assignment stream {:?}", assignment_stream);
-
     let lparam = if assignment_stream.peek().is_some() {
-        match new_id_or_litteral(&mut assignment_stream)? {
-            Node::Identifier { name } => Node::Identifier { name },
-            Node::MemoryValue { base, offset } => Node::MemoryValue { base, offset },
-            _ => {
-                return Err("Lparam of assignment must be an identifier not a litteral".to_string())
-            }
-        }
+        new_id_or_litteral(&mut assignment_stream)?
     } else {
         return Err("Expected identifier after `set` keyword".to_string());
     };
-
-    println!("LParam is {}", lparam);
 
     ensure_next_token(&mut assignment_stream, TokenType::OP, Some("=".to_string()))?;
 
@@ -387,19 +369,23 @@ fn parse_assignment<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Resu
     {
         parse_function_call(&mut remaining_stream.into_iter().peekable())?
     } else {
-        println!(
-            "Remaining stream after ensure & function: {:?}",
-            remaining_stream
-        );
-        match remaining_stream.len() {
-            1 => new_id_or_litteral(&mut remaining_stream.into_iter().peekable())?,
-            3 => parse_triop(&mut remaining_stream.into_iter().peekable())?,
-            t => {
-                return Err(format!(
-                    "Expected one or three tokens after assignment operator but found {}",
-                    t
-                ))
-            }
+        let mut assignment_iter = remaining_stream.into_iter().peekable();
+        let first_assignant = new_id_or_litteral(&mut assignment_iter)?;
+        if assignment_iter.peek().is_some() {
+            let operator = assignment_iter
+                .next()
+                .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
+                .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
+
+            let second_assignant = new_id_or_litteral(&mut assignment_iter)?;
+
+            new_operator(
+                operator,
+                Box::from(first_assignant),
+                Box::from(second_assignant),
+            )?
+        } else {
+            first_assignant
         }
     };
 
@@ -433,15 +419,7 @@ fn parse_function_call<T: Iterator<Item = Token>>(
 fn parse_if<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
     let mut branching_condition_tokens = get_until(stream, TokenType::LBRACE, false);
 
-    let condition = match branching_condition_tokens.len() {
-        3 => parse_tricomp(&mut branching_condition_tokens)?,
-        other => {
-            return Err(format!(
-                "Expected 3 tokens after `while` keyword bu found {}",
-                other
-            ))
-        }
-    };
+    let condition = parse_tricomp(&mut branching_condition_tokens)?;
 
     Ok(Node::IfCondition {
         condition: Box::from(condition),
@@ -510,14 +488,19 @@ pub fn parse_block<T: Iterator<Item = Token>>(
             }
             TokenType::COMMENT => {
                 // Skip the whole comment
-                get_until(stream, TokenType::ENDL, true);
+                let _ = get_until(stream, TokenType::ENDL, true);
                 continue;
             }
             TokenType::ENDL => continue,
             TokenType::RBRACE => {
                 break;
             }
-            t => println!("Unexpected or unhandled token: {:?} {:?}", t, token.value),
+            t => {
+                return Err(format!(
+                    "Unexpected or unhandled token: {:?} {:?}",
+                    t, token.value
+                ))
+            }
         }
     }
 

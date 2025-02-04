@@ -13,6 +13,14 @@ pub struct Function {
 }
 
 impl Function {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            parameters: vec![],
+            content: vec![],
+        }
+    }
+
     pub fn parse<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Self, String> {
         if let Some(function_name) = stream.next() {
             if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LPAREN) {

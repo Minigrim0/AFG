@@ -1,7 +1,4 @@
-use std::collections::VecDeque;
 use std::fmt;
-use std::iter::Peekable;
-use std::vec::IntoIter;
 
 #[derive(Debug, PartialEq)]
 pub enum TokenType {

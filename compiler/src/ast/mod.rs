@@ -38,6 +38,12 @@ impl AST {
         Ok(Self { functions: program })
     }
 
+    pub fn new() -> Self {
+        Self {
+            functions: HashMap::from([("main".to_string(), Function::new("main".to_string()))]),
+        }
+    }
+
     fn print_block<'a, T>(block: T, f: &mut fmt::Formatter<'_>, level: i32) -> fmt::Result
     where
         T: IntoIterator<Item = &'a Box<Node>>,
@@ -55,10 +61,17 @@ impl AST {
             match &**inst {
                 Node::Identifier { name } => writeln!(f, "{}ID {}", prefix, name)?,
                 Node::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
+                Node::Register { name } => writeln!(f, "{}REG {}", prefix, name)?,
                 Node::MemoryValue { base, offset } => {
-                    writeln!(f, "MEM")?;
+                    writeln!(f, "{}MEM", prefix)?;
                     Self::print_block(vec![base], f, level + 1)?;
-                    Self::print_block(vec![offset], f, level + 1)?;
+                    Self::print_block(
+                        vec![&Box::from(Node::Litteral {
+                            value: *offset as i32,
+                        })],
+                        f,
+                        level + 1,
+                    )?;
                 }
                 Node::Assignment { lparam, rparam } => {
                     writeln!(f, "{}Assignment", prefix)?;
