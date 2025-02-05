@@ -60,10 +60,11 @@ impl AST {
         for inst in block.into_iter() {
             match &**inst {
                 Node::Identifier { name } => writeln!(f, "{}ID {}", prefix, name)?,
+                Node::MemoryValue { name } => writeln!(f, "{}MEM {}", prefix, name)?,
                 Node::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
                 Node::Register { name } => writeln!(f, "{}REG {}", prefix, name)?,
-                Node::MemoryValue { base, offset } => {
-                    writeln!(f, "{}MEM", prefix)?;
+                Node::MemoryOffset { base, offset } => {
+                    writeln!(f, "{}MOF", prefix)?;
                     Self::print_block(vec![base], f, level + 1)?;
                     Self::print_block(
                         vec![&Box::from(Node::Litteral {

@@ -33,7 +33,7 @@ fn main() -> Result<(), String> {
     let text = fs::read_to_string(&args.input).map_err(|e| e.to_string())?;
 
     info!("Extracting tokens");
-    let mut tokens = lex(text);
+    let tokens = lex(text);
     if args.save_intermediate {
         let token_output = args.input.clone() + ".tokens";
         info!("Saving tokens to {}", token_output);

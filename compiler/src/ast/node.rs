@@ -62,10 +62,14 @@ pub enum Node {
     Register {
         name: String,
     },
-    MemoryValue {
+    MemoryOffset {
         // a[0], a[b], ...
         base: Box<Node>,
         offset: usize,
+    },
+    MemoryValue {
+        // $Velocity
+        name: String,
     },
     Litteral {
         value: i32,
@@ -111,9 +115,10 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Node::Identifier { name } => write!(f, "ID {}", name),
+            Node::MemoryValue { name } => write!(f, "MEM {}", name),
             Node::Litteral { value } => write!(f, "LIT {}", value),
             Node::Register { name } => write!(f, "REG {}", name),
-            Node::MemoryValue { base, offset } => write!(f, "MV\n{}\n{}", base, offset),
+            Node::MemoryOffset { base, offset } => write!(f, "MOF\n{}\n{}", base, offset),
             Node::Assignment { lparam, rparam } => write!(f, "Assignment: {} {}", lparam, rparam),
             Node::Comparison {
                 lparam,
@@ -211,7 +216,7 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
 
         if tokens.peek().and_then(|t| Some(&t.token_type)) == Some(&TokenType::LBRACKET) {
             tokens.next();
-            let result = Ok(Node::MemoryValue {
+            let result = Ok(Node::MemoryOffset {
                 base: Box::from(base_identifier),
                 offset: tokens
                     .next()
@@ -328,22 +333,11 @@ where
     new_comp_operator(operator, Box::from(lparam), Box::from(rparam))
 }
 
+/// Parses a while loop condition
 fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
     let mut loop_condition_token_stream = get_until(stream, TokenType::LBRACE, false);
 
-    let condition = match loop_condition_token_stream.len() {
-        3 => parse_tricomp(&mut loop_condition_token_stream)?,
-        other => {
-            return Err(format!(
-                "Expected 3 tokens after `while` keyword but found {} [{:?}]",
-                other,
-                loop_condition_token_stream
-                    .map(|s| format!("{}", &s.token_type))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            ))
-        }
-    };
+    let condition = parse_tricomp(&mut loop_condition_token_stream)?;
 
     Ok(Node::WhileLoop {
         condition: Box::from(condition),
@@ -351,6 +345,7 @@ fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<No
     })
 }
 
+/// Parses an assignment instructions
 fn parse_assignment<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
     let mut assignment_stream = get_until(stream, TokenType::ENDL, false);
 

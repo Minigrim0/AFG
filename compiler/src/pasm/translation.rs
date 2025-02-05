@@ -1,6 +1,11 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::{MaybeInstructions, OperandType, PASMInstruction};
+use machine::prelude::Registers;
+
+use super::{
+    assignment::{imm_to_imm, mem_to_imm},
+    MaybeInstructions, OperandType, PASMInstruction,
+};
 /// Transforms the AST of a function into pseudo-asm
 use crate::ast::node::{ComparisonType, Node, OperationType};
 
@@ -12,12 +17,29 @@ fn create_temp_variable_name<S: AsRef<str>>(pattern: S) -> String {
     format!("temp_{}_{}", pattern.as_ref(), counter)
 }
 
+/// Loads the given base (for a memory access) into the GPC register for further operations
+fn load_base(base: &Box<Node>) -> MaybeInstructions {
+    match &**base {
+        Node::Identifier { name } => Ok(vec![PASMInstruction::new(
+            "mov".to_string(),
+            vec![
+                OperandType::Register {
+                    name: "GPC".to_string(),
+                },
+                OperandType::Identifier {
+                    name: name.to_string(),
+                },
+            ],
+        )]),
+        _ => return Err("base should be an identifier".to_string()),
+    }
+}
+
 fn operation_to_asm(
     operation: &OperationType,
     lparam: &Box<Node>,
     rparam: &Box<Node>,
-) -> Result<(String, Vec<PASMInstruction>), String> {
-    let temp = create_temp_variable_name("oplpar");
+) -> Result<(Box<OperandType>, Vec<PASMInstruction>), String> {
     let mut instructions = vec![];
 
     let operation = match operation {
@@ -28,9 +50,12 @@ fn operation_to_asm(
         OperationType::Modulo => "mod",
     };
 
-    let lparam_ins =
-        assignment_to_asm(&Box::from(Node::Identifier { name: temp.clone() }), lparam)?;
-    instructions.extend(lparam_ins);
+    instructions.extend(assignment_to_asm(
+        &Box::from(Node::Register {
+            name: "GPA".to_string(),
+        }),
+        lparam,
+    )?);
 
     let new_rparam = match &**rparam {
         Node::Identifier { name } if !name.starts_with("$") => {
@@ -38,12 +63,20 @@ fn operation_to_asm(
         }
         Node::Identifier { name: _ } => {
             let temp = create_temp_variable_name("oprpar");
-            let rparam_ins =
-                assignment_to_asm(&Box::from(Node::Identifier { name: temp.clone() }), rparam)?;
-            instructions.extend(rparam_ins);
+            instructions.extend(assignment_to_asm(
+                &Box::from(Node::Identifier { name: temp.clone() }),
+                rparam,
+            )?);
             OperandType::Identifier { name: temp.clone() }
         }
         Node::Litteral { value } => OperandType::Literal { value: *value },
+        Node::MemoryOffset { base, offset } => {
+            instructions.extend(load_base(base)?);
+            OperandType::MemoryOffset {
+                base: Box::from(OperandType::new_register("GPC")),
+                offset: *offset,
+            }
+        }
         _ => {
             return Err(
                 "lparam of operation should be either a literal or an identifier".to_string(),
@@ -53,192 +86,65 @@ fn operation_to_asm(
 
     instructions.push(PASMInstruction::new(
         operation.to_string(),
-        vec![OperandType::Identifier { name: temp.clone() }, new_rparam],
+        vec![OperandType::new_register("GPA"), new_rparam],
     ));
 
-    Ok((temp, instructions))
+    Ok((Box::from(OperandType::new_register("GPA")), instructions))
 }
 
 fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstructions {
-    let mut memory_operation = false; // If assignee is memory location, use load/store otherwise mov/movi
+    let mut instructions = vec![];
 
-    let assignee = match &**assignee {
-        Node::Identifier { name } => {
-            if name.starts_with("$") {
-                memory_operation = true;
-            }
-            name
+    match (&**assignant, &**assignee) {
+        // Id to Id
+        (
+            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+        ) => {
+            instructions.extend(super::assignment::imm_to_imm(assignant, assignee)?);
         }
-        Node::MemoryValue { base, offset } => {
-            memory_operation = true;
-            // TODO implement
+        // Mem to Id
+        (
+            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+        ) => {
+            instructions.extend(super::assignment::mem_to_imm(assignant, assignee)?);
         }
-        _ => return Err("assignee should be an identifier".to_string()),
+        // Id to Mem
+        (
+            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+        ) => {
+            instructions.extend(super::assignment::imm_to_mem(assignant, assignee)?);
+        }
+        (
+            // Mem to mem
+            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+        ) => {
+            instructions.extend(super::assignment::mem_to_mem(assignant, assignee)?);
+        }
+        // Op to Id
+        (
+            Node::Operation { .. },
+            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+        ) => {
+            instructions.extend(super::assignment::op_to_imm(assignant, assignee)?);
+        }
+        (
+            // Op to Mem
+            Node::Operation { .. },
+            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+        ) => {
+            instructions.extend(super::assignment::op_to_mem(assignant, assignee)?);
+        }
+        _ => {
+            println!("Unhandled case: {:?} to {:?}", assignant, assignee);
+            return Err("Not implemented".to_string());
+        }
     }
-    .to_string();
 
-    match &**assignant {
-        Node::Operation {
-            lparam,
-            rparam,
-            operation,
-        } => {
-            // Need to perform the operation to assign
-            // Need to create temporary variable
-            let (temp, mut instructions) = operation_to_asm(operation, lparam, rparam)?;
-
-            if memory_operation {
-                instructions.push(PASMInstruction::new(
-                    "mov".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: "'GPA".to_string(),
-                        },
-                        OperandType::Identifier { name: temp.clone() },
-                    ],
-                ));
-                instructions.push(PASMInstruction::new(
-                    "store".to_string(),
-                    vec![
-                        OperandType::Identifier { name: assignee },
-                        OperandType::Identifier {
-                            name: "'GPA".to_string(),
-                        },
-                    ],
-                ));
-            } else {
-                instructions.push(PASMInstruction::new(
-                    "mov".to_string(),
-                    vec![
-                        OperandType::Identifier { name: assignee },
-                        OperandType::Identifier { name: temp.clone() },
-                    ],
-                ));
-            }
-            Ok(instructions)
-        }
-        Node::Litteral { value } => {
-            if memory_operation {
-                Ok(vec![PASMInstruction::new(
-                    "store".to_string(),
-                    vec![
-                        OperandType::Identifier { name: assignee },
-                        OperandType::Literal { value: *value },
-                    ],
-                )])
-            } else {
-                Ok(vec![PASMInstruction::new(
-                    "mov".to_string(),
-                    vec![
-                        OperandType::Identifier { name: assignee },
-                        OperandType::Literal { value: *value },
-                    ],
-                )])
-            }
-        }
-        Node::Identifier { name } => {
-            if name.starts_with("$") {
-                if memory_operation {
-                    let temp = create_temp_variable_name("mem_op");
-                    Ok(vec![
-                        PASMInstruction::new(
-                            "load".to_string(),
-                            vec![
-                                OperandType::Identifier { name: temp.clone() },
-                                OperandType::Identifier {
-                                    name: name.to_string(),
-                                },
-                            ],
-                        ),
-                        PASMInstruction::new(
-                            "store".to_string(),
-                            vec![
-                                OperandType::Identifier { name: assignee },
-                                OperandType::Identifier { name: temp.clone() },
-                            ],
-                        ),
-                    ])
-                } else {
-                    Ok(vec![PASMInstruction::new(
-                        "load".to_string(),
-                        vec![
-                            OperandType::Identifier { name: assignee },
-                            OperandType::Identifier {
-                                name: name.to_string(),
-                            },
-                        ],
-                    )])
-                }
-            } else {
-                if memory_operation {
-                    Ok(vec![PASMInstruction::new(
-                        "store".to_string(),
-                        vec![
-                            OperandType::Identifier { name: assignee },
-                            OperandType::Identifier {
-                                name: name.to_string(),
-                            },
-                        ],
-                    )])
-                } else {
-                    Ok(vec![PASMInstruction::new(
-                        "mov".to_string(),
-                        vec![
-                            OperandType::Identifier { name: assignee },
-                            OperandType::Identifier {
-                                name: name.to_string(),
-                            },
-                        ],
-                    )])
-                }
-            }
-        }
-        Node::FunctionCall {
-            function_name,
-            parameters,
-        } => {
-            let mut instructions = function_to_asm(function_name, parameters)?;
-            if memory_operation {
-                let temp = create_temp_variable_name("function_return");
-                instructions.extend(vec![
-                    PASMInstruction::new(
-                        "mov".to_string(),
-                        vec![
-                            OperandType::Identifier { name: temp.clone() },
-                            OperandType::Identifier {
-                                name: "'FRV".to_string(),
-                            },
-                        ],
-                    ),
-                    PASMInstruction::new(
-                        "store".to_string(),
-                        vec![
-                            OperandType::Identifier { name: assignee },
-                            OperandType::Identifier {
-                                name: temp.to_string(),
-                            },
-                        ],
-                    ),
-                ]);
-            } else {
-                // Move call result to assignee
-                instructions.push(PASMInstruction::new(
-                    "mov".to_string(),
-                    vec![
-                        OperandType::Identifier { name: assignee },
-                        OperandType::Identifier {
-                            name: "'FRV".to_string(),
-                        },
-                    ],
-                ));
-            }
-            Ok(instructions)
-        }
-        _ => Err(
-            "rparam of an assignment should be either an operation, a literal or an identifier"
-                .to_string(),
-        ),
-    }
+    Ok(instructions)
 }
 
 fn comparison_to_asm(
@@ -249,34 +155,49 @@ fn comparison_to_asm(
 ) -> MaybeInstructions {
     let mut instructions = vec![];
 
-    let lparam_name = match &**lparam {
-        Node::Identifier { name } => name.to_string(),
-        Node::Litteral { value } => {
-            let temp = create_temp_variable_name("clp");
-            instructions.push(PASMInstruction::new(
-                "mov".to_string(),
-                vec![
-                    OperandType::Identifier { name: temp.clone() },
-                    OperandType::Literal { value: *value },
-                ],
-            ));
-            temp
+    let lparam = match &**lparam {
+        Node::Register { name } => OperandType::new_register(name),
+        Node::Identifier { .. } | Node::Litteral { .. } => {
+            instructions.extend(imm_to_imm(
+                lparam,
+                &Box::from(Node::Register {
+                    name: "GPA".to_string(),
+                }),
+            )?);
+            OperandType::new_register("GPA")
         }
+        Node::MemoryOffset { .. } | Node::MemoryValue { .. } => {
+            instructions.extend(mem_to_imm(
+                lparam,
+                &Box::from(Node::Register {
+                    name: "GPA".to_string(),
+                }),
+            )?);
+            OperandType::new_register("GPA")
+        }
+        // Upgrade: add operation here ?
         _ => return Err("Invalid lparam for comparison".to_string()),
     };
 
-    let rparam_name = match &**rparam {
-        Node::Identifier { name } => name.to_string(),
-        Node::Litteral { value } => {
-            let temp = create_temp_variable_name("crp");
-            instructions.push(PASMInstruction::new(
-                "mov".to_string(),
-                vec![
-                    OperandType::Identifier { name: temp.clone() },
-                    OperandType::Literal { value: *value },
-                ],
-            ));
-            temp
+    let rparam = match &**rparam {
+        Node::Register { name } => OperandType::new_register(name),
+        Node::Identifier { .. } | Node::Litteral { .. } => {
+            instructions.extend(imm_to_imm(
+                rparam,
+                &Box::from(Node::Register {
+                    name: "GPB".to_string(),
+                }),
+            )?);
+            OperandType::new_register("GPB")
+        }
+        Node::MemoryOffset { .. } | Node::MemoryValue { .. } => {
+            instructions.extend(mem_to_imm(
+                rparam,
+                &Box::from(Node::Register {
+                    name: "GPB".to_string(),
+                }),
+            )?);
+            OperandType::new_register("GPB")
         }
         _ => return Err("Invalid rparam for comparison".to_string()),
     };
@@ -284,17 +205,7 @@ fn comparison_to_asm(
     match *comparison {
         ComparisonType::EQ => {
             instructions.extend(vec![
-                PASMInstruction::new(
-                    "cmp".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: lparam_name.clone(),
-                        },
-                        OperandType::Identifier {
-                            name: rparam_name.clone(),
-                        },
-                    ],
-                ),
+                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
                 PASMInstruction::new(
                     "jnz".to_string(),
                     vec![OperandType::Identifier {
@@ -305,17 +216,7 @@ fn comparison_to_asm(
         }
         ComparisonType::DIFF => {
             instructions.extend(vec![
-                PASMInstruction::new(
-                    "cmp".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: lparam_name.clone(),
-                        },
-                        OperandType::Identifier {
-                            name: rparam_name.clone(),
-                        },
-                    ],
-                ),
+                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
                 PASMInstruction::new(
                     "jz".to_string(),
                     vec![OperandType::Identifier {
@@ -326,17 +227,7 @@ fn comparison_to_asm(
         }
         ComparisonType::GE => {
             instructions.extend(vec![
-                PASMInstruction::new(
-                    "cmp".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: lparam_name.clone(),
-                        },
-                        OperandType::Identifier {
-                            name: rparam_name.clone(),
-                        },
-                    ],
-                ),
+                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
                 PASMInstruction::new(
                     "jn".to_string(),
                     vec![OperandType::Identifier {
@@ -348,17 +239,7 @@ fn comparison_to_asm(
         ComparisonType::GT => {
             // Invert operation to only require one jump !
             instructions.extend(vec![
-                PASMInstruction::new(
-                    "cmp".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: rparam_name.clone(),
-                        },
-                        OperandType::Identifier {
-                            name: lparam_name.clone(),
-                        },
-                    ],
-                ),
+                PASMInstruction::new("cmp".to_string(), vec![rparam, lparam]),
                 PASMInstruction::new(
                     "jp".to_string(),
                     vec![OperandType::Identifier {
@@ -370,17 +251,7 @@ fn comparison_to_asm(
         ComparisonType::LT => {
             // Invert operation to only require one jump !
             instructions.extend(vec![
-                PASMInstruction::new(
-                    "cmp".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: rparam_name.clone(),
-                        },
-                        OperandType::Identifier {
-                            name: lparam_name.clone(),
-                        },
-                    ],
-                ),
+                PASMInstruction::new("cmp".to_string(), vec![rparam, lparam]),
                 PASMInstruction::new(
                     "jn".to_string(),
                     vec![OperandType::Identifier {
@@ -391,17 +262,7 @@ fn comparison_to_asm(
         }
         ComparisonType::LE => {
             instructions.extend(vec![
-                PASMInstruction::new(
-                    "cmp".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: lparam_name.clone(),
-                        },
-                        OperandType::Identifier {
-                            name: rparam_name.clone(),
-                        },
-                    ],
-                ),
+                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
                 PASMInstruction::new(
                     "jp".to_string(),
                     vec![OperandType::Identifier {
@@ -558,7 +419,7 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
                 instructions.push(
                     PASMInstruction::new(
                         "push".to_string(),
-                        vec![OperandType::Identifier { name: temp }]
+                        vec![(&*temp).clone()]
                     )
                 )
             }
@@ -681,11 +542,28 @@ fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
             "print".to_string(),
             vec![OperandType::Literal { value: *value }],
         )]),
+        Node::MemoryOffset { base, offset } => {
+            let mut instructions = vec![];
+            instructions.extend(load_base(base)?);
+
+            instructions.push(PASMInstruction::new(
+                "print".to_string(),
+                vec![OperandType::MemoryOffset {
+                    base: Box::from(OperandType::Register {
+                        name: "GPC".to_string(),
+                    }),
+                    offset: *offset as usize,
+                }],
+            ));
+            Ok(instructions)
+        }
         _ => Err("Invalid value to print".to_string()),
     }
 }
 
-/// Converts an instruction from its AST representation to pseudo assembly
+/// Converts an instruction from its AST node representation to pseudo assembly
+/// Return either a list of `PASMInstruction` if there is no error in the AST node or
+/// an error containing a string explaining the error
 pub fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
     match &**node {
         Node::Assignment { lparam, rparam } => Ok(assignment_to_asm(lparam, rparam)?),

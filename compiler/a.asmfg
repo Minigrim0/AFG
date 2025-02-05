@@ -1,5 +1,0 @@
-mov 'SBP 'TSP
-sub 'TSP #1
-mov 'GPA ['SBP - 1]
-print 'GPA
-halt

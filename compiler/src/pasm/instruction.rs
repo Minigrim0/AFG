@@ -6,7 +6,7 @@ use super::OperandType;
 /// A Pseudo-assembly instruction.
 pub struct PASMInstruction {
     pub is_label: bool,             // Whether this is just a label or not
-    pub is_comment: bool,             // Whether this is just a label or not
+    pub is_comment: bool,           // Whether this is just a label or not
     pub opcode: String,             // Will not change until the end
     pub operands: Vec<OperandType>, // Up to two operands
 }
@@ -104,8 +104,17 @@ impl fmt::Display for PASMInstruction {
                             write!(f, " @{}", name)?
                         }
                     }
+                    OperandType::Register { name } => write!(f, " '{}", name)?,
+                    OperandType::Memory { name } => write!(f, " ${}", name)?,
                     OperandType::Literal { value } => write!(f, " #{}", value)?,
-                    OperandType::Stack { register, operation, offset } => write!(f, " [{} {} {}]", register, operation, offset)?
+                    OperandType::Stack {
+                        register,
+                        operation,
+                        offset,
+                    } => write!(f, " [{} {} {}]", register, operation, offset)?,
+                    OperandType::MemoryOffset { base, offset } => {
+                        write!(f, " [{} + {}]", base, offset)?
+                    }
                 }
             }
             Ok(())

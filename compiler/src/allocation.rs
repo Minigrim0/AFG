@@ -93,9 +93,9 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::new_stack("'SBP".to_string(), operand1_location),
+                                OperandType::new_stack("SBP", operand1_location),
                                 if let Some(operand2_location) = operand2_location {
-                                    OperandType::new_stack("'SBP".to_string(), operand2_location)
+                                    OperandType::new_stack("SBP", operand2_location)
                                 } else {
                                     instruction.operands[1].clone()
                                 },
@@ -108,7 +108,7 @@ pub fn allocate(
                         vec![
                             instruction.operands[0].clone(),
                             if let Some(operand2_location) = operand2_location {
-                                OperandType::new_stack("'SBP".to_string(), operand2_location)
+                                OperandType::new_stack("SBP", operand2_location)
                             } else {
                                 instruction.operands[1].clone()
                             },
@@ -145,7 +145,7 @@ pub fn allocate(
                     next_instructions.push(PASMInstruction::new(
                         "mov".to_string(),
                         vec![
-                            OperandType::new_stack("'SBP".to_string(), operand1_location),
+                            OperandType::new_stack("SBP", operand1_location),
                             OperandType::Identifier {
                                 name: "'GPA".to_string(),
                             },
@@ -168,7 +168,7 @@ pub fn allocate(
                     vec![
                         instruction.operands[0].clone(),
                         if let Some(operand2_location) = operand2_location {
-                            OperandType::new_stack("'SBP".to_string(), operand2_location)
+                            OperandType::new_stack("SBP", operand2_location)
                         } else {
                             instruction.operands[1].clone() // Either a register or an immediate value
                         },
@@ -192,29 +192,21 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier {
-                                    name: "'GPA".to_string(),
-                                },
-                                OperandType::new_stack("'SBP".to_string(), offset1),
+                                OperandType::new_register("GPA"),
+                                OperandType::new_stack("SBP", offset1),
                             ],
                         ));
-                        OperandType::Identifier {
-                            name: "'GPA".to_string(),
-                        }
+                        OperandType::new_register("GPA")
                     } else {
                         if instruction.operands[0].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier {
-                                        name: "'GPA".to_string(),
-                                    },
+                                    OperandType::new_register("GPA"),
                                     instruction.operands[0].clone(),
                                 ],
                             ));
-                            OperandType::Identifier {
-                                name: "'GPA".to_string(),
-                            }
+                            OperandType::new_register("GPA")
                         } else {
                             instruction.operands[0].clone()
                         }
@@ -226,29 +218,21 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier {
-                                    name: "'GPB".to_string(),
-                                },
-                                OperandType::new_stack("'SBP".to_string(), offset2),
+                                OperandType::new_register("GPB"),
+                                OperandType::new_stack("SBP", offset2),
                             ],
                         ));
-                        OperandType::Identifier {
-                            name: "'GPB".to_string(),
-                        }
+                        OperandType::new_register("GPB")
                     } else {
                         if instruction.operands[1].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier {
-                                        name: "'GPB".to_string(),
-                                    },
+                                    OperandType::new_register("GPB"),
                                     instruction.operands[1].clone(),
                                 ],
                             ));
-                            OperandType::Identifier {
-                                name: "'GPB".to_string(),
-                            }
+                            OperandType::new_register("GPB")
                         } else {
                             instruction.operands[1].clone()
                         }
@@ -265,10 +249,8 @@ pub fn allocate(
                     next_instructions.push(PASMInstruction::new(
                         "mov".to_string(),
                         vec![
-                            OperandType::new_stack("'SBP".to_string(), offset1),
-                            OperandType::Identifier {
-                                name: "'GPA".to_string(),
-                            },
+                            OperandType::new_stack("SBP", offset1),
+                            OperandType::new_register("GPA"),
                         ],
                     ));
                 }
@@ -289,29 +271,21 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier {
-                                    name: "'GPA".to_string(),
-                                },
-                                OperandType::new_stack("'SBP".to_string(), offset1),
+                                OperandType::new_register("GPA"),
+                                OperandType::new_stack("SBP", offset1),
                             ],
                         ));
-                        OperandType::Identifier {
-                            name: "'GPA".to_string(),
-                        }
+                        OperandType::new_register("GPA")
                     } else {
                         if instruction.operands[0].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier {
-                                        name: "'GPA".to_string(),
-                                    },
+                                    OperandType::new_register("GPA"),
                                     instruction.operands[0].clone(),
                                 ],
                             ));
-                            OperandType::Identifier {
-                                name: "'GPA".to_string(),
-                            }
+                            OperandType::new_register("GPA")
                         } else {
                             instruction.operands[0].clone()
                         }
@@ -323,29 +297,21 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier {
-                                    name: "'GPB".to_string(),
-                                },
-                                OperandType::new_stack("'SBP".to_string(), offset2),
+                                OperandType::new_register("GPB"),
+                                OperandType::new_stack("SBP", offset2),
                             ],
                         ));
-                        OperandType::Identifier {
-                            name: "'GPB".to_string(),
-                        }
+                        OperandType::new_register("GPB")
                     } else {
                         if instruction.operands[1].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier {
-                                        name: "'GPB".to_string(),
-                                    },
+                                    OperandType::new_register("GPB"),
                                     instruction.operands[1].clone(),
                                 ],
                             ));
-                            OperandType::Identifier {
-                                name: "'GPB".to_string(),
-                            }
+                            OperandType::new_register("GPB")
                         } else {
                             instruction.operands[1].clone()
                         }
@@ -371,29 +337,21 @@ pub fn allocate(
                         next_instructions.push(PASMInstruction::new(
                             "mov".to_string(),
                             vec![
-                                OperandType::Identifier {
-                                    name: "'GPA".to_string(),
-                                },
-                                OperandType::new_stack("'SBP".to_string(), offset1),
+                                OperandType::new_register("GPA"),
+                                OperandType::new_stack("SBP", offset1),
                             ],
                         ));
-                        OperandType::Identifier {
-                            name: "'GPA".to_string(),
-                        }
+                        OperandType::new_register("GPA")
                     } else {
                         if instruction.operands[0].is_memory() {
                             next_instructions.push(PASMInstruction::new(
                                 "load".to_string(),
                                 vec![
-                                    OperandType::Identifier {
-                                        name: "'GPA".to_string(),
-                                    },
+                                    OperandType::new_register("GPA"),
                                     instruction.operands[0].clone(),
                                 ],
                             ));
-                            OperandType::Identifier {
-                                name: "'GPA".to_string(),
-                            }
+                            OperandType::new_register("GPA")
                         } else {
                             instruction.operands[0].clone()
                         }
