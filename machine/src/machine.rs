@@ -1,13 +1,17 @@
 use super::enums::{Flags, MachineStatus, OpCodes, OperandType, Registers};
 use crate::Instruction;
 
+const REGISTER_AMOUNT: usize = 7;
+const STACK_SIZE: usize = 256; // 1kB of stack (each value on the stack is 4 bytes)
+const MEMORY_SIZE: usize = 65536; // 64KB of memory
+
 #[cfg_attr(feature = "bevy", derive(bevy::prelude::Component))]
 pub struct VirtualMachine {
-    registers: [i32; 6],  // 5 registers
-    stack: [i32; 256],    // 1kB of stack (each value on the stack is 4 bytes)
-    flags: u8,            // CPU flags
-    next_flags: u8,       // CPU flags at next instruction
-    memory: [i32; 65536], // 64KB of memory
+    registers: [i32; REGISTER_AMOUNT],
+    stack: [i32; STACK_SIZE],
+    flags: u8,      // CPU flags
+    next_flags: u8, // CPU flags at next instruction
+    memory: [i32; MEMORY_SIZE],
     status: MachineStatus,
     program: Option<Vec<Instruction>>,
     current_output: Option<String>,
@@ -16,11 +20,11 @@ pub struct VirtualMachine {
 impl Default for VirtualMachine {
     fn default() -> Self {
         Self {
-            registers: [0; 6],  // 5 registers
-            stack: [0; 256],    // 1kB of stack (each value on the stack is 4 bytes)
-            flags: 0,           // CPU flags
-            next_flags: 0,      // CPU flags at next instruction
-            memory: [0; 65536], // 64KB of memory
+            registers: [0; REGISTER_AMOUNT], // 5 registers
+            stack: [0; STACK_SIZE],          // 1kB of stack (each value on the stack is 4 bytes)
+            flags: 0,                        // CPU flags
+            next_flags: 0,                   // CPU flags at next instruction
+            memory: [0; MEMORY_SIZE],        // 64KB of memory
             status: MachineStatus::Empty,
             program: None,
             current_output: None,
@@ -33,8 +37,8 @@ impl VirtualMachine {
         let mut vm = VirtualMachine::default();
 
         // Stack pointer
-        vm.registers[Registers::TSP as usize] = vm.stack.len() as i32;
-        vm.registers[Registers::SBP as usize] = vm.stack.len() as i32;
+        vm.registers[Registers::TSP as usize] = STACK_SIZE as i32;
+        vm.registers[Registers::SBP as usize] = STACK_SIZE as i32;
         vm
     }
 

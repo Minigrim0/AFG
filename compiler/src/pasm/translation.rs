@@ -1,7 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use machine::prelude::Registers;
-
 use super::{
     assignment::{imm_to_imm, mem_to_imm},
     MaybeInstructions, OperandType, PASMInstruction,

@@ -85,7 +85,7 @@ The assembly-like language used by the machine.
 > Popping from the stack is done into a register.
 
 ### afg
-Details on the compiler are provided in the [COMPILER](./COMPILER.md) file.
+Details on the compiler are provided in the [COMPILER](./compiler/README.md) file.
 
 Details about the programming language `afg` and its compilation process to `asmfg` will be provided here.
 
