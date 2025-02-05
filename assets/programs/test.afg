@@ -1,0 +1,14 @@
+fn main() {
+    set a = 0;
+    set a[1] = 6;
+    set a[0] = 5;
+    set a[0] = a[0] + a[1];
+    while a[0] != 100 {
+        set a[0] = a[0] + 1;
+        if a[0] == 50 {
+            print a[0];
+        }
+    }
+    print a[0];
+    print a[1];
+}
