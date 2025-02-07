@@ -66,13 +66,7 @@ impl AST {
                 Node::MemoryOffset { base, offset } => {
                     writeln!(f, "{}MOF", prefix)?;
                     Self::print_block(vec![base], f, level + 1)?;
-                    Self::print_block(
-                        vec![&Box::from(Node::Litteral {
-                            value: *offset as i32,
-                        })],
-                        f,
-                        level + 1,
-                    )?;
+                    Self::print_block(vec![offset], f, level + 1)?;
                 }
                 Node::Assignment { lparam, rparam } => {
                     writeln!(f, "{}Assignment", prefix)?;

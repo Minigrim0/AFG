@@ -118,7 +118,7 @@ pub fn allocate(
             }
             "load" => {
                 // If operand1_location has a value, its the offset of this variable in the stack.
-                // If not, the operands is a literal or a register (meaning cimply copy it)
+                // If not, the operands is a literal or a register (meaning simply copy it)
                 let (operand1_location, new_pointer) = get_operand_location(
                     &instruction.operands[0],
                     &mut variable_map,

@@ -63,6 +63,26 @@ impl Token {
                 .and_then(|v| Some(v.parse::<i32>().is_ok()))
                 == Some(true)
     }
+
+    pub fn is(&self, of_type: TokenType) -> bool {
+        self.token_type == of_type
+    }
+
+    pub fn get_literal_value(&self) -> Result<i32, String> {
+        if let Some(value) = &self.value {
+            value.parse::<i32>().map_err(|e| e.to_string())
+        } else {
+            Err("Token has no value".to_string())
+        }
+    }
+
+    pub fn get_value(&self) -> Result<String, String> {
+        if let Some(value) = &self.value {
+            Ok(value.clone())
+        } else {
+            Err("Token as no value".to_string())
+        }
+    }
 }
 
 impl fmt::Display for Token {

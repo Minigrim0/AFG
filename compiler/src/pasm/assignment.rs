@@ -1,9 +1,10 @@
+use super::instruction;
 use super::{MaybeInstructions, OperandType, PASMInstruction};
 use crate::ast::node::Node;
 use crate::ast::node::OperationType;
 
 /// Ensure the operand is either an Identifier, a Register or an Literal
-fn ensure_immediate(node: &Box<Node>) -> Result<OperandType, String> {
+pub fn ensure_immediate(node: &Box<Node>) -> Result<OperandType, String> {
     match &**node {
         Node::Identifier { name } => Ok(OperandType::Identifier { name: name.clone() }),
         Node::Register { name } => Ok(OperandType::Register { name: name.clone() }),
@@ -23,13 +24,15 @@ fn ensure_loadable_immediate(node: &Box<Node>) -> Result<OperandType, String> {
 
 /// Ensure the operand is a memory location (Offset or direct value)
 /// The result is a tuple with the new operand to use further in the
-fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstruction>), String> {
+/// code, and the second element, the instructions to ensure the memory
+/// value is moved to the correct location (in registers)
+pub fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstruction>), String> {
     match &**node {
         Node::MemoryValue { name } => Ok((OperandType::Memory { name: name.clone() }, vec![])),
         Node::MemoryOffset { base, offset } => Ok((
             OperandType::MemoryOffset {
                 base: Box::from(OperandType::new_register("GPC")),
-                offset: *offset,
+                offset: Box::from(OperandType::new_register("GPD")),
             },
             vec![PASMInstruction::new(
                 "mov".to_string(),
@@ -44,6 +47,18 @@ fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstruction>)
                         }
                     },
                 ],
+            ),
+            PASMInstruction::new(
+                "mov".to_string(),
+                vec![
+                    OperandType::new_register("GPD"),
+                    match &**offset {
+                        Node::Register { name } => OperandType::new_register(name),
+                        Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
+                        Node::Litteral { value } => OperandType::new_literal(*value),
+                        _ => return Err("(EnsureMemory) Invalid memory offset. Memory offset should be either a literal, identifier or register.".to_string())
+                    }
+                ]
             )],
         )),
         _ => Err("Operand should be either a Memory address or a Memory Offset".to_string()),

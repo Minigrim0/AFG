@@ -72,7 +72,12 @@ fn operation_to_asm(
             instructions.extend(load_base(base)?);
             OperandType::MemoryOffset {
                 base: Box::from(OperandType::new_register("GPC")),
-                offset: *offset,
+                offset: match &**offset {
+                    Node::Register { name } => Box::from(OperandType::new_register(name)),
+                    Node::Identifier { name } => Box::from(OperandType::Identifier { name: name.clone() }),
+                    Node::Litteral { value } => Box::from(OperandType::new_literal(*value)),
+                    _ => return Err("(OpToAsm) Invalid memory offset. Memory offset should be either a literal, identifier or register.".to_string())
+                },
             }
         }
         _ => {
@@ -123,10 +128,7 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             instructions.extend(super::assignment::mem_to_mem(assignant, assignee)?);
         }
         // Op to Id
-        (
-            Node::Operation { .. },
-            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
-        ) => {
+        (Node::Operation { .. }, Node::Identifier { .. } | Node::Register { .. }) => {
             instructions.extend(super::assignment::op_to_imm(assignant, assignee)?);
         }
         (
@@ -135,6 +137,42 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             Node::MemoryValue { .. } | Node::MemoryOffset { .. },
         ) => {
             instructions.extend(super::assignment::op_to_mem(assignant, assignee)?);
+        }
+        (Node::FunctionCall { .. }, Node::Identifier { .. } | Node::Register { .. }) => {
+            instructions.extend(match &**assignant {
+                Node::FunctionCall {
+                    function_name,
+                    parameters,
+                } => function_to_asm(&function_name, &parameters)?,
+                node => {
+                    return Err("Invalid parameter from".to_string());
+                }
+            });
+
+            instructions.extend(super::assignment::imm_to_imm(
+                &Box::from(Node::Register {
+                    name: "FRV".to_string(),
+                }),
+                assignee,
+            )?);
+        }
+        (Node::FunctionCall { .. }, Node::MemoryOffset { .. } | Node::MemoryValue { .. }) => {
+            instructions.extend(match &**assignant {
+                Node::FunctionCall {
+                    function_name,
+                    parameters,
+                } => function_to_asm(&function_name, &parameters)?,
+                node => {
+                    return Err("Invalid parameter from".to_string());
+                }
+            });
+
+            instructions.extend(super::assignment::imm_to_mem(
+                &Box::from(Node::Register {
+                    name: "FRV".to_string(),
+                }),
+                assignee,
+            )?);
         }
         _ => {
             println!("Unhandled case: {:?} to {:?}", assignant, assignee);
@@ -531,32 +569,16 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
 
 /// Produces a print instruction from the AST nodes
 fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
-    match &**node {
-        Node::Identifier { name } => Ok(vec![PASMInstruction::new(
-            "print".to_string(),
-            vec![OperandType::Identifier { name: name.clone() }],
-        )]),
-        Node::Litteral { value } => Ok(vec![PASMInstruction::new(
-            "print".to_string(),
-            vec![OperandType::Literal { value: *value }],
-        )]),
-        Node::MemoryOffset { base, offset } => {
-            let mut instructions = vec![];
-            instructions.extend(load_base(base)?);
-
-            instructions.push(PASMInstruction::new(
-                "print".to_string(),
-                vec![OperandType::MemoryOffset {
-                    base: Box::from(OperandType::Register {
-                        name: "GPC".to_string(),
-                    }),
-                    offset: *offset as usize,
-                }],
-            ));
-            Ok(instructions)
+    let (operand, mut instructions) = match &**node {
+        Node::Identifier { .. } | Node::Litteral { .. } => {
+            (super::assignment::ensure_immediate(node)?, vec![])
         }
-        _ => Err("Invalid value to print".to_string()),
-    }
+        Node::MemoryOffset { .. } => super::assignment::ensure_memory(node)?,
+        _ => return Err("Invalid value to print".to_string()),
+    };
+
+    instructions.push(PASMInstruction::new("print".to_string(), vec![operand]));
+    Ok(instructions)
 }
 
 /// Converts an instruction from its AST node representation to pseudo assembly

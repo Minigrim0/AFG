@@ -1,3 +1,4 @@
+use log::error;
 use std::{fmt, iter::Peekable};
 
 use crate::token::{ensure_next_token, Token, TokenType};
@@ -65,7 +66,7 @@ pub enum Node {
     MemoryOffset {
         // a[0], a[b], ...
         base: Box<Node>,
-        offset: usize,
+        offset: Box<Node>, // Literal, Identifier or Register
     },
     MemoryValue {
         // $Velocity
@@ -218,16 +219,18 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
             tokens.next();
             let result = Ok(Node::MemoryOffset {
                 base: Box::from(base_identifier),
-                offset: tokens
-                    .next()
-                    .ok_or("Missing token for memory offset")
-                    .and_then(|t| {
-                        t.value
-                            .ok_or("offset token should have a value")
-                            .and_then(|v| {
-                                v.parse::<usize>().map_err(|_| "offset should be a number")
-                            })
-                    })?,
+                offset: match tokens.next().ok_or("Missing token for memory offset")? {
+                    token if token.is_literal() => Box::from(Node::Litteral {
+                        value: token.get_literal_value()?,
+                    }),
+                    token if token.is(TokenType::ID) => Box::from(Node::Identifier {
+                        name: token.get_value()?,
+                    }),
+                    token => {
+                        error!("Invalid token {:?}", token);
+                        return Err("Invalid token type for new id or literal".to_string());
+                    }
+                },
             });
             ensure_next_token(tokens, TokenType::RBRACKET, None)?;
             result
@@ -450,7 +453,7 @@ pub fn parse_block<T: Iterator<Item = Token>>(
                 block_tree.push(Box::from(if_block));
             }
             TokenType::KEYWORD if token.value == Some("return".to_string()) => {
-                if let Some(token) = stream.next() {
+                if let Some(token) = stream.peek() {
                     match token.token_type {
                         TokenType::ENDL => block_tree
                             .push(Box::from(new_return(&mut vec![].into_iter().peekable())?)),

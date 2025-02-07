@@ -10,7 +10,7 @@ pub enum OperandType {
     },
     MemoryOffset {
         base: Box<OperandType>,
-        offset: usize,
+        offset: Box<OperandType>, // Identifier, Literal or Register
     },
     Memory {
         name: String,
