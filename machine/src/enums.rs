@@ -86,10 +86,11 @@ pub enum Registers {
     GPA = 0, // Accumulator
     GPB = 1, // Parameter
     GPC = 2, // Base memory pointer
-    SBP = 3, // Stack base pointer, defines the stack "scope" of the current function
-    TSP = 4, // Stack Pointer, the current top of the stack
-    FRV = 5, // Register containing function's return values
-    CIP = 6, // Instruction pointer
+    GPD = 3, // Memory Offset Pointer
+    SBP = 4, // Stack base pointer, defines the stack "scope" of the current function
+    TSP = 5, // Stack Pointer, the current top of the stack
+    FRV = 6, // Register containing function's return values
+    CIP = 7, // Instruction pointer
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

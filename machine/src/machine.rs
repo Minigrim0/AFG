@@ -1,7 +1,7 @@
 use super::enums::{Flags, MachineStatus, OpCodes, OperandType, Registers};
 use crate::Instruction;
 
-const REGISTER_AMOUNT: usize = 7;
+const REGISTER_AMOUNT: usize = 8;
 const STACK_SIZE: usize = 256; // 1kB of stack (each value on the stack is 4 bytes)
 const MEMORY_SIZE: usize = 65536; // 64KB of memory
 
