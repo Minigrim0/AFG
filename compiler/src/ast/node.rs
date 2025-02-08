@@ -112,6 +112,18 @@ pub enum Node {
     },
 }
 
+impl Node {
+    pub fn new_identifier(name: String) -> Self {
+        if name.starts_with("$") {
+            Self::MemoryValue {
+                name: name.replace("$", ""),
+            }
+        } else {
+            Self::Identifier { name }
+        }
+    }
+}
+
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -211,7 +223,7 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
         })
     } else {
         let base_identifier = match &token.value {
-            Some(v) => Node::Identifier { name: v.clone() },
+            Some(v) => Node::new_identifier(v.clone()),
             None => return Err("Token should have a value".to_string()),
         };
 
@@ -495,8 +507,8 @@ pub fn parse_block<T: Iterator<Item = Token>>(
             }
             t => {
                 return Err(format!(
-                    "Unexpected or unhandled token: {:?} {:?}",
-                    t, token.value
+                    "Unexpected or unhandled token: {:?} {:?} (line: {}, char: {})",
+                    t, token.value, token.line, token.char
                 ))
             }
         }

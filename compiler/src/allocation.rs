@@ -23,14 +23,10 @@ fn get_operand_location(
     stack_offset_pointer: usize,
 ) -> (Option<i32>, usize) {
     if let OperandType::Identifier { name } = operand {
-        if name.starts_with("$") || name.starts_with("'") {
-            (None, stack_offset_pointer)
-        } else {
-            let (variable_location, new_pointer) =
-                allocate_memory(variable_map, stack_offset_pointer, name.clone());
-            // Is this a new variable ?
-            (Some(variable_location), new_pointer)
-        }
+        let (variable_location, new_pointer) =
+            allocate_memory(variable_map, stack_offset_pointer, name.clone());
+        // Is this a new variable ?
+        (Some(variable_location), new_pointer)
     } else {
         (None, stack_offset_pointer)
     }

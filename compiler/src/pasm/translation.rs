@@ -56,13 +56,11 @@ fn operation_to_asm(
     )?);
 
     let new_rparam = match &**rparam {
-        Node::Identifier { name } if !name.starts_with("$") => {
-            OperandType::Identifier { name: name.clone() }
-        }
+        Node::MemoryValue { name } => OperandType::Memory { name: name.clone() },
         Node::Identifier { name: _ } => {
             let temp = create_temp_variable_name("oprpar");
             instructions.extend(assignment_to_asm(
-                &Box::from(Node::Identifier { name: temp.clone() }),
+                &Box::from(Node::new_identifier(temp.clone())),
                 rparam,
             )?);
             OperandType::Identifier { name: temp.clone() }
@@ -144,8 +142,8 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                     function_name,
                     parameters,
                 } => function_to_asm(&function_name, &parameters)?,
-                node => {
-                    return Err("Invalid parameter from".to_string());
+                _ => {
+                    return Err("Invalid assignant in function to immediate assignment".to_string());
                 }
             });
 
@@ -162,8 +160,8 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
                     function_name,
                     parameters,
                 } => function_to_asm(&function_name, &parameters)?,
-                node => {
-                    return Err("Invalid parameter from".to_string());
+                _ => {
+                    return Err("Invalid assignant in function to memory assignment".to_string());
                 }
             });
 
@@ -258,7 +256,7 @@ fn comparison_to_asm(
                     vec![OperandType::Identifier {
                         name: jmp_to.clone(),
                     }],
-                ), // If not zero jump to next block's label
+                ), // If zero jump to next block's label
             ])
         }
         ComparisonType::GE => {
@@ -269,31 +267,43 @@ fn comparison_to_asm(
                     vec![OperandType::Identifier {
                         name: jmp_to.clone(),
                     }],
-                ), // If not zero jump to next block's label
+                ), // lparam < rparam => Jump to next block
             ])
         }
         ComparisonType::GT => {
-            // Invert operation to only require one jump !
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![rparam, lparam]),
-                PASMInstruction::new(
-                    "jp".to_string(),
-                    vec![OperandType::Identifier {
-                        name: jmp_to.clone(),
-                    }],
-                ), // If not zero jump to next block's label
-            ])
-        }
-        ComparisonType::LT => {
-            // Invert operation to only require one jump !
-            instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![rparam, lparam]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam.clone(), rparam.clone()]),
                 PASMInstruction::new(
                     "jn".to_string(),
                     vec![OperandType::Identifier {
                         name: jmp_to.clone(),
                     }],
-                ), // If not zero jump to next block's label
+                ), // lpram < rparam => Jump to next block
+                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
+                PASMInstruction::new(
+                    "jz".to_string(),
+                    vec![OperandType::Identifier {
+                        name: jmp_to.clone(),
+                    }],
+                ), // lparam = rparam => jump to next block
+            ])
+        }
+        ComparisonType::LT => {
+            instructions.extend(vec![
+                PASMInstruction::new("cmp".to_string(), vec![lparam.clone(), rparam.clone()]),
+                PASMInstruction::new(
+                    "jp".to_string(),
+                    vec![OperandType::Identifier {
+                        name: jmp_to.clone(),
+                    }],
+                ), // lparam > rparam => jump to next block
+                PASMInstruction::new("cmp".to_string(), vec![rparam, lparam]),
+                PASMInstruction::new(
+                    "jz".to_string(),
+                    vec![OperandType::Identifier {
+                        name: jmp_to.clone(),
+                    }],
+                ), // lparam = rparam => Jump to next block
             ])
         }
         ComparisonType::LE => {
@@ -304,7 +314,7 @@ fn comparison_to_asm(
                     vec![OperandType::Identifier {
                         name: jmp_to.clone(),
                     }],
-                ), // If not zero jump to next block's label
+                ), // If lparam > rparam => Next label
             ])
         }
     }
@@ -480,9 +490,7 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
     instructions.push(PASMInstruction::new(
         "add".to_string(),
         vec![
-            OperandType::Identifier {
-                name: "'TSP".to_string(),
-            },
+            OperandType::new_register("TSP"),
             OperandType::Literal {
                 value: parameters.len() as i32,
             },
@@ -502,36 +510,29 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
 
     // Return value goes in FRV
     match &**value {
+        Node::MemoryValue { name } => {
+            instructions.push(PASMInstruction::new(
+                "load".to_string(),
+                vec![
+                    OperandType::new_register("FRV"),
+                    OperandType::Identifier { name: name.clone() },
+                ],
+            ));
+        }
         Node::Identifier { name } => {
-            if name.starts_with("$") {
-                instructions.push(PASMInstruction::new(
-                    "load".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: "'FRV".to_string(),
-                        },
-                        OperandType::Identifier { name: name.clone() },
-                    ],
-                ));
-            } else {
-                instructions.push(PASMInstruction::new(
-                    "mov".to_string(),
-                    vec![
-                        OperandType::Identifier {
-                            name: "'FRV".to_string(),
-                        },
-                        OperandType::Identifier { name: name.clone() },
-                    ],
-                ));
-            }
+            instructions.push(PASMInstruction::new(
+                "mov".to_string(),
+                vec![
+                    OperandType::new_register("FRV"),
+                    OperandType::Identifier { name: name.clone() },
+                ],
+            ));
         }
         Node::Litteral { value } => {
             instructions.push(PASMInstruction::new(
                 "mov".to_string(),
                 vec![
-                    OperandType::Identifier {
-                        name: "'FRV".to_string(),
-                    },
+                    OperandType::new_register("FRV"),
                     OperandType::Literal { value: *value },
                 ],
             ));
@@ -545,21 +546,15 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
     instructions.push(PASMInstruction::new(
         "mov".to_string(),
         vec![
-            OperandType::Identifier {
-                name: "'TSP".to_string(),
-            },
-            OperandType::Identifier {
-                name: "'SBP".to_string(),
-            },
+            OperandType::new_register("TSP"),
+            OperandType::new_register("SBP"),
         ],
     ));
 
     // Restore base pointer
     instructions.push(PASMInstruction::new(
         "pop".to_string(),
-        vec![OperandType::Identifier {
-            name: "'SBP".to_string(),
-        }],
+        vec![OperandType::new_register("SBP")],
     ));
 
     // Actual return instruction
@@ -573,7 +568,9 @@ fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
         Node::Identifier { .. } | Node::Litteral { .. } => {
             (super::assignment::ensure_immediate(node)?, vec![])
         }
-        Node::MemoryOffset { .. } => super::assignment::ensure_memory(node)?,
+        Node::MemoryOffset { .. } | Node::MemoryValue { .. } => {
+            super::assignment::ensure_memory(node)?
+        }
         _ => return Err("Invalid value to print".to_string()),
     };
 

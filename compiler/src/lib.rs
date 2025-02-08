@@ -30,11 +30,9 @@
 ///
 /// Example:
 /// ```rust
-/// use afg::lang::token::TokenStream;
+/// use afgcompiler::token::lex;
 ///
-/// let input = String::from("set x = 12;");
-/// let lexed: TokenStream = TokenStream::lex(input);
-/// // Use the token stream to parse the code...
+/// let tokens = lex("fn main() { set x = 0; print x; }".to_string());
 /// ```
 ///
 /// ### 2. Parsing (Abstract Syntax Tree [AST] Generation)
@@ -49,7 +47,7 @@
 /// The resulting AST would look like:
 /// ```text
 /// Assignment
-/// ├── ID "x"
+/// ├─ ID "x"
 /// └─ LIT 42
 /// ```
 ///
@@ -98,10 +96,10 @@
 /// ## Roadmap
 /// - [x] Lexical analysis
 /// - [x] AST generation
-/// - [ ] Semantic analysis
-/// - [ ] Code generation
+/// - [x] Semantic analysis
+/// - [x] Code generation
 /// - [ ] Optimization
-///
+/// - [X] Stack Allocation
 /// By defining these stages, this module ensures a structured approach to compiling AFG into AsmFG, making the process
 /// extensible and maintainable.
 pub mod allocation;

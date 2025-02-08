@@ -1,4 +1,3 @@
-use super::instruction;
 use super::{MaybeInstructions, OperandType, PASMInstruction};
 use crate::ast::node::Node;
 use crate::ast::node::OperationType;
@@ -42,6 +41,7 @@ pub fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstructi
                     },
                     match &**base {
                         Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
+                        Node::MemoryValue { name } => OperandType::Memory { name: name.clone() },
                         _ => {
                             return Err("Base for memory offset should be an identifier".to_string())
                         }

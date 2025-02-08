@@ -1,6 +1,7 @@
-use super::token::{Token, TokenType};
 use std::fmt;
 use std::iter::Peekable;
+
+use super::{types::TokenType, Token};
 
 pub fn ensure_next_token<T: Iterator<Item = Token>>(
     stream: &mut Peekable<T>,
@@ -27,6 +28,23 @@ pub fn ensure_next_token<T: Iterator<Item = Token>>(
     }
 }
 
+/// Consumes the stream until a token of the given type is found,
+/// returning an peekable iterator over the collected tokens
+/// e.g.
+/// ```rust
+/// use std::iter::Peekable;
+///
+/// use afgcompiler::token::{Token, TokenType, get_until};
+///
+/// let mut stream : Peekable<_> = vec![
+///     Token::new(TokenType::ID, Some("test".to_string()), 0, 0),
+///     Token::new(TokenType::OP, Some("=".to_string()), 0, 0),
+///     Token::new(TokenType::ID, Some("12".to_string()), 0, 0),
+///     Token::new(TokenType::ENDL, None, 0, 0),
+/// ].into_iter().peekable();
+/// let stuff = get_until(&mut stream, TokenType::ENDL, true);
+/// assert_eq!(stuff.last().and_then(|t| Some(t.token_type)), Some(TokenType::ENDL));
+/// ```
 pub fn get_until<T: Iterator<Item = Token>>(
     stream: &mut T,
     token_type: TokenType,

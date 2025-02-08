@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::iter::Peekable;
 
-use crate::ast::node::Node;
 use crate::token::{Token, TokenType};
 
 mod function;
 pub mod node;
 
 use function::Function;
+pub use node::Node;
 
 #[derive(Debug)]
 pub struct AST {

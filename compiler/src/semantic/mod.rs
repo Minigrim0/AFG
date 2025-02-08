@@ -1,69 +1,14 @@
-use crate::ast::node::{CodeBlock, Node};
-use super::ast::AST;
-
 /// Semantic module
 /// Used to validate the semantics of an AST
-pub enum SemanticError {
-    UnknownVariable(String),  // Use of a previously undeclared variable
-    InvalidOperation(String), // Invalid operation
-}
+use super::ast::AST;
+use crate::ast::node::{CodeBlock, Node};
 
-/// Checks that the left-parameter of an assignment is a valid lparam, that is, it is not a litteral
-fn is_valid_assignment_lparam(node: &Box<Node>) -> Result<(), SemanticError> {
-    match &**node {
-        Node::Litteral { value } => Err(SemanticError::InvalidOperation(format!(
-            "{} is not a valid lparam for an assignment",
-            value
-        ))),
-        _ => Ok(()),
-    }
-}
+mod error;
+mod utils;
+mod validity;
 
-/// Returns all the variables declared by this node
-/// This function is used to check what variables are in the scope
-fn get_new_variables(node: &Box<Node>) -> Vec<&String> {
-    match &**node {
-        Node::Identifier { name } => vec![name],
-        Node::Assignment { lparam, .. } => get_new_variables(lparam),
-        _ => vec![],
-    }
-}
-
-// Returns all the variables used by this node and its children
-// This function is used to check if a variable is used before being declared
-pub fn get_used_variables(node: &Box<Node>) -> Result<Vec<&String>, SemanticError> {
-    match &**node {
-        Node::Identifier { name } => Ok(vec![name]),
-        Node::Assignment { rparam, lparam } => {
-            is_valid_assignment_lparam(lparam)?;
-            get_used_variables(rparam)
-        }
-        Node::Operation { lparam, rparam, .. } => {
-            let mut vars = get_used_variables(lparam)?;
-            vars.extend(get_used_variables(rparam)?);
-            Ok(vars)
-        }
-        Node::Comparison { lparam, rparam, .. } => {
-            let mut vars = get_used_variables(lparam)?;
-            vars.extend(get_used_variables(rparam)?);
-            Ok(vars)
-        },
-        Node::WhileLoop { condition, .. } => {
-            get_used_variables(condition)
-        },
-        Node::IfCondition { condition, .. } => {
-            get_used_variables(condition)
-        },
-        Node::FunctionCall { parameters, .. } => {
-            let mut vars = vec![];
-            for param in parameters.iter() {
-                vars.extend(get_used_variables(param)?);
-            }
-            Ok(vars)
-        }
-        _ => Ok(vec![]),
-    }
-}
+pub use error::SemanticError;
+pub use utils::*;
 
 /// Analyzes a block of code for semantic errors
 fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), SemanticError> {
@@ -116,11 +61,14 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
 /// * `SemanticError::InvalidOperation` - Returned if the AST contains operations that are not semantically valid.
 ///
 /// # Example
-/// ```rust,ignore
-/// let ast = build_sample_ast(); // Generates an AST
+/// ```rust
+/// use afgcompiler::ast::AST;
+/// use afgcompiler::prelude::analyze;
+///
+/// let ast = AST::new(); // Generate an AST
 /// match analyze(&ast) {
 ///     Ok(()) => println!("AST is semantically valid"),
-///     Err(e) => println!("Semantic error: {:?}", e),
+///     Err(e) => println!("Semantic error: {}", e),
 /// }
 /// ```
 pub fn analyze(ast: &AST) -> Result<(), SemanticError> {

@@ -113,7 +113,7 @@ impl fmt::Display for PASMInstruction {
                         offset,
                     } => write!(f, " [{} {} {}]", register, operation, offset)?,
                     OperandType::MemoryOffset { base, offset } => {
-                        write!(f, " [{} + {}]", base, offset)?
+                        write!(f, " {{{} + {}}}", base, offset)?
                     }
                 }
             }

@@ -72,21 +72,15 @@ impl PASMProgram {
             if function_name != "main" {
                 instructions.push(PASMInstruction::new(
                     "push".to_string(),
-                    vec![OperandType::Identifier {
-                        name: "'SBP".to_string(),
-                    }],
+                    vec![OperandType::new_register("SBP")],
                 ));
             }
             // Make stack pointer the base pointer
             instructions.push(PASMInstruction::new(
                 "mov".to_string(),
                 vec![
-                    OperandType::Identifier {
-                        name: "'SBP".to_string(),
-                    },
-                    OperandType::Identifier {
-                        name: "'TSP".to_string(),
-                    },
+                    OperandType::new_register("SBP"),
+                    OperandType::new_register("TSP"),
                 ],
             ));
 
@@ -106,9 +100,7 @@ impl PASMProgram {
             instructions.push(PASMInstruction::new(
                 "sub".to_string(),
                 vec![
-                    OperandType::Identifier {
-                        name: "'TSP".to_string(),
-                    },
+                    OperandType::new_register("TSP"),
                     OperandType::Literal {
                         value: stack_size as i32,
                     },
