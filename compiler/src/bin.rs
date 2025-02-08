@@ -14,14 +14,10 @@ struct Args {
     input: String,
     #[arg(short, long, help = "The output file to write the compiled program")]
     output: Option<String>,
-    #[arg(short, long, help = "Save intermediate files")]
+    #[arg(short, long, help = "Save intermediate files (ast, pseudo-asm, ...)")]
     save_intermediate: bool,
-    #[arg(
-        short,
-        long,
-        help = "Tries to allocate registers and keep track of variable liveness"
-    )]
-    register_allocation: bool,
+    #[arg(short = 'O', long, help = "Tries to delete redundant instructions")]
+    optmimize: bool,
 }
 
 fn main() -> Result<(), String> {
@@ -37,22 +33,22 @@ fn main() -> Result<(), String> {
     if args.save_intermediate {
         let token_output = args.input.clone() + ".tokens";
         info!("Saving tokens to {}", token_output);
-        // fs::write(
-        //     &token_output,
-        //     format!(
-        //         "{}",
-        //         tokens
-        //             .clone()
-        //             .map(|t| format!("{}", t))
-        //             .collect::<Vec<String>>()
-        //             .join("\n")
-        //     ),
-        // )
-        // .map_err(|e| e.to_string())?;
+        fs::write(
+            &token_output,
+            format!(
+                "{}",
+                tokens
+                    .iter()
+                    .map(|t| format!("{}", t))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            ),
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     info!("Parsing AST from tokens");
-    let program = AST::parse(&mut tokens.peekable())?;
+    let program = AST::parse(&mut tokens.into_iter().peekable())?;
     if args.save_intermediate {
         let ast_output = args.input.clone() + ".ast";
         info!("Saving AST to {}", ast_output);
@@ -60,10 +56,7 @@ fn main() -> Result<(), String> {
     }
 
     info!("Analyzing AST");
-    analyze(&program).map_err(|e| match e {
-        SemanticError::UnknownVariable(e) => e,
-        SemanticError::InvalidOperation(e) => e,
-    })?;
+    analyze(&program).map_err(|e| format!("{}", e))?;
 
     info!("Generating pseudo-asm");
     let pasm = PASMProgram::parse(program)?;
@@ -74,30 +67,28 @@ fn main() -> Result<(), String> {
     }
 
     info!("Allocating static memory");
-    let allocated_program = if args.register_allocation {
-        warn!("Register allocation is not complete yet and might lead to buggy programs");
-        error!("Register allocation is not implemented yet");
-        return Err("Not implemented for this compiler's version".to_string());
-        // let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
-    } else {
-        info!("Using EAG method");
-        PASMAllocatedProgram {
-            functions: pasm
-                .functions
-                .iter()
-                .map(
-                    |(function_name, function)| -> Result<(String, Vec<PASMInstruction>), String> {
-                        Ok((function_name.clone(), allocate(function)?))
-                    },
-                )
-                .collect::<Result<HashMap<String, Vec<PASMInstruction>>, String>>()?,
-        }
+    let allocated_program = PASMAllocatedProgram {
+        functions: pasm
+            .functions
+            .iter()
+            .map(
+                |(function_name, function)| -> Result<(String, Vec<PASMInstruction>), String> {
+                    Ok((function_name.clone(), allocate(function)?))
+                },
+            )
+            .collect::<Result<HashMap<String, Vec<PASMInstruction>>, String>>()?,
     };
-
     if args.save_intermediate {
         let pasm_output = args.input.clone() + ".pasm_allocated";
         info!("Saving allocated pseudo-asm to {}", pasm_output);
         fs::write(&pasm_output, format!("{}", allocated_program)).map_err(|e| e.to_string())?;
+    }
+
+    if args.optmimize {
+        warn!("Code optimization is not complete yet and might lead to buggy programs");
+        error!("Code optimization is not implemented yet");
+        return Err("Code optimization not implemented for this compiler's version".to_string());
+        // let analyzed = PASMProgramWithInterferenceGraph::analyse(&pasm)?;
     }
 
     // Final step; resolve labels and write to output file

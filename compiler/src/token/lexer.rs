@@ -1,6 +1,6 @@
 use super::{types::TokenType, Token};
 
-pub fn lex(text: String) -> impl Iterator<Item = Token> {
+pub fn lex(text: String) -> Vec<Token> {
     let mut result: Vec<(&str, usize, usize)> = Vec::new();
     let mut last = 0;
     let mut line: usize = 1;
@@ -72,7 +72,7 @@ pub fn lex(text: String) -> impl Iterator<Item = Token> {
     let mut last_token = if let Some(token) = token_iter.next() {
         Some(token)
     } else {
-        return vec![].into_iter();
+        return vec![];
     };
 
     let mut new_tokens = vec![];
@@ -131,5 +131,5 @@ pub fn lex(text: String) -> impl Iterator<Item = Token> {
         }
     }
 
-    new_tokens.into_iter()
+    new_tokens
 }
