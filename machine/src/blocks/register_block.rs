@@ -66,13 +66,6 @@ impl AppBlock for RegisterBlock {
                         .fg(Color::White)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::from(": "),
-                Span::styled(
-                    format!("{:?}", line.2),
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                ),
             ]));
         }
 

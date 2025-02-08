@@ -33,6 +33,8 @@ fn parse_register<S: AsRef<str>>(register: S) -> Result<usize, String> {
     {
         "GPA" => Ok(Registers::GPA as usize),
         "GPB" => Ok(Registers::GPB as usize),
+        "GPC" => Ok(Registers::GPC as usize),
+        "GPD" => Ok(Registers::GPD as usize),
         "SBP" => Ok(Registers::SBP as usize),
         "TSP" => Ok(Registers::TSP as usize),
         "FRV" => Ok(Registers::FRV as usize),
@@ -59,11 +61,8 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
                 .collect::<String>()
                 .as_str()
             {
-                "VelocityX" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::VelocityX as i32,
-                }),
-                "VelocityY" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::VelocityY as i32,
+                "Velocity" => Ok(OperandType::Literal {
+                    value: MemoryMappedProperties::Velocity as i32,
                 }),
                 "Moment" => Ok(OperandType::Literal {
                     value: MemoryMappedProperties::Moment as i32,
@@ -71,53 +70,14 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
                 "Rotation" => Ok(OperandType::Literal {
                     value: MemoryMappedProperties::Rotation as i32,
                 }),
-                "PositionX" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::PositionX as i32,
+                "Position" => Ok(OperandType::Literal {
+                    value: MemoryMappedProperties::Position as i32,
                 }),
-                "PositionY" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::PositionY as i32,
+                "RayDist" => Ok(OperandType::Literal {
+                    value: MemoryMappedProperties::RayDist as i32,
                 }),
-                "Ray0Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray0Dist as i32,
-                }),
-                "Ray0Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray0Type as i32,
-                }),
-                "Ray1Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray1Dist as i32,
-                }),
-                "Ray1Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray1Type as i32,
-                }),
-                "Ray2Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray2Dist as i32,
-                }),
-                "Ray2Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray2Type as i32,
-                }),
-                "Ray3Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray3Dist as i32,
-                }),
-                "Ray3Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray3Type as i32,
-                }),
-                "Ray4Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray4Dist as i32,
-                }),
-                "Ray4Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray4Type as i32,
-                }),
-                "Ray5Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray5Dist as i32,
-                }),
-                "Ray5Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray5Type as i32,
-                }),
-                "Ray6Dist" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray6Dist as i32,
-                }),
-                "Ray6Type" => Ok(OperandType::Literal {
-                    value: MemoryMappedProperties::Ray6Type as i32,
+                "RayType" => Ok(OperandType::Literal {
+                    value: MemoryMappedProperties::RayType as i32,
                 }),
                 var => Err(format!("Unknown variable: {}", var)),
             }
@@ -165,6 +125,38 @@ fn parse_operand<S: AsRef<str>>(operand: S) -> Result<OperandType, String> {
                 Err("Stack access must be composed of three operands".to_string())
             }
         }
+        Some('{') => {
+            let operand = operand
+                .as_ref()
+                .chars()
+                .filter_map(|c| if c == '{' || c == '}' { None } else { Some(c) })
+                .collect::<String>();
+            let splitted = operand
+                .as_str()
+                .split(" ")
+                .filter_map(|s| {
+                    if s.trim().is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
+                })
+                .collect::<Vec<String>>();
+
+            if splitted.len() == 3 {
+                Ok(OperandType::MemoryOffset {
+                    base_register: parse_register(
+                        &splitted[0].as_str().chars().skip(1).collect::<String>(),
+                    )?,
+                    addition: &splitted[1] == "+",
+                    offset_register: parse_register(
+                        &splitted[2].as_str().chars().skip(1).collect::<String>(),
+                    )?,
+                })
+            } else {
+                Err("Memory access must be composed of three operands".to_string())
+            }
+        }
         Some(_) => Ok(OperandType::Literal {
             value: parse_literal(operand.as_ref().chars().skip(1).collect::<String>())?,
         }),
@@ -184,6 +176,7 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
             .by_ref()
             .take_while(|c| *c != ' ')
             .collect::<String>();
+
         let operand1 = {
             if char_iter.peek() == Some(&'[') {
                 let res = char_iter
@@ -192,6 +185,14 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
                     .collect::<String>()
                     + "]";
                 char_iter.next(); // Consume the space
+                res
+            } else if char_iter.peek() == Some(&'{') {
+                let res = char_iter
+                    .by_ref()
+                    .take_while(|c| *c != '}')
+                    .collect::<String>()
+                    + "}";
+                char_iter.next(); // Consume space
                 res
             } else {
                 char_iter
@@ -208,6 +209,12 @@ pub fn parse<S: AsRef<str>>(text: S) -> Result<Vec<Instruction>, ParsingError> {
                     .take_while(|c| *c != ']')
                     .collect::<String>()
                     + "]"
+            } else if char_iter.peek() == Some(&'{') {
+                char_iter
+                    .by_ref()
+                    .take_while(|c| *c != '}')
+                    .collect::<String>()
+                    + "}"
             } else {
                 char_iter
                     .by_ref()

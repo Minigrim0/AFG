@@ -21,7 +21,7 @@ fn test_parser() {
                 idx: Registers::GPA as usize,
             },
             operand_2: OperandType::Literal {
-                value: MemoryMappedProperties::VelocityY as i32,
+                value: MemoryMappedProperties::Velocity as i32,
             },
         },
         Instruction {

@@ -54,13 +54,7 @@ impl VirtualMachine {
     }
 
     pub fn get_status(&self) -> String {
-        match self.status {
-            MachineStatus::Empty => "Empty".to_string(),
-            MachineStatus::Ready => "Ready".to_string(),
-            MachineStatus::Running => "Running".to_string(),
-            MachineStatus::Dead => "Dead".to_string(),
-            MachineStatus::Complete => "Complete".to_string(),
-        }
+        format!("{}", self.status)
     }
 
     /// Checks if a flag is currently set.
@@ -85,17 +79,12 @@ impl VirtualMachine {
         matches!(self.status, MachineStatus::Complete)
     }
 
-    pub fn get_flags(&self) -> Vec<(String, String, String)> {
+    pub fn get_flags(&self) -> Vec<(String, String)> {
         Flags::iter()
             .map(|f| {
                 (
                     f.to_string(),
                     if self.check_flag(f) {
-                        "t".to_string()
-                    } else {
-                        "f".to_string()
-                    },
-                    if self.check_next_flag(f) {
                         "t".to_string()
                     } else {
                         "f".to_string()
@@ -126,18 +115,22 @@ impl VirtualMachine {
         }
 
         // Write read-only to memory, read writeable from memory
-        self.memory[MemoryMappedProperties::PositionX as usize] = transform.translation.x as i32;
-        self.memory[MemoryMappedProperties::PositionY as usize] = transform.translation.y as i32;
+        self.memory[MemoryMappedProperties::Position as usize] = transform.translation.x as i32;
+        self.memory[MemoryMappedProperties::Position as usize + 1] = transform.translation.y as i32;
         self.memory[MemoryMappedProperties::Rotation as usize] =
             (rotation_angle * (180.0 / PI)) as i32;
 
         let velocity: Vec2 = Vec2::new(
-            self.memory[MemoryMappedProperties::VelocityX as usize] as f32,
-            self.memory[MemoryMappedProperties::VelocityY as usize] as f32,
+            self.memory[MemoryMappedProperties::Velocity as usize] as f32,
+            self.memory[MemoryMappedProperties::Velocity as usize + 1] as f32,
         );
 
         vel.linvel = Vec2::from_angle(rotation_angle).rotate(velocity);
 
+        println!(
+            "Moment is now: {}",
+            self.memory[MemoryMappedProperties::Moment as usize] as f32
+        );
         vel.angvel = self.memory[MemoryMappedProperties::Moment as usize] as f32 * (PI / 180.0);
     }
 
@@ -146,44 +139,13 @@ impl VirtualMachine {
     pub fn update_rays(&mut self, rays: Vec<Option<(bevy::prelude::Entity, f32)>>) {
         use super::enums::MemoryMappedProperties;
 
-        let ray_addr = vec![
-            (
-                MemoryMappedProperties::Ray0Dist,
-                MemoryMappedProperties::Ray0Type,
-            ),
-            (
-                MemoryMappedProperties::Ray1Dist,
-                MemoryMappedProperties::Ray1Type,
-            ),
-            (
-                MemoryMappedProperties::Ray2Dist,
-                MemoryMappedProperties::Ray2Type,
-            ),
-            (
-                MemoryMappedProperties::Ray3Dist,
-                MemoryMappedProperties::Ray3Type,
-            ),
-            (
-                MemoryMappedProperties::Ray4Dist,
-                MemoryMappedProperties::Ray4Type,
-            ),
-            (
-                MemoryMappedProperties::Ray5Dist,
-                MemoryMappedProperties::Ray5Type,
-            ),
-            (
-                MemoryMappedProperties::Ray6Dist,
-                MemoryMappedProperties::Ray6Type,
-            ),
-        ];
-
-        for (ray_data, (dist_addr, type_addr)) in rays.iter().zip(ray_addr) {
+        for (index, ray_data) in rays.iter().enumerate() {
             if let Some((_ent, dist)) = ray_data {
-                self.memory[dist_addr as usize] = *dist as i32;
-                self.memory[type_addr as usize] = 1;
+                self.memory[MemoryMappedProperties::RayDist as usize + index] = *dist as i32;
+                self.memory[MemoryMappedProperties::RayType as usize + index as usize] = 1;
             } else {
-                self.memory[dist_addr as usize] = 0;
-                self.memory[type_addr as usize] = 0;
+                self.memory[MemoryMappedProperties::RayDist as usize + index] = 0;
+                self.memory[MemoryMappedProperties::RayType as usize + index] = 0;
             }
         }
     }
@@ -248,10 +210,12 @@ impl VirtualMachine {
         self.registers[register]
     }
 
-    pub fn get_registers(&self) -> [(String, i32); 6] {
+    pub fn get_registers(&self) -> [(String, i32); REGISTER_AMOUNT] {
         [
             ("GPA".to_string(), self.registers[Registers::GPA as usize]),
             ("GPB".to_string(), self.registers[Registers::GPB as usize]),
+            ("GPC".to_string(), self.registers[Registers::GPC as usize]),
+            ("GPD".to_string(), self.registers[Registers::GPD as usize]),
             ("SBP".to_string(), self.registers[Registers::SBP as usize]),
             ("TSP".to_string(), self.registers[Registers::TSP as usize]),
             ("FRV".to_string(), self.registers[Registers::FRV as usize]),
@@ -361,6 +325,62 @@ impl VirtualMachine {
         self.current_output.clone()
     }
 
+    /// Returns the value stored at the operand's location. This function includes
+    /// registers, literal and stack but excludes memory operation
+    fn get_immediate_operand_value(
+        &mut self,
+        operand: &OperandType,
+    ) -> Result<Option<i32>, String> {
+        match operand {
+            OperandType::Register { idx: op1 } => Ok(self.registers.get(*op1).copied()),
+            OperandType::Literal { value: op1 } => Ok(Some(*op1)),
+            OperandType::StackValue {
+                base_register,
+                addition,
+                offset,
+            } => self
+                .get_stack(*base_register, *addition, *offset)
+                .map(|v| Some(v)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Returns the value stored at the operand's location. This function includes
+    /// registers, literal, stack and memory operations
+    fn get_operand_value(&mut self, operand: &OperandType) -> Result<Option<i32>, String> {
+        match operand {
+            OperandType::Register { idx: op1 } => Ok(self.registers.get(*op1).copied()),
+            OperandType::Literal { value: op1 } => Ok(Some(*op1)),
+            OperandType::StackValue {
+                base_register,
+                addition,
+                offset,
+            } => self
+                .get_stack(*base_register, *addition, *offset)
+                .map(|v| Some(v)),
+            OperandType::MemoryOffset {
+                base_register,
+                addition,
+                offset_register,
+            } => {
+                let base_val = self
+                    .registers
+                    .get(*base_register)
+                    .ok_or("Missing value for base register during memory access".to_string())?;
+                let offset_val = self
+                    .registers
+                    .get(*offset_register)
+                    .ok_or("Missing value for offset register during memory access".to_string())?;
+                if *addition {
+                    Ok(self.memory.get((base_val + offset_val) as usize).copied())
+                } else {
+                    Ok(self.memory.get((base_val - offset_val) as usize).copied())
+                }
+            }
+            OperandType::None => Ok(None),
+        }
+    }
+
     pub fn tick(&mut self) -> Result<(), String> {
         match self.status {
             MachineStatus::Dead | MachineStatus::Complete => {
@@ -387,16 +407,10 @@ impl VirtualMachine {
 
         match instruction.opcode {
             OpCodes::MOV => {
-                let to_store = match instruction.operand_2 {
-                    OperandType::Register { idx: op2 } => self.registers[op2 as usize],
-                    OperandType::Literal { value: op2 } => op2,
-                    OperandType::StackValue {
-                        base_register,
-                        addition,
-                        offset,
-                    } => self.get_stack(base_register, addition, offset)?,
-                    OperandType::None => {
-                        self.invalid_instruction("Missing second operand for mov instruction")?
+                let to_store = match self.get_immediate_operand_value(&instruction.operand_2)? {
+                    Some(v) => v,
+                    None => {
+                        self.invalid_instruction("Missing value for operand 2 in mov instruction")?
                     }
                 };
 
@@ -414,15 +428,10 @@ impl VirtualMachine {
                 }
             }
             OpCodes::STORE => {
-                let to_store = match instruction.operand_2 {
-                    OperandType::Register { idx: op2 } => self.registers[op2 as usize],
-                    OperandType::Literal { value: op2 } => op2,
-                    OperandType::StackValue {
-                        base_register,
-                        addition,
-                        offset,
-                    } => self.get_stack(base_register, addition, offset)?,
-                    OperandType::None => {
+                // Can only store from immediate (Reg, Stack or Literal)
+                let to_store = match self.get_immediate_operand_value(&instruction.operand_2)? {
+                    Some(v) => v,
+                    None => {
                         self.invalid_instruction("Missing second operand for store instruction")?
                     }
                 };
@@ -440,6 +449,24 @@ impl VirtualMachine {
                         self.memory[self.get_stack(base_register, addition, offset)? as usize] =
                             to_store
                     }
+                    OperandType::MemoryOffset {
+                        base_register,
+                        addition,
+                        offset_register,
+                    } => {
+                        let base_val = self.registers.get(base_register).ok_or(
+                            "Missing value for base register during memory access".to_string(),
+                        )?;
+                        let offset_val = self.registers.get(offset_register).ok_or(
+                            "Missing value for offset register during memory access".to_string(),
+                        )?;
+
+                        if addition {
+                            self.memory[(base_val + offset_val) as usize] = to_store;
+                        } else {
+                            self.memory[(base_val - offset_val) as usize] = to_store;
+                        }
+                    }
                     OperandType::None => {
                         self.invalid_instruction("Missing first operand for store instruction")?
                     }
@@ -447,27 +474,17 @@ impl VirtualMachine {
             }
             OpCodes::LOAD => {
                 if let OperandType::Register { idx: op1 } = instruction.operand_1 {
-                    match instruction.operand_2 {
-                        OperandType::Register { idx: op2 } => {
-                            self.registers[op1 as usize] =
-                                self.memory[self.registers[op2 as usize] as usize]
-                        }
-                        OperandType::Literal { value: op2 } => {
-                            self.registers[op1 as usize] = self.memory[op2 as usize]
-                        }
-                        OperandType::StackValue {
-                            base_register,
-                            addition,
-                            offset,
-                        } => {
-                            self.registers[op1 as usize] = self.memory
-                                [self.get_stack(base_register, addition, offset)? as usize]
-                        }
-                        OperandType::None => self
+                    self.registers[op1 as usize] = match self
+                        .get_operand_value(&instruction.operand_2)?
+                    {
+                        Some(v) => v,
+                        None => self
                             .invalid_instruction("Missing second operand for store instruction")?,
                     }
                 } else {
-                    self.invalid_instruction("Missing first operand for store instruction")?;
+                    self.invalid_instruction(
+                        "Missing or invalid first operand for store instruction",
+                    )?;
                 }
             }
             OpCodes::ADD => {
@@ -477,12 +494,11 @@ impl VirtualMachine {
                             self.registers[op1 as usize] += self.registers[op2 as usize]
                         }
                         OperandType::Literal { value: op2 } => self.registers[op1 as usize] += op2,
-                        OperandType::StackValue {
-                            base_register: _,
-                            addition: _,
-                            offset: _,
-                        } => self.invalid_instruction(
+                        OperandType::StackValue { .. } => self.invalid_instruction(
                             "Cannot use stack operation as operand for arithmetic instruction",
+                        )?,
+                        OperandType::MemoryOffset { .. } => self.invalid_instruction(
+                            "Cannot use memory operation as operand for arithmetic instruction",
                         )?,
                         OperandType::None => {
                             self.invalid_instruction("Missing second operand for add instruction")?
@@ -507,6 +523,9 @@ impl VirtualMachine {
                         } => self.invalid_instruction(
                             "Cannot use stack operation as operand for arithmetic instruction",
                         )?,
+                        OperandType::MemoryOffset { .. } => self.invalid_instruction(
+                            "Cannot use memory operation as operand for arithmetic instruction",
+                        )?,
                         OperandType::None => {
                             self.invalid_instruction("Missing second operand for sub instruction")?
                         }
@@ -529,6 +548,9 @@ impl VirtualMachine {
                             offset: _,
                         } => self.invalid_instruction(
                             "Cannot use stack operation as operand for arithmetic instruction",
+                        )?,
+                        OperandType::MemoryOffset { .. } => self.invalid_instruction(
+                            "Cannot use memory operation as operand for arithmetic instruction",
                         )?,
                         OperandType::None => {
                             self.invalid_instruction("Missing second operand for mul instruction")?
@@ -553,6 +575,9 @@ impl VirtualMachine {
                         } => self.invalid_instruction(
                             "Cannot use stack operation as operand for arithmetic instruction",
                         )?,
+                        OperandType::MemoryOffset { .. } => self.invalid_instruction(
+                            "Cannot use memory operation as operand for arithmetic instruction",
+                        )?,
                         OperandType::None => {
                             self.invalid_instruction("Missing second operand for div instruction")?
                         }
@@ -575,6 +600,9 @@ impl VirtualMachine {
                             offset: _,
                         } => self.invalid_instruction(
                             "Cannot use stack operation as operand for arithmetic instruction",
+                        )?,
+                        OperandType::MemoryOffset { .. } => self.invalid_instruction(
+                            "Cannot use memory operation as operand for arithmetic instruction",
                         )?,
                         OperandType::None => {
                             self.invalid_instruction("Missing second operand for mod instruction")?
@@ -603,6 +631,9 @@ impl VirtualMachine {
                         } => self.invalid_instruction(
                             "Cannot use stack operation as operand for comparison instruction",
                         )?,
+                        OperandType::MemoryOffset { .. } => self.invalid_instruction(
+                            "Cannot use memory operation as operand for comparison instruction",
+                        )?,
                         OperandType::None => {
                             self.invalid_instruction("Missing second operand for sub instruction")?
                         }
@@ -612,94 +643,48 @@ impl VirtualMachine {
                 }
             }
             OpCodes::JMP => {
-                next_jump = match instruction.operand_1 {
-                    OperandType::Register { idx: op1 } => self.registers[op1 as usize],
-                    OperandType::Literal { value: op1 } => op1,
-                    OperandType::StackValue {
-                        base_register,
-                        addition,
-                        offset,
-                    } => self.get_stack(base_register, addition, offset)?,
-                    OperandType::None => {
-                        self.invalid_instruction("Missing first operand for store instruction")?
-                    }
-                };
+                next_jump = match self.get_operand_value(&instruction.operand_1)? {
+                    Some(v) => v,
+                    None => self.invalid_instruction("Missing operand for jmp instruction")?,
+                }
             }
             OpCodes::JZ => {
                 if self.check_flag(Flags::ZeroFlag) {
-                    next_jump = match instruction.operand_1 {
-                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
-                        OperandType::Literal { value: op1 } => op1,
-                        OperandType::StackValue {
-                            base_register,
-                            addition,
-                            offset,
-                        } => self.get_stack(base_register, addition, offset)?,
-                        OperandType::None => {
-                            self.invalid_instruction("Missing first operand for store instruction")?
-                        }
+                    next_jump = match self.get_operand_value(&instruction.operand_1)? {
+                        Some(v) => v,
+                        None => self.invalid_instruction("Missing operand for jmp instruction")?,
                     };
                 }
             }
             OpCodes::JNZ => {
                 if !self.check_flag(Flags::ZeroFlag) {
-                    next_jump = match instruction.operand_1 {
-                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
-                        OperandType::Literal { value: op1 } => op1,
-                        OperandType::StackValue {
-                            base_register,
-                            addition,
-                            offset,
-                        } => self.get_stack(base_register, addition, offset)?,
-                        OperandType::None => {
-                            self.invalid_instruction("Missing first operand for store instruction")?
-                        }
+                    next_jump = match self.get_operand_value(&instruction.operand_1)? {
+                        Some(v) => v,
+                        None => self.invalid_instruction("Missing operand for jmp instruction")?,
                     };
                 }
             }
             OpCodes::JN => {
                 if self.check_flag(Flags::NegativeFlag) {
-                    next_jump = match instruction.operand_1 {
-                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
-                        OperandType::Literal { value: op1 } => op1,
-                        OperandType::StackValue {
-                            base_register,
-                            addition,
-                            offset,
-                        } => self.get_stack(base_register, addition, offset)?,
-                        OperandType::None => {
-                            self.invalid_instruction("Missing first operand for store instruction")?
-                        }
+                    next_jump = match self.get_operand_value(&instruction.operand_1)? {
+                        Some(v) => v,
+                        None => self.invalid_instruction("Missing operand for jmp instruction")?,
                     };
                 }
             }
             OpCodes::JP => {
                 if self.check_flag(Flags::PositiveFlag) {
-                    next_jump = match instruction.operand_1 {
-                        OperandType::Register { idx: op1 } => self.registers[op1 as usize],
-                        OperandType::Literal { value: op1 } => op1,
-                        OperandType::StackValue {
-                            base_register,
-                            addition,
-                            offset,
-                        } => self.get_stack(base_register, addition, offset)?,
-                        OperandType::None => {
-                            self.invalid_instruction("Missing first operand for store instruction")?
-                        }
+                    next_jump = match self.get_operand_value(&instruction.operand_1)? {
+                        Some(v) => v,
+                        None => self.invalid_instruction("Missing operand for jmp instruction")?,
                     };
                 }
             }
             OpCodes::CALL => {
                 // Glorified JMP
-                next_jump = match instruction.operand_1 {
-                    OperandType::Register { idx: op1 } => self.registers[op1 as usize],
-                    OperandType::Literal { value: op1 } => op1,
-                    OperandType::StackValue {
-                        base_register,
-                        addition,
-                        offset,
-                    } => self.get_stack(base_register, addition, offset)?,
-                    OperandType::None => {
+                next_jump = match self.get_operand_value(&instruction.operand_1)? {
+                    Some(v) => v,
+                    None => {
                         self.invalid_instruction("Missing first operand for store instruction")?
                     }
                 };
@@ -729,11 +714,11 @@ impl VirtualMachine {
                 )?,
             },
             OpCodes::PRINT => {
-                if let OperandType::Register { idx: op1 } = instruction.operand_1 {
-                    self.current_output = Some(format!("{}", self.registers[op1 as usize]));
-                } else {
-                    self.invalid_instruction("Missing operand for print instruction")?
-                }
+                let output = match self.get_operand_value(&instruction.operand_1)? {
+                    Some(v) => v,
+                    None => self.invalid_instruction("Missing operand for print instruction")?,
+                };
+                self.current_output = Some(format!("{}", output));
             }
             OpCodes::HLT => self.status = MachineStatus::Complete,
         }

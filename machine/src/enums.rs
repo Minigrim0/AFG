@@ -4,6 +4,8 @@ fn register_to_string(index: usize) -> String {
     match index {
         i if i == Registers::GPA as usize => "GPA".to_string(),
         i if i == Registers::GPB as usize => "GPB".to_string(),
+        i if i == Registers::GPC as usize => "GPC".to_string(),
+        i if i == Registers::GPD as usize => "GPD".to_string(),
         i if i == Registers::SBP as usize => "SBP".to_string(),
         i if i == Registers::TSP as usize => "TSP".to_string(),
         i if i == Registers::FRV as usize => "FRV".to_string(),
@@ -25,6 +27,11 @@ pub enum OperandType {
         addition: bool,
         offset: usize,
     },
+    MemoryOffset {
+        base_register: usize,
+        addition: bool,
+        offset_register: usize,
+    },
     #[default]
     None,
 }
@@ -34,6 +41,19 @@ impl fmt::Display for OperandType {
         match self {
             OperandType::Literal { value } => write!(f, "#{}", value),
             OperandType::Register { idx } => write!(f, "'{}", register_to_string(*idx)),
+            OperandType::MemoryOffset {
+                base_register,
+                addition,
+                offset_register,
+            } => {
+                write!(
+                    f,
+                    "[{} {} {}]",
+                    register_to_string(*base_register),
+                    if *addition { '+' } else { '-' },
+                    register_to_string(*offset_register)
+                )
+            }
             OperandType::StackValue {
                 base_register,
                 addition,
@@ -52,28 +72,14 @@ impl fmt::Display for OperandType {
 
 pub enum MemoryMappedProperties {
     // 0xFFF8 => Mask for Read-only properties (range 0xFF20 - 0xFFFF)
-    PositionX = 0xffff, // Read-only Lateral position
-    PositionY = 0xfffe, // Read-only Vertical position
-    Rotation = 0xfffd,  // Read-only Rotation
-    Ray0Dist = 0xfffc,
-    Ray0Type = 0xfffb,
-    Ray1Dist = 0xfffa,
-    Ray1Type = 0xfff9,
-    Ray2Dist = 0xfff8,
-    Ray2Type = 0xfff7,
-    Ray3Dist = 0xfff6,
-    Ray3Type = 0xfff5,
-    Ray4Dist = 0xfff4,
-    Ray4Type = 0xfff3,
-    Ray5Dist = 0xfff2,
-    Ray5Type = 0xfff1,
-    Ray6Dist = 0xfff0,
-    Ray6Type = 0xffef,
+    Position = 0xfffe, // Read-only Lateral position (position[1] is vertical)
+    Rotation = 0xfffd, // Read-only Rotation
 
-    // 0xFFF0 => Mask for Writable properties (range 0xFFF0 - 0xFFF7)
-    VelocityX = 0xff1f, // Writable Lateral velocity (right+/left-)
-    VelocityY = 0xff1e, // Writable Vertical velocity (front+/back-)
-    Moment = 0xff1d,    // Writable Moment (clockwise+/counterclockwise-)
+    RayDist = 0xff40, // Ray dist here and above (up to 32 rays)
+    RayType = 0xff20, // Ray type here and above (up to 32 rays)
+
+    Velocity = 0xff1e, // Writable Lateral velocity (right+/left-) Velocity[1] is forward/backward
+    Moment = 0xff1d,   // Writable Moment (clockwise+/counterclockwise-)
 }
 
 /// The list of registers in the virtual machine.
@@ -131,6 +137,18 @@ pub enum MachineStatus {
     Running = 0x2,
     Dead = 0x3,
     Complete = 0x4,
+}
+
+impl fmt::Display for MachineStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            MachineStatus::Empty => write!(f, "Empty"),
+            MachineStatus::Ready => write!(f, "Ready"),
+            MachineStatus::Running => write!(f, "Running"),
+            MachineStatus::Dead => write!(f, "Dead"),
+            MachineStatus::Complete => write!(f, "Complete"),
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
