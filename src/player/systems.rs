@@ -6,7 +6,7 @@ use crate::player::components::Crashed;
 use crate::{map::MapHandle, Map};
 use machine::prelude::{Program, VirtualMachine};
 
-use super::components::{Bot, BotClass, Gun, GunType, Health};
+use super::components::{Bot, BotClass, Health};
 use super::entities::{PlayerBundle, ProgramHandle};
 use super::utils::compute_rays;
 
@@ -17,7 +17,7 @@ pub fn setup(
     maps: ResMut<Assets<Map>>,
     asset_server: Res<AssetServer>,
 ) {
-    let program = asset_server.load("programs/new_turn.asmfg");
+    let program = asset_server.load("programs/move_and_turn.asmfg");
     for index in 0..1 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
             let possibilities = if index % 2 == 0 {
