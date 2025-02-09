@@ -6,19 +6,29 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Bot {
     pub class: BotClass,
+    pub team_nr: u8,
 }
 
 #[derive(Component)]
+/// Component for the player's program. A bot with this component will
+/// be ready to start moving
 pub struct ProgramLoaded;
 
-// Component for the player's health
 #[derive(Component)]
+/// Component for the bot's health. It contains the current health,
+/// the max health, the last time the bot was damaged, the health
+/// regen rate and the sprites for the health bar
 pub struct Health {
-    current: i32,
-    max: i32,
+    pub current: f32,
+    pub max: f32,
+    pub no_regen_timer: Option<Timer>,
+    pub regen_rate: i32,
+    pub background_sprite: Sprite,
+    pub foreground_sprite: Sprite,
 }
 
 #[derive(Component)]
+/// The class of the bot, contains information about the bot's health, gun, view distance, resolution and view angle
 pub struct BotClass {
     name: String,
     health: Health,
@@ -29,26 +39,55 @@ pub struct BotClass {
 }
 
 impl BotClass {
+    /// Creates a baseic bot class,
+    /// 120 degrees fov, sees up to 2000.0
+    /// medium resolution
     pub fn new_basic() -> Self {
         BotClass {
             name: "Basic".to_string(),
-            health: Health::new(100),
+            health: Health::new(100.0),
             gun: Gun::new(GunType::Rifle),
             view_angle: 120.0 * PI / 180.0,
             resolution: 7,
             view_distance: 2000.0,
         }
     }
+
+    /// Creates a bot class representing a sniper,
+    /// Tighter field of view but sees far
+    /// same resolution as basic
+    pub fn new_sniper() -> Self {
+        BotClass {
+            name: "Sniper".to_string(),
+            health: Health::new(75.0),
+            gun: Gun::new(GunType::Sniper),
+            view_angle: 60.0 * PI / 180.0,
+            resolution: 7,
+            view_distance: 5000.0,
+        }
+    }
 }
 
 #[derive(Component)]
+/// A bot with this component will be considered dead.
+/// This component is added when the bot's program crashes
 pub struct Crashed;
 
 impl Health {
-    pub fn new(initial: i32) -> Self {
+    pub fn new(initial: f32) -> Self {
         Health {
             current: initial,
             max: initial,
+            no_regen_timer: None,
+            regen_rate: 5, // Five points per second base rate
+            background_sprite: Sprite {
+                color: Color::srgb(1.0, 0.0, 0.0),
+                ..default()
+            },
+            foreground_sprite: Sprite {
+                color: Color::srgb(1.0, 0.0, 0.0),
+                ..default()
+            },
         }
     }
 }

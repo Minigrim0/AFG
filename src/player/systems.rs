@@ -17,7 +17,8 @@ pub fn setup(
     maps: ResMut<Assets<Map>>,
     asset_server: Res<AssetServer>,
 ) {
-    for index in 0..10 {
+    let program = asset_server.load("programs/new_turn.asmfg");
+    for index in 0..1 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
             let possibilities = if index % 2 == 0 {
                 map.spawn_places.0
@@ -38,25 +39,20 @@ pub fn setup(
             (0.0, 0.0)
         };
 
-        let program = asset_server.load("programs/new_turn.asmfg");
-
         // Spawn the player entity with all its components
-        commands
-            .spawn(PlayerBundle {
-                bot: Bot {
-                    class: BotClass::new_basic(),
-                },
-                virtual_machine: VirtualMachine::new(),
-                program_handle: ProgramHandle(program),
-                health: Health::new(100),
-                gun: Gun::new(GunType::Pistol),
-                sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
-                transform: Transform::from_xyz(spawn_position.0, spawn_position.1, 0.0),
-                collider: Collider::ball(25.0),
-                body: RigidBody::Dynamic,
-                velocity: Velocity::default(),
-            })
-            .insert(super::super::IsSelected);
+        commands.spawn(PlayerBundle {
+            bot: Bot {
+                class: BotClass::new_basic(),
+                team_nr: index % 2,
+            },
+            virtual_machine: VirtualMachine::new(),
+            program_handle: ProgramHandle(program.clone()),
+            sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
+            transform: Transform::from_xyz(spawn_position.0, spawn_position.1, 0.0),
+            collider: Collider::ball(25.0),
+            body: RigidBody::Dynamic,
+            velocity: Velocity::default(),
+        });
     }
 }
 
@@ -111,5 +107,25 @@ pub fn update_player(
             let rays = compute_rays((bot, transform, entity), context, &mut gizmos);
             vm.update_rays(rays);
         }
+    }
+}
+
+/// System to update the health sprite of the bots
+pub fn update_health(time: Res<Time>, mut bot_query: Query<(&mut Health, &Transform), With<Bot>>) {
+    for (mut health, transform) in bot_query.iter_mut() {
+        if let Some(regen_timer) = &mut health.no_regen_timer {
+            // Wait for the timer to expire to regenerate
+            regen_timer.tick(time.delta());
+
+            // if it finished, despawn the bomb
+            if regen_timer.finished() {
+                health.no_regen_timer = None;
+            }
+        } else if health.current < health.max {
+            // Regen
+            health.current += health.regen_rate as f32 * time.delta_secs()
+        }
+
+        // health.foreground_sprite.
     }
 }

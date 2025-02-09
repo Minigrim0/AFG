@@ -20,9 +20,6 @@ use player::systems as player_systems;
 #[derive(Component)]
 struct IsSelected;
 
-#[derive(Resource)]
-struct AssetsLoading(Vec<UntypedHandle>);
-
 fn gravity_setup(mut rapier_config: Query<&mut RapierConfiguration>) {
     rapier_config.single_mut().gravity = Vec2::new(0.0, 0.0);
 }
@@ -82,7 +79,6 @@ fn main() {
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
         .insert_resource(Time::<Fixed>::from_hz(120.0))
-        .insert_resource(AssetsLoading(vec![]))
         .init_asset::<machine::prelude::Program>()
         .init_asset_loader::<assets::ProgramLoader>()
         .init_state::<AppState>()
@@ -109,6 +105,7 @@ fn main() {
             ((
                 player_systems::attach_program_to_player,
                 player_systems::update_player,
+                player_systems::update_health,
                 mouse_button_events,
             )
                 .run_if(in_state(AppState::Running)),),
