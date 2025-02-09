@@ -127,10 +127,6 @@ impl VirtualMachine {
 
         vel.linvel = Vec2::from_angle(rotation_angle).rotate(velocity);
 
-        println!(
-            "Moment is now: {}",
-            self.memory[MemoryMappedProperties::Moment as usize] as f32
-        );
         vel.angvel = self.memory[MemoryMappedProperties::Moment as usize] as f32 * (PI / 180.0);
     }
 
