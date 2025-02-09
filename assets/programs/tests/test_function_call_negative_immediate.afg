@@ -1,0 +1,11 @@
+fn test(value) {
+    set m = value * 10;
+    print m;
+    return;
+}
+
+fn main() {
+    set param = 0 - 1;
+    call test(param);
+    call test(1);
+}

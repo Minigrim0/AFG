@@ -1,0 +1,115 @@
+mov 'SBP 'TSP
+sub 'TSP #6
+mov 'GPC $Velocity
+mov 'GPD #1
+store {'GPC + 'GPD} #500
+mov 'GPC $RayType
+mov 'GPD #3
+load 'GPA {'GPC + 'GPD}
+mov 'GPB #0
+cmp 'GPA 'GPB
+jz #27
+mov 'GPC $RayDist
+mov 'GPD #3
+load 'GPA {'GPC + 'GPD}
+mov 'GPB #200
+cmp 'GPA 'GPB
+jp #21
+mov 'GPC $Velocity
+mov 'GPD #1
+store {'GPC + 'GPD} #10
+mov 'GPA #0
+mov 'GPB #90
+sub 'GPA 'GPB
+mov ['SBP - 1] 'GPA
+mov 'GPA #0
+mov 'GPB #1
+sub 'GPA 'GPB
+mov ['SBP - 2] 'GPA
+mov 'GPA ['SBP - 2]
+push 'GPA
+mov 'GPA ['SBP - 1]
+push 'GPA
+call #7
+add 'TSP #2
+mov 'GPC $Velocity
+mov 'GPD #1
+store {'GPC + 'GPD} #500
+jmp #-32
+halt
+push 'SBP
+mov 'SBP 'TSP
+sub 'TSP #6
+load 'GPA $Rotation
+mov 'GPB ['SBP + 2]
+add 'GPA 'GPB
+mov ['SBP - 1] 'GPA
+mov 'GPA ['SBP - 1]
+mov 'GPB #0
+cmp 'GPA 'GPB
+jp #7
+cmp 'GPB 'GPA
+jz #5
+mov 'GPA #360
+mov 'GPB ['SBP - 1]
+add 'GPA 'GPB
+mov ['SBP - 1] 'GPA
+mov 'GPA ['SBP - 1]
+mov 'GPB #360
+mod 'GPA 'GPB
+mov ['SBP - 1] 'GPA
+mov 'GPA ['SBP + 3]
+mov 'GPB #10
+mul 'GPA 'GPB
+store $Moment 'GPA
+mov 'GPA ['SBP - 1]
+load 'GPB $Rotation
+sub 'GPA 'GPB
+mov ['SBP - 2] 'GPA
+mov 'GPA ['SBP - 2]
+push 'GPA
+call #24
+add 'TSP #1
+mov ['SBP - 2] 'FRV
+mov 'GPA ['SBP - 2]
+mov 'GPB #3
+cmp 'GPA 'GPB
+jn #13
+cmp 'GPA 'GPB
+jz #11
+mov 'GPA ['SBP - 1]
+load 'GPB $Rotation
+sub 'GPA 'GPB
+mov ['SBP - 2] 'GPA
+mov 'GPA ['SBP - 2]
+push 'GPA
+call #9
+add 'TSP #1
+mov ['SBP - 2] 'FRV
+jmp #-15
+store $Moment #0
+mov 'FRV #0
+mov 'TSP 'SBP
+pop 'SBP
+ret
+push 'SBP
+mov 'SBP 'TSP
+sub 'TSP #1
+mov 'GPA ['SBP + 2]
+mov 'GPB #0
+cmp 'GPA 'GPB
+jp #11
+cmp 'GPB 'GPA
+jz #9
+mov 'GPA #0
+mov 'GPB ['SBP + 2]
+sub 'GPA 'GPB
+mov ['SBP + 2] 'GPA
+mov 'FRV ['SBP + 2]
+mov 'TSP 'SBP
+pop 'SBP
+ret
+mov 'FRV ['SBP + 2]
+mov 'TSP 'SBP
+pop 'SBP
+ret

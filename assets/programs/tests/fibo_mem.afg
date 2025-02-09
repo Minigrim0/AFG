@@ -1,0 +1,20 @@
+fn main() {
+    set a = 0;
+    set a[0] = 0;
+    set a[1] = 1;
+    set index = 2;
+    set objective = 30;
+    while index < objective {
+        set previous_index = index - 1;
+        set double_previous_index = index - 2;
+        set a[index] = a[previous_index] + a[double_previous_index];
+        set index = index + 1;
+    }
+
+    set counter = 0;
+    while counter < objective {
+        print counter;
+        print a[counter];
+        set counter = counter + 1;
+    }
+}

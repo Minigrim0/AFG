@@ -1,0 +1,52 @@
+mov 'SBP 'TSP
+sub 'TSP #4
+mov ['SBP - 1] #0
+mov 'GPC ['SBP - 1]
+mov 'GPD #1
+store {'GPC + 'GPD} #6
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+store {'GPC + 'GPD} #5
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+load 'GPA {'GPC + 'GPD}
+mov 'GPC ['SBP - 1]
+mov 'GPD #1
+load 'GPB {'GPC + 'GPD}
+add 'GPA 'GPB
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+store {'GPC + 'GPD} 'GPA
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+load 'GPA {'GPC + 'GPD}
+mov 'GPB #100
+cmp 'GPA 'GPB
+jp #21
+cmp 'GPB 'GPA
+jz #19
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+load 'GPA {'GPC + 'GPD}
+mov 'GPB #1
+add 'GPA 'GPB
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+store {'GPC + 'GPD} 'GPA
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+load 'GPA {'GPC + 'GPD}
+mov 'GPB #50
+cmp 'GPA 'GPB
+jnz #4
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+print {'GPC + 'GPD}
+jmp #-25
+mov 'GPC ['SBP - 1]
+mov 'GPD #0
+print {'GPC + 'GPD}
+mov 'GPC ['SBP - 1]
+mov 'GPD #1
+print {'GPC + 'GPD}
+halt

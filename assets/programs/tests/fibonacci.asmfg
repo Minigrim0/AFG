@@ -1,0 +1,56 @@
+mov 'SBP 'TSP
+sub 'TSP #3
+mov ['SBP - 1] #10
+mov 'GPA ['SBP - 1]
+push 'GPA
+call #6
+add 'TSP #1
+mov ['SBP - 2] 'FRV
+mov 'GPA ['SBP - 2]
+print 'GPA
+halt
+push 'SBP
+mov 'SBP 'TSP
+sub 'TSP #6
+mov 'GPA ['SBP + 2]
+mov 'GPB #1
+cmp 'GPA 'GPB
+jnz #5
+mov 'FRV #1
+mov 'TSP 'SBP
+pop 'SBP
+ret
+mov 'GPA ['SBP + 2]
+mov 'GPB #0
+cmp 'GPA 'GPB
+jnz #5
+mov 'FRV #0
+mov 'TSP 'SBP
+pop 'SBP
+ret
+mov 'GPA ['SBP + 2]
+mov 'GPB #1
+sub 'GPA 'GPB
+mov ['SBP - 1] 'GPA
+mov 'GPA ['SBP + 2]
+mov 'GPB #2
+sub 'GPA 'GPB
+mov ['SBP - 2] 'GPA
+mov 'GPA ['SBP - 1]
+push 'GPA
+call #-29
+add 'TSP #1
+mov ['SBP - 1] 'FRV
+mov 'GPA ['SBP - 2]
+push 'GPA
+call #-34
+add 'TSP #1
+mov ['SBP - 2] 'FRV
+mov 'GPA ['SBP - 1]
+mov 'GPB ['SBP - 2]
+add 'GPA 'GPB
+mov ['SBP - 3] 'GPA
+mov 'FRV ['SBP - 3]
+mov 'TSP 'SBP
+pop 'SBP
+ret
