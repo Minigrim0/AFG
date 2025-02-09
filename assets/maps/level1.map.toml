@@ -26,33 +26,3 @@ x = 99
 y = 0
 width = 1
 height = 50
-
-[[walls]]
-x = 5
-y = 0
-width = 1
-height = 30
-
-[[walls]]
-x = 5
-y = 30
-width = 10
-height = 1
-
-[[walls]]
-x = 15
-y = 30
-width = 1
-height = 20
-
-[[walls]]
-x = 15
-y = 49
-width = 1
-height = 1
-
-[[walls]]
-x = 15
-y = 40
-width = 10
-height = 1
