@@ -1,3 +1,7 @@
+# Bugs
+* [ ] fix calling with negative immediate values => `call function(-1)` ignores the `-1` and calls `function()`
+* [ ] automatic return instruction at the end of a function
+
 # Information on the AFG compiler
 This is a simple compiler, that translates the AFG language into ASMFG, a pseudo-assembly language. The compiler is written in Rust. It is not supposed to be performant, in order to push people towards writing their code in assembly directly.
 
