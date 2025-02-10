@@ -21,7 +21,7 @@ Details on the assembly language can be found in the [compiler documentation](..
 ## Usage
 To run the virtual machine, you can use the following command:
 ```bash
-cargo run -- -i <assembly file> [--no-tui]
+cargo run --features tui -- -i <assembly file> [--no-tui]
 ```
 
 The `--no-tui` flag is optional and is used to disable the TUI interface. This means that the machine will run until completion, without any user interaction.
@@ -42,7 +42,7 @@ The second section is the stack visualization. It shows the stack frame, with th
 For convenience, up to 4 values below the stack base pointer are labeled. This has no effective meaning (the values pointer might or might not be used in the current context).
 
 ### Registers
-The third section shows the values of the registers. The registers are labeled as `GPA, `GPB`, `GPC, `GPD`, `CIP`, `TSP`, `SBP`, `FRV`. The values of the registers are displayed in hexadecimal.
+The third section shows the values of the registers. The registers are labeled as `GPA`, `GPB`, `GPC`, `GPD`, `CIP`, `TSP`, `SBP`, `FRV`. The values of the registers are displayed in hexadecimal.
 This section also shows the current flags of the machine. The flags are `ZF`, `PF`, `NF`, `OF`, representing the zero, positive, negative, and overflow flags respectively.
 
 ### Output
