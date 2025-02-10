@@ -1,16 +1,18 @@
 # Project Readme
 
 ## Overview
-This project is a game written in Rust using the Bevy game engine. It draws inspiration from classical multiplayer FPS games but introduces a unique twist: the primary objective is to program bots. These bots can be programmed using either the assembly-like language `asmfg` or the higher-level programming language `afg`, which compiles to `asmfg` using the provided compiler. The ultimate goal is to develop increasingly sophisticated bots capable of winning in various situations.
+This project is a game written in Rust using the Bevy game engine. The primary objective is to program bots to fight in an arena.
+These bots can be programmed using either the assembly-like language `asmfg` or the higher-level programming language `afg`,
+which compiles to `asmfg` using the provided compiler. The ultimate goal is to develop increasingly sophisticated bots capable
+of winning in various situations.
 
-## Getting Started
 ## Running the Game
 To run the game, you will need to have Rust and the Bevy game engine installed on your system. Follow these steps to get started:
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/yourproject.git
-   cd yourproject
+   git clone https://github.com/Minigrim0/AFG.git AFG
+   cd AFG
    ```
 
 2. Build the project:
@@ -30,7 +32,7 @@ To program the bots, you can use either the assembly-like language `asmfg` or th
 
 2. If you are using `afg`, compile it to `asmfg` using the provided compiler:
    ```sh
-   cargo run --bin compiler -- -i your_input_file.afg
+   cd compiler && cargo run -- -i your_input_file.afg -o your_output_file.asmfg [-s]
    ```
 
 3. Place your bot code in the appropriate directory for the game to load it.

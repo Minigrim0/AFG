@@ -5,7 +5,8 @@ fn test(value) {
 }
 
 fn main() {
-    set param = 0 - 1;
-    call test(param);
+    call test(-1);
+    set parameter = -1;
+    call test(parameter);
     call test(1);
 }

@@ -16,7 +16,7 @@ fn turn(angle, direction) {
     set $Moment = direction * 10;
     set current_delta = target_angle - $Rotation;
     set current_delta = abs(current_delta);
-    while current_delta > 3 { // While greater than 3 degrees
+    while current_delta > 10 { // While greater than 3 degrees
         set current_delta = target_angle - $Rotation;
         set current_delta = abs(current_delta);
     }
@@ -32,9 +32,7 @@ fn main() {
         if $RayType[3] != 0 {
             if $RayDist[3] <= 200 {  // 100 is around one meter
                 set $Velocity[1] = 10;
-                set angle = 0 - 90;
-                set direction = 0 - 1;
-                call turn(angle, direction);  // 1 is left, -1 is right
+                call turn(-90, -1);  // 1 is left, -1 is right
                 set $Velocity[1] = 500;
             }
         }
