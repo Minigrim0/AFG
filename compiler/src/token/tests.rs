@@ -22,4 +22,15 @@ pub fn test_lexer() {
     assert!(lexed[2].token_type == TokenType::OP, "Third token is not an operator");
     assert!(lexed[3].token_type == TokenType::ID && lexed[3].is_literal(), "Fourth token is not a literal");
     assert!(lexed[4].token_type == TokenType::ENDL, "Fifth token is not an endline");
+
+    let text  = "set test = 1 + 2;";
+    let lexed = lex(text);
+    assert_eq!(lexed.len(), 7, "Amount of tokens lexed is not correct");
+    assert!(lexed[0].token_type == TokenType::KEYWORD, "First token is not a keyword");
+    assert!(lexed[1].token_type == TokenType::ID, "Second token is not an identifier");
+    assert!(lexed[2].token_type == TokenType::OP, "Third token is not an operator");
+    assert!(lexed[3].token_type == TokenType::ID && lexed[3].is_literal(), "Fourth token is not a literal");
+    assert!(lexed[4].token_type == TokenType::OP, "Fifth token is not an operator");
+    assert!(lexed[5].token_type == TokenType::ID && lexed[5].is_literal(), "Sixth token is not a literal");
+    assert!(lexed[6].token_type == TokenType::ENDL, "Seventh token is not an endline");
 }

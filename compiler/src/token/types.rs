@@ -12,6 +12,7 @@ pub enum TokenType {
     OP,
     COMMENT,
     ENDL,
+    LRTRN,
     ID,
 }
 
@@ -28,6 +29,7 @@ impl fmt::Display for TokenType {
             TokenType::OP => "OP",
             TokenType::COMMENT => "COMMENT",
             TokenType::ENDL => "ENDL",
+            TokenType::LRTRN => "LRTRN",
             TokenType::ID => "ID",
         };
         write!(f, "{}", repr)

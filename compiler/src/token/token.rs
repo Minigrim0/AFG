@@ -55,21 +55,7 @@ impl Token {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let token_type = match self.token_type {
-            TokenType::LPAREN => "LPAREN",
-            TokenType::RPAREN => "RPAREN",
-            TokenType::LBRACE => "LBRACE",
-            TokenType::RBRACE => "RBRACE",
-            TokenType::RBRACKET => "RBRACKET",
-            TokenType::LBRACKET => "LBRACKET",
-            TokenType::KEYWORD => "KEYWORD",
-            TokenType::OP => "OP",
-            TokenType::COMMENT => "COMMENT",
-            TokenType::ENDL => "ENDL",
-            TokenType::ID => "ID",
-        };
-
-        write!(f, "{}", token_type)?;
+        write!(f, "{}", self.token_type)?;
         if let Some(value) = self.value.clone() {
             write!(f, " = {}", value)?
         }
