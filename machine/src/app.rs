@@ -69,10 +69,12 @@ impl App<'_> {
     }
 
     pub fn on_tick(&mut self) {
-        match self.machine.tick() {
-            Ok(_) => (),
-            Err(e) => {
-                eprintln!("Error: {}", e);
+        if !self.machine.has_completed() {
+            match self.machine.tick() {
+                Ok(_) => (),
+                Err(e) => {
+                    self.status = AppStatus::Err(e.to_string());
+                }
             }
         }
     }

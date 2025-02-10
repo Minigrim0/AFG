@@ -317,8 +317,14 @@ impl VirtualMachine {
         Ok(value)
     }
 
-    pub fn get_current_output(&self) -> Option<String> {
-        self.current_output.clone()
+    pub fn get_current_output(&mut self, consume: bool) -> Option<String> {
+        if consume {
+            let output = self.current_output.clone();
+            self.current_output = None;
+            output
+        } else {
+            self.current_output.clone()
+        }
     }
 
     /// Returns the value stored at the operand's location. This function includes

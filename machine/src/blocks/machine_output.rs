@@ -29,7 +29,7 @@ impl AppBlock for MachineOutputBlock {
         is_selected: bool,
         area: &Rect,
     ) {
-        if let Some(current_output) = machine.get_current_output() {
+        if let Some(current_output) = machine.get_current_output(true) {
             self.output.push(current_output);
         }
 

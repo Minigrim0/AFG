@@ -64,7 +64,7 @@ fn main() -> Result<(), String> {
                 error!("Machine encountered an error: {}", e);
                 break Err(e);
             }
-            if let Some(output) = machine.get_current_output() {
+            if let Some(output) = machine.get_current_output(true) {
                 println!("> {}", output);
             }
             if machine.has_completed() {
