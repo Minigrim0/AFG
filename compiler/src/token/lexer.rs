@@ -1,6 +1,7 @@
 use super::{types::TokenType, Token};
 
-pub fn lex(text: String) -> Vec<Token> {
+pub fn lex<S: AsRef<str>>(text: S) -> Vec<Token> {
+    let text = text.as_ref().to_string();
     let mut result: Vec<(&str, usize, usize)> = Vec::new();
     let mut last = 0;
     let mut line: usize = 1;
@@ -131,5 +132,33 @@ pub fn lex(text: String) -> Vec<Token> {
         }
     }
 
-    new_tokens
+    let mut last_token: &Token = if let Some(token) = new_tokens.first() {
+        token
+    } else {
+        return new_tokens;
+    };
+
+    let mut negate_next_token = false;
+    let mut final_tokens: Vec<Token> = vec![last_token.clone()];
+
+    for token in new_tokens.iter().skip(1) {
+        if token.token_type == TokenType::OP && token.value == Some("-".to_string()) && &last_token.token_type != &TokenType::ID {
+            negate_next_token = true;
+        } else {
+            if negate_next_token {
+                if let Some(value) = &token.value {
+                    if let Ok(value) = value.parse::<i32>() {
+                        let new_token = Token::new(TokenType::ID, Some((-value).to_string()), 0, 0);
+                        final_tokens.push(new_token);
+                    }
+                }
+                negate_next_token = false;
+            } else {
+                final_tokens.push(token.clone());
+            }
+        }
+        last_token = token;
+    }
+
+    final_tokens
 }

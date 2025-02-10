@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::types::TokenType;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     pub value: Option<String>,

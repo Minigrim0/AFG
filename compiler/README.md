@@ -1,5 +1,5 @@
 # Bugs
-* [ ] fix calling with negative immediate values => `call function(-1)` ignores the `-1` and calls `function()`
+* [X] fix calling with negative immediate values => `call function(-1)` ignores the `-1` and calls `function()`
 * [ ] automatic return instruction at the end of a function
 
 # Information on the AFG compiler
