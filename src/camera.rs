@@ -13,10 +13,7 @@ pub fn camera_setup(mut commands: Commands) {
 }
 
 pub fn move_camera(
-    mut query: Query<
-        (&mut Transform, &mut OrthographicProjection),
-        (With<Camera2d>, Without<Follow>),
-    >,
+    mut query: Query<(&mut Transform, &mut Projection), (With<Camera2d>, Without<Follow>)>,
     map: Res<MapHandle>,
     maps: ResMut<Assets<Map>>,
 ) {
@@ -24,7 +21,7 @@ pub fn move_camera(
         println!("Unable to get the map to setup the camera");
         return;
     };
-    let Ok((mut camera_transform, mut camera_projection)) = query.get_single_mut() else {
+    let Ok((mut camera_transform, camera_projection)) = query.single_mut() else {
         println!("Unable to get the camera to set its position");
         return;
     };
@@ -36,12 +33,14 @@ pub fn move_camera(
         10.0,
     );
 
-    camera_projection.scale = -18.0;
+    if let Projection::Orthographic(ref mut orthographic) = *camera_projection.into_inner() {
+        orthographic.scale = -18.0;
+    }
 }
 
 /// Allows user to zoom in/out if the camera is not in follow mode
 pub fn update_camera_zoom(
-    mut query: Query<&mut OrthographicProjection, (With<Camera2d>, Without<Follow>)>,
+    mut query: Query<&mut Projection, (With<Camera2d>, Without<Follow>)>,
     time: Res<Time>,
     mut evr_scroll: EventReader<MouseWheel>,
 ) {
@@ -49,13 +48,19 @@ pub fn update_camera_zoom(
     for ev in evr_scroll.read() {
         match ev.unit {
             MouseScrollUnit::Line => {
-                for mut projection in query.iter_mut() {
-                    projection.scale += ev.y * 1.0 * time.delta_secs();
+                for projection in query.iter_mut() {
+                    if let Projection::Orthographic(ref mut orthographic) = *projection.into_inner()
+                    {
+                        orthographic.scale += ev.y * 1.0 * time.delta_secs();
+                    }
                 }
             }
             MouseScrollUnit::Pixel => {
-                for mut projection in query.iter_mut() {
-                    projection.scale += ev.y * 1.0 * time.delta_secs();
+                for projection in query.iter_mut() {
+                    if let Projection::Orthographic(ref mut orthographic) = *projection.into_inner()
+                    {
+                        orthographic.scale += ev.y * 1.0 * time.delta_secs();
+                    }
                 }
             }
         }
@@ -63,44 +68,39 @@ pub fn update_camera_zoom(
 }
 
 pub fn switch_camera_mode(
-    mut camera_entity_follow: Query<
-        (Entity, &mut OrthographicProjection),
-        (With<Camera2d>, With<Follow>),
-    >,
-    mut camera_entity: Query<
-        (Entity, &mut OrthographicProjection),
-        (With<Camera2d>, Without<Follow>),
-    >,
+    mut camera_entity_follow: Query<(Entity, &mut Projection), (With<Camera2d>, With<Follow>)>,
+    mut camera_entity: Query<(Entity, &mut Projection), (With<Camera2d>, Without<Follow>)>,
     kb_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
 ) {
     if kb_input.just_pressed(KeyCode::Space) {
-        if let Ok((camera, mut projection)) = camera_entity_follow.get_single_mut() {
+        if let Ok((camera, projection)) = camera_entity_follow.single_mut() {
             commands.entity(camera).remove::<Follow>();
-            projection.scale = -18.0;
+            if let Projection::Orthographic(ref mut orthographic) = *projection.into_inner() {
+                orthographic.scale = -18.0;
+            }
         }
-        if let Ok((camera, mut projection)) = camera_entity.get_single_mut() {
+        if let Ok((camera, projection)) = camera_entity.single_mut() {
             commands.entity(camera).insert(Follow);
-            projection.scale = -1.0;
+            if let Projection::Orthographic(ref mut orthographic) = *projection.into_inner() {
+                orthographic.scale = -1.0;
+            }
         }
     }
 }
 
 pub fn update_follow_camera(
-    mut camera: Query<
-        (&mut Transform, &mut OrthographicProjection),
-        (With<Camera2d>, With<Follow>),
-    >,
+    mut camera: Query<(&mut Transform, &mut Projection), (With<Camera2d>, With<Follow>)>,
     selected_bot: Query<&Transform, (With<IsSelected>, Without<Camera2d>)>,
     time: Res<Time>,
 ) {
-    let mut camera = if let Ok(camera) = camera.get_single_mut() {
+    let mut camera = if let Ok(camera) = camera.single_mut() {
         camera
     } else {
         return;
     };
 
-    let selected_bot_transform = if let Ok(transform) = selected_bot.get_single() {
+    let selected_bot_transform = if let Ok(transform) = selected_bot.single() {
         transform
     } else {
         return;
@@ -114,14 +114,11 @@ pub fn update_follow_camera(
 
 /// Updates the camera position if the camera is not in follow mode.
 pub fn update_camera(
-    mut camera: Query<
-        (&mut Transform, &mut OrthographicProjection),
-        (With<Camera2d>, Without<Follow>),
-    >,
+    mut camera: Query<(&mut Transform, &mut Projection), (With<Camera2d>, Without<Follow>)>,
     time: Res<Time>,
     kb_input: Res<ButtonInput<KeyCode>>,
 ) {
-    let Ok((mut transform, mut projection)) = camera.get_single_mut() else {
+    let Ok((mut transform, projection)) = camera.single_mut() else {
         return;
     };
 
@@ -143,13 +140,15 @@ pub fn update_camera(
         direction.x += 1.;
     }
 
-    if kb_input.pressed(KeyCode::KeyE) {
-        projection.scale += 1.;
-        println!("Projection scale: {}", projection.scale);
-    }
-    if kb_input.pressed(KeyCode::KeyQ) {
-        projection.scale -= 1.;
-        println!("Projection scale: {}", projection.scale);
+    if let Projection::Orthographic(ref mut orthographic) = *projection.into_inner() {
+        if kb_input.pressed(KeyCode::KeyE) {
+            orthographic.scale += 1.;
+            println!("Projection scale: {}", orthographic.scale);
+        }
+        if kb_input.pressed(KeyCode::KeyQ) {
+            orthographic.scale -= 1.;
+            println!("Projection scale: {}", orthographic.scale);
+        }
     }
 
     // Progressively update the camera's position over time. Normalize the

@@ -8,13 +8,13 @@ use super::AppBlock;
 use machine::prelude::VirtualMachine;
 
 pub struct RegisterBlock {
-    most_recently_modified: Option<usize>,
+    _most_recently_modified: Option<usize>,
 }
 
 impl RegisterBlock {
     pub fn new() -> RegisterBlock {
         RegisterBlock {
-            most_recently_modified: None,
+            _most_recently_modified: None,
         }
     }
 }
@@ -86,5 +86,5 @@ impl AppBlock for RegisterBlock {
         frame.render_widget(paragraph, *area);
     }
 
-    fn on_key(&mut self, key: KeyEvent) {}
+    fn on_key(&mut self, _key: KeyEvent) {}
 }

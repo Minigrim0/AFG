@@ -1,12 +1,8 @@
-use crossterm::event::KeyEvent;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{self, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::{layout::Rect, Frame};
-
-use std::cmp::{max, min};
-use std::usize;
 
 use super::AppBlock;
 use machine::prelude::VirtualMachine;
@@ -46,5 +42,5 @@ impl AppBlock for MachineStatusBlock {
         frame.render_widget(paragraph, *area);
     }
 
-    fn on_key(&mut self, key: KeyEvent) {}
+    fn on_key(&mut self, _key: KeyEvent) {}
 }

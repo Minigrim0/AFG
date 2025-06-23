@@ -41,23 +41,24 @@ pub fn spawn_map(
     if let Some(map) = maps.get(map.0.id()) {
         let tile_size = map.tile_size as f32;
         for wall in map.walls.iter() {
-            commands.spawn((
-                RigidBody::Fixed,
-                Collider::cuboid(
+            commands
+                .spawn(RigidBody::Fixed)
+                .insert(Collider::cuboid(
                     (wall.width as f32 * tile_size as f32) / 2.0,
                     (wall.height as f32 * tile_size as f32) / 2.0,
-                ),
-                Transform::from_xyz(
+                ))
+                .insert(Transform::from_xyz(
                     wall.x as f32 * tile_size + (wall.width as f32 * tile_size) / 2.0,
                     wall.y as f32 * tile_size + (wall.height as f32 * tile_size) / 2.0,
                     0.0,
-                ),
-                Mesh2d(meshes.add(Rectangle::new(
+                ))
+                .insert(Mesh2d(meshes.add(Rectangle::new(
                     wall.width as f32 * tile_size,
                     wall.height as f32 * tile_size,
-                ))),
-                MeshMaterial2d(materials.add(Color::srgb(0.2, 0.2, 0.3))),
-            ));
+                ))))
+                .insert(MeshMaterial2d(
+                    materials.add(ColorMaterial::from_color(Color::srgb(0.2, 0.2, 0.3))),
+                ));
         }
         state.set(AppState::Running);
     }

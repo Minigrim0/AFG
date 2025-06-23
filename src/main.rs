@@ -1,8 +1,10 @@
 mod assets;
 mod camera;
+mod editor;
 mod map;
 mod player;
 mod state;
+use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
 
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
@@ -13,6 +15,7 @@ use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::*;
 use state::AppState;
 
+use editor::{afg_code_editor_system, AfgSourceCode};
 use map::Map;
 use player::components::Bot;
 use player::systems as player_systems;
@@ -42,7 +45,9 @@ fn mouse_button_events(
 
     for ev in mousebtn_evr.read() {
         if ev.state == ButtonState::Pressed {
-            let (camera, camera_transform) = q_camera.single();
+            let Ok((camera, camera_transform)) = q_camera.single() else {
+                continue;
+            };
             let Some(mouse_position) = q_windows
                 .single()
                 .cursor_position()
@@ -78,6 +83,9 @@ fn main() {
             RapierDebugRenderPlugin::default(),
             TomlAssetPlugin::<Map>::new(&["map.toml"]),
         ))
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .insert_resource(Time::<Fixed>::from_hz(120.0))
         .init_asset::<machine::prelude::Program>()
         .init_asset_loader::<assets::ProgramLoader>()
@@ -91,6 +99,9 @@ fn main() {
             OnEnter(AppState::Running),
             (camera::move_camera, player_systems::setup),
         )
+        // Add to your Bevy app
+        .insert_resource(AfgSourceCode::default())
+        .add_systems(EguiContextPass, afg_code_editor_system)
         .add_systems(
             Update,
             (

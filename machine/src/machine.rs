@@ -3,7 +3,7 @@ use crate::Instruction;
 
 const REGISTER_AMOUNT: usize = 8;
 const STACK_SIZE: usize = 256; // 1kB of stack (each value on the stack is 4 bytes)
-const MEMORY_SIZE: usize = 65536; // 64KB of memory
+const MEMORY_SIZE: usize = 65536; // 64kB of memory
 
 #[cfg_attr(feature = "bevy", derive(bevy::prelude::Component))]
 pub struct VirtualMachine {
@@ -63,7 +63,7 @@ impl VirtualMachine {
     }
 
     /// Checks if a flag is currently set.
-    fn check_next_flag(&self, flag: Flags) -> bool {
+    fn _check_next_flag(&self, flag: Flags) -> bool {
         self.next_flags & flag as u8 != 0
     }
 

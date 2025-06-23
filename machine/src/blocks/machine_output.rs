@@ -1,11 +1,10 @@
+use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{self, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::{layout::Rect, Frame};
 
-use std::cmp::{max, min};
 use std::usize;
 
 use super::AppBlock;
@@ -59,5 +58,5 @@ impl AppBlock for MachineOutputBlock {
         frame.render_widget(paragraph, *area);
     }
 
-    fn on_key(&mut self, key: KeyEvent) {}
+    fn on_key(&mut self, _key: KeyEvent) {}
 }

@@ -1,18 +1,16 @@
-use std::fs;
-
 use crate::prelude::{Instruction, MemoryMappedProperties, OpCodes, OperandType, Registers};
 
 use super::super::parser::parse;
 
 #[test]
 fn test_parser() {
-    let text = fs::read_to_string("assets/programs/test.asmfg");
-    assert!(
-        text.is_ok(),
-        "Unable to read input file: {}",
-        text.err().unwrap().to_string()
-    );
-    let instructions = parse(text.unwrap());
+    let text = "; Test program, used to validate the parser functionality
+mov 'GPA $Velocity
+mov 'GPB $Moment
+store 'GPA #100
+store 'GPB #-100";
+
+    let instructions = parse(text);
 
     let expected = vec![
         Instruction {
@@ -49,7 +47,11 @@ fn test_parser() {
         },
     ];
 
-    assert!(instructions.is_ok());
+    assert!(
+        instructions.is_ok(),
+        "Instructions parsing failed: {}",
+        instructions.err().unwrap()
+    );
 
     let instructions = instructions.unwrap();
     assert_eq!(

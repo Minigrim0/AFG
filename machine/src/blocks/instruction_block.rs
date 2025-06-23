@@ -1,6 +1,5 @@
-use color_eyre::owo_colors::colors::css::LightGray;
+use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{self, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
@@ -10,7 +9,7 @@ use std::cmp::{max, min};
 use std::usize;
 
 use super::AppBlock;
-use machine::prelude::{OperandType, VirtualMachine, Instruction, OpCodes};
+use machine::prelude::{Instruction, OpCodes, OperandType, VirtualMachine};
 
 pub struct InstructionsBlock {
     offset: usize, // Selected instruction
@@ -38,11 +37,23 @@ impl InstructionsBlock {
     }
 
     /// Returns Some(value) when the instruction currently pointed at might jump to a literal
-    fn get_jump_index(&self, current_cip: i32, instructions: &Vec<(usize, Instruction)>) -> Option<usize> {
+    fn get_jump_index(
+        &self,
+        _current_cip: i32,
+        instructions: &Vec<(usize, Instruction)>,
+    ) -> Option<usize> {
         let mut target = None;
 
         if let Some(instruction) = instructions.get(self.cursor_position as usize) {
-            if matches!(instruction.1.opcode, OpCodes::JMP | OpCodes::JZ | OpCodes::JNZ | OpCodes::JP | OpCodes::JN | OpCodes::CALL) {
+            if matches!(
+                instruction.1.opcode,
+                OpCodes::JMP
+                    | OpCodes::JZ
+                    | OpCodes::JNZ
+                    | OpCodes::JP
+                    | OpCodes::JN
+                    | OpCodes::CALL
+            ) {
                 if let OperandType::Literal { value } = instruction.1.operand_1 {
                     target = Some((self.cursor_position + self.offset as i32 + value) as usize);
                 }
@@ -58,12 +69,12 @@ impl InstructionsBlock {
 
         if let Some(target) = target {
             // Current line is between current instr & target
-            if idx > min(self.cursor_position as usize + self.offset, target) && idx < max(self.cursor_position as usize + self.offset, target) {
+            if idx > min(self.cursor_position as usize + self.offset, target)
+                && idx < max(self.cursor_position as usize + self.offset, target)
+            {
                 line_vec.push(Span::styled(
                     "|",
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ))
             } else if idx == target {
                 let character = if target > self.cursor_position as usize {
@@ -73,9 +84,7 @@ impl InstructionsBlock {
                 };
                 line_vec.push(Span::styled(
                     character,
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ))
             } else if idx == self.cursor_position as usize + self.offset {
                 let character = if target > self.cursor_position as usize {
@@ -85,9 +94,7 @@ impl InstructionsBlock {
                 };
                 line_vec.push(Span::styled(
                     character,
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ))
             } else {
                 line_vec.push(Span::from(" "));
@@ -162,10 +169,7 @@ impl AppBlock for InstructionsBlock {
                 if self.cursor_position as usize + self.offset == *idx {
                     line_vec.push(Span::styled(" ☚", Style::default().fg(Color::LightGreen)));
                     if self.follow_cip {
-                        line_vec.push(Span::styled(
-                            " 🔒",
-                            Style::default().fg(Color::LightGreen),
-                        ));
+                        line_vec.push(Span::styled(" 🔒", Style::default().fg(Color::LightGreen)));
                     }
                 }
 

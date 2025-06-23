@@ -34,7 +34,7 @@ impl fmt::Display for AppStatus {
 }
 
 pub struct App<'a> {
-    pub title: &'a str,
+    pub _title: &'a str,
     pub should_quit: bool,
     pub machine: VirtualMachine,
     pub status: AppStatus,
@@ -52,7 +52,7 @@ pub struct App<'a> {
 impl App<'_> {
     pub fn new(title: &str, machine: VirtualMachine) -> App {
         App {
-            title,
+            _title: title,
             should_quit: false,
             machine,
             status: AppStatus::default(),
