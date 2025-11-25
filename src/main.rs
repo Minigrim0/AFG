@@ -4,8 +4,11 @@ mod editor;
 mod map;
 mod player;
 mod state;
-use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
 
+#[cfg(debug_assertions)]
+mod debug;
+
+use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -24,7 +27,9 @@ use player::systems as player_systems;
 struct IsSelected;
 
 fn gravity_setup(mut rapier_config: Query<&mut RapierConfiguration>) {
-    rapier_config.single_mut().gravity = Vec2::new(0.0, 0.0);
+    if let Ok(mut rconfig) = rapier_config.single_mut() {
+        rconfig.gravity = Vec2::new(0.0, 0.0);
+    }
 }
 
 fn mouse_button_events(
@@ -34,11 +39,11 @@ fn mouse_button_events(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     mut q_selected_entity: Query<Entity, With<IsSelected>>,
     bots: Query<(), With<Bot>>,
-    rapier_context: Query<&RapierContext>,
+    rapier_context: ReadRapierContext,
 ) {
     use bevy::input::ButtonState;
 
-    let Ok(rapier_context) = rapier_context.get_single() else {
+    let Ok(rapier_context) = rapier_context.single() else {
         println!("Unable to get rapier context for mouse click");
         return;
     };
@@ -48,10 +53,19 @@ fn mouse_button_events(
             let Ok((camera, camera_transform)) = q_camera.single() else {
                 continue;
             };
-            let Some(mouse_position) = q_windows
+            let Ok(Some(mouse_position)) = q_windows
                 .single()
-                .cursor_position()
-                .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor).ok())
+                .map(|window| {
+                    if let Some(cursor_position) = window.cursor_position() {
+                        if let Ok(position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
+                            Some(position)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
             else {
                 continue;
             };
@@ -62,7 +76,7 @@ fn mouse_button_events(
                 |entity| {
                     if bots.get(entity).is_ok() {
                         commands.entity(entity).insert(IsSelected);
-                        if let Ok(previously_selected) = q_selected_entity.get_single_mut() {
+                        if let Ok(previously_selected) = q_selected_entity.single_mut() {
                             commands.entity(previously_selected).remove::<IsSelected>();
                         }
                     }
@@ -76,8 +90,8 @@ fn mouse_button_events(
 }
 
 fn main() {
-    App::new()
-        .add_plugins((
+    let mut app: App = App::new();
+    app.add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0),
             RapierDebugRenderPlugin::default(),
@@ -113,13 +127,17 @@ fn main() {
         )
         .add_systems(
             FixedUpdate,
-            ((
+            (
                 player_systems::attach_program_to_player,
                 player_systems::update_player,
                 player_systems::update_health,
                 mouse_button_events,
             )
-                .run_if(in_state(AppState::Running)),),
-        )
-        .run();
+                .run_if(in_state(AppState::Running)),
+        );
+
+    #[cfg(debug_assertions)]
+    app.add_plugins(debug::DebugPlugin);
+
+    app.run();
 }

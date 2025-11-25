@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier2d::prelude::*;
+use bevy_rapier2d::{prelude::*, rapier};
 use rand::Rng;
 
 use crate::player::components::Crashed;
@@ -83,11 +83,16 @@ pub fn update_player(
         ),
         (Without<Crashed>, With<super::components::ProgramLoaded>),
     >,
-    rapier_context: Query<&RapierContext>,
+    rapier_context: ReadRapierContext,
     mut gizmos: Gizmos,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
+    let Ok(rapier_context) = rapier_context.single() else {
+        println!("Can't get rapier context.");
+        return;
+    };
+
     for (entity, bot, mut vm, mut transform, mut vel) in query.iter_mut() {
         if let Err(e) = vm.tick() {
             // The bot crashed or completed its execution
@@ -103,10 +108,8 @@ pub fn update_player(
         }
         vm.update_mmp(&mut transform, &mut vel);
 
-        if let Ok(context) = rapier_context.get_single() {
-            let rays = compute_rays((bot, transform, entity), context, &mut gizmos);
-            vm.update_rays(rays);
-        }
+        let rays = compute_rays((bot, transform, entity), &rapier_context, &mut gizmos);
+        vm.update_rays(rays);
     }
 }
 
