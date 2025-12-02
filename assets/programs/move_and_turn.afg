@@ -31,7 +31,7 @@ fn main() {
     loop {
         if $RayType[3] != 0 {
             if $RayDist[3] <= 200 {  // 100 is around one meter
-                set $Velocity[1] = 10;
+                set $Velocity[1] = 0;
                 call turn(-90, -1);  // 1 is left, -1 is right
                 set $Velocity[1] = 500;
             }

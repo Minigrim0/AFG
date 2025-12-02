@@ -17,36 +17,15 @@ cmp 'GPA 'GPB
 jp #10
 mov 'GPC $Velocity
 mov 'GPD #1
-store {'GPC + 'GPD} #10
+store {'GPC + 'GPD} #0
 push #-90
-call #28
+call #7
 add 'TSP #1
 mov 'GPC $Velocity
 mov 'GPD #1
 store {'GPC + 'GPD} #500
 jmp #-21
 halt
-push 'SBP
-mov 'SBP 'TSP
-sub 'TSP #1
-mov 'GPA ['SBP + 2]
-mov 'GPB #0
-cmp 'GPA 'GPB
-jp #11
-cmp 'GPB 'GPA
-jz #9
-mov 'GPA #0
-mov 'GPB ['SBP + 2]
-sub 'GPA 'GPB
-mov ['SBP + 2] 'GPA
-mov 'FRV ['SBP + 2]
-mov 'TSP 'SBP
-pop 'SBP
-ret
-mov 'FRV ['SBP + 2]
-mov 'TSP 'SBP
-pop 'SBP
-ret
 push 'SBP
 mov 'SBP 'TSP
 sub 'TSP #6
@@ -78,7 +57,7 @@ sub 'GPA 'GPB
 mov ['SBP - 2] 'GPA
 mov 'GPA ['SBP - 2]
 push 'GPA
-call #-52
+call #24
 add 'TSP #1
 mov ['SBP - 2] 'FRV
 mov 'GPA ['SBP - 2]
@@ -93,12 +72,33 @@ sub 'GPA 'GPB
 mov ['SBP - 2] 'GPA
 mov 'GPA ['SBP - 2]
 push 'GPA
-call #-67
+call #9
 add 'TSP #1
 mov ['SBP - 2] 'FRV
 jmp #-15
 store $Moment #0
 mov 'FRV #0
+mov 'TSP 'SBP
+pop 'SBP
+ret
+push 'SBP
+mov 'SBP 'TSP
+sub 'TSP #1
+mov 'GPA ['SBP + 2]
+mov 'GPB #0
+cmp 'GPA 'GPB
+jp #11
+cmp 'GPB 'GPA
+jz #9
+mov 'GPA #0
+mov 'GPB ['SBP + 2]
+sub 'GPA 'GPB
+mov ['SBP + 2] 'GPA
+mov 'FRV ['SBP + 2]
+mov 'TSP 'SBP
+pop 'SBP
+ret
+mov 'FRV ['SBP + 2]
 mov 'TSP 'SBP
 pop 'SBP
 ret
