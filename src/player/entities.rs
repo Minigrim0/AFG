@@ -10,6 +10,7 @@ use machine::{prelude::VirtualMachine, Program};
 
 use super::components::Bot;
 
+
 #[derive(Component)]
 pub struct ProgramHandle(pub Handle<Program>);
 

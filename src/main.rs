@@ -9,83 +9,20 @@ mod state;
 mod debug;
 
 use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
-use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy::DefaultPlugins;
 use bevy_common_assets::toml::TomlAssetPlugin;
-use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::*;
 use state::AppState;
 
 use editor::{afg_code_editor_system, AfgSourceCode};
 use map::Map;
-use player::components::Bot;
-use player::systems as player_systems;
 
-#[derive(Component)]
-struct IsSelected;
+use crate::player::PlayerPlugin;
 
 fn gravity_setup(mut rapier_config: Query<&mut RapierConfiguration>) {
     if let Ok(mut rconfig) = rapier_config.single_mut() {
         rconfig.gravity = Vec2::new(0.0, 0.0);
-    }
-}
-
-fn mouse_button_events(
-    mut commands: Commands,
-    mut mousebtn_evr: EventReader<MouseButtonInput>,
-    q_windows: Query<&Window, With<PrimaryWindow>>,
-    q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut q_selected_entity: Query<Entity, With<IsSelected>>,
-    bots: Query<(), With<Bot>>,
-    rapier_context: ReadRapierContext,
-) {
-    use bevy::input::ButtonState;
-
-    let Ok(rapier_context) = rapier_context.single() else {
-        println!("Unable to get rapier context for mouse click");
-        return;
-    };
-
-    for ev in mousebtn_evr.read() {
-        if ev.state == ButtonState::Pressed {
-            let Ok((camera, camera_transform)) = q_camera.single() else {
-                continue;
-            };
-            let Ok(Some(mouse_position)) = q_windows
-                .single()
-                .map(|window| {
-                    if let Some(cursor_position) = window.cursor_position() {
-                        if let Ok(position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
-                            Some(position)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-            else {
-                continue;
-            };
-
-            rapier_context.intersections_with_point(
-                mouse_position,
-                QueryFilter::default(),
-                |entity| {
-                    if bots.get(entity).is_ok() {
-                        commands.entity(entity).insert(IsSelected);
-                        if let Ok(previously_selected) = q_selected_entity.single_mut() {
-                            commands.entity(previously_selected).remove::<IsSelected>();
-                        }
-                    }
-
-                    // Return `false` to stop searching for other colliders containing this point.
-                    false
-                },
-            );
-        }
     }
 }
 
@@ -100,6 +37,7 @@ fn main() {
         .add_plugins(EguiPlugin {
             enable_multipass_for_primary_context: true,
         })
+        .add_plugins(PlayerPlugin)
         .insert_resource(Time::<Fixed>::from_hz(120.0))
         .init_asset::<machine::prelude::Program>()
         .init_asset_loader::<assets::ProgramLoader>()
@@ -108,12 +46,11 @@ fn main() {
             Startup,
             (camera::camera_setup, gravity_setup, map::setup_map),
         )
-        .add_systems(Update, (map::spawn_map).run_if(in_state(AppState::Loading)))
         .add_systems(
             OnEnter(AppState::Running),
-            (camera::move_camera, player_systems::setup),
+            camera::move_camera
         )
-        // Add to your Bevy app
+        .add_systems(Update, (map::spawn_map).run_if(in_state(AppState::Loading)))
         .insert_resource(AfgSourceCode::default())
         .add_systems(EguiContextPass, afg_code_editor_system)
         .add_systems(
@@ -124,16 +61,6 @@ fn main() {
                 camera::switch_camera_mode,
                 camera::update_follow_camera,
             ),
-        )
-        .add_systems(
-            FixedUpdate,
-            (
-                player_systems::attach_program_to_player,
-                player_systems::update_player,
-                player_systems::update_health,
-                mouse_button_events,
-            )
-                .run_if(in_state(AppState::Running)),
         );
 
     #[cfg(debug_assertions)]

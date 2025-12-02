@@ -1,7 +1,7 @@
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
-use crate::IsSelected;
+use crate::player::components::IsSelected;
 
 use super::map::{Map, MapHandle};
 

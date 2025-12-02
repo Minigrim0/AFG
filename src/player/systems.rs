@@ -1,5 +1,8 @@
 use bevy::prelude::*;
+use bevy::input::mouse::MouseButtonInput;
+use bevy::window::PrimaryWindow;
 use bevy_rapier2d::{prelude::*, rapier};
+use bevy_rapier2d::plugin::RapierContext;
 use rand::Rng;
 
 use crate::player::components::{Crashed, IsSelected};
@@ -130,5 +133,63 @@ pub fn update_health(time: Res<Time>, mut bot_query: Query<(&mut Health, &Transf
         }
 
         // health.foreground_sprite.
+    }
+}
+
+/// Handles selecting bots on the board
+pub fn mouse_button_events(
+    mut commands: Commands,
+    mut mousebtn_evr: EventReader<MouseButtonInput>,
+    q_windows: Query<&Window, With<PrimaryWindow>>,
+    q_camera: Query<(&Camera, &GlobalTransform)>,
+    mut q_selected_entity: Query<Entity, With<IsSelected>>,
+    bots: Query<(), With<Bot>>,
+    rapier_context: ReadRapierContext,
+) {
+    use bevy::input::ButtonState;
+
+    let Ok(rapier_context) = rapier_context.single() else {
+        println!("Unable to get rapier context for mouse click");
+        return;
+    };
+
+    for ev in mousebtn_evr.read() {
+        if ev.state == ButtonState::Pressed {
+            let Ok((camera, camera_transform)) = q_camera.single() else {
+                continue;
+            };
+            let Ok(Some(mouse_position)) = q_windows
+                .single()
+                .map(|window| {
+                    if let Some(cursor_position) = window.cursor_position() {
+                        if let Ok(position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
+                            Some(position)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+            else {
+                continue;
+            };
+
+            rapier_context.intersections_with_point(
+                mouse_position,
+                QueryFilter::default(),
+                |entity| {
+                    if bots.get(entity).is_ok() {
+                        commands.entity(entity).insert(IsSelected);
+                        if let Ok(previously_selected) = q_selected_entity.single_mut() {
+                            commands.entity(previously_selected).remove::<IsSelected>();
+                        }
+                    }
+
+                    // Return `false` to stop searching for other colliders containing this point.
+                    false
+                },
+            );
+        }
     }
 }
