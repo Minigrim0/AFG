@@ -2,6 +2,9 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 
+#[derive(Component)]
+pub struct IsSelected;
+
 // Define the components for the player entity
 #[derive(Component)]
 pub struct Bot {

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::{prelude::*, rapier};
 use rand::Rng;
 
-use crate::player::components::Crashed;
+use crate::player::components::{Crashed, IsSelected};
 use crate::{map::MapHandle, Map};
 use machine::prelude::{Program, VirtualMachine};
 
