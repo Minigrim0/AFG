@@ -42,6 +42,21 @@ impl VirtualMachine {
         vm
     }
 
+    pub fn reset(&mut self) {
+        self.registers[Registers::TSP as usize] = STACK_SIZE as i32;
+        self.registers[Registers::SBP as usize] = STACK_SIZE as i32;
+
+        self.flags = 0;
+        self.next_flags = 0;
+
+        self.memory = [0; MEMORY_SIZE];
+        self.status = if self.program.is_some() {
+            MachineStatus::Ready
+        } else {
+            MachineStatus::Empty
+        };
+    }
+
     pub fn with_program(mut self, program: Vec<Instruction>) -> VirtualMachine {
         self.program = Some(program);
         self.status = MachineStatus::Ready;
