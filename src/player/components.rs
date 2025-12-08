@@ -18,6 +18,10 @@ pub struct Bot {
 pub struct ProgramLoaded;
 
 #[derive(Component)]
+/// The spawn place of the bot. Used for respawm purposes
+pub struct SpawnPlace(pub Vec3);
+
+#[derive(Component)]
 /// Component for the bot's health. It contains the current health,
 /// the max health, the last time the bot was damaged, the health
 /// regen rate and the sprites for the health bar

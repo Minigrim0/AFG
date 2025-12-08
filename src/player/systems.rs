@@ -1,11 +1,11 @@
-use bevy::prelude::*;
 use bevy::input::mouse::MouseButtonInput;
+use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_rapier2d::{prelude::*, rapier};
 use bevy_rapier2d::plugin::RapierContext;
+use bevy_rapier2d::{prelude::*, rapier};
 use rand::Rng;
 
-use crate::player::components::{Crashed, IsSelected};
+use crate::player::components::{Crashed, IsSelected, SpawnPlace};
 use crate::{map::MapHandle, Map};
 use machine::prelude::{Program, VirtualMachine};
 
@@ -21,13 +21,18 @@ pub fn setup(
     asset_server: Res<AssetServer>,
 ) {
     let program = asset_server.load("programs/move_and_turn.asmfg");
-    for index in 0..1 {
+    for index in 0..10 {
         let spawn_position = if let Some(map) = maps.get(map.0.id()) {
             let possibilities = if index % 2 == 0 {
                 map.spawn_places.0
             } else {
                 map.spawn_places.1
             };
+            println!(
+                "Possibilities are x: {}-{}, y: {}-{}",
+                possibilities.0, possibilities.2, possibilities.1, possibilities.3
+            );
+
             (
                 rand::thread_rng().gen_range(possibilities.0..possibilities.0 + possibilities.2)
                     as f32
@@ -41,6 +46,10 @@ pub fn setup(
         } else {
             (0.0, 0.0)
         };
+        println!(
+            "Spawning bot {index} at position ({}, {})",
+            spawn_position.0, spawn_position.1
+        );
 
         // Spawn the player entity with all its components
         commands.spawn(PlayerBundle {
@@ -52,6 +61,7 @@ pub fn setup(
             program_handle: ProgramHandle(program.clone()),
             sprite: Sprite::from_image(asset_server.load("sprites/soldier.png")),
             transform: Transform::from_xyz(spawn_position.0, spawn_position.1, 0.0),
+            spawn_place: SpawnPlace(Vec3::new(spawn_position.0, spawn_position.1, 0.0)),
             collider: Collider::ball(25.0),
             body: RigidBody::Dynamic,
             velocity: Velocity::default(),
@@ -158,20 +168,19 @@ pub fn mouse_button_events(
             let Ok((camera, camera_transform)) = q_camera.single() else {
                 continue;
             };
-            let Ok(Some(mouse_position)) = q_windows
-                .single()
-                .map(|window| {
-                    if let Some(cursor_position) = window.cursor_position() {
-                        if let Ok(position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
-                            Some(position)
-                        } else {
-                            None
-                        }
+            let Ok(Some(mouse_position)) = q_windows.single().map(|window| {
+                if let Some(cursor_position) = window.cursor_position() {
+                    if let Ok(position) =
+                        camera.viewport_to_world_2d(camera_transform, cursor_position)
+                    {
+                        Some(position)
                     } else {
                         None
                     }
-                })
-            else {
+                } else {
+                    None
+                }
+            }) else {
                 continue;
             };
 

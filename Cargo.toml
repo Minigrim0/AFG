@@ -23,5 +23,5 @@ bevy_egui = "0.34.1"
 afg-machine = { path = "machine", features = ["bevy"] }
 
 [workspace]
-members = ["compiler", "machine"]
+members = ["compiler", "machine", "map_editor"]
 resolver = "2"
