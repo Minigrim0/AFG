@@ -2,7 +2,7 @@ use bevy::{
     asset::{io::Reader, AssetLoader, LoadContext},
     prelude::*,
 };
-use machine::prelude::{Program, ParsingError, parse};
+use machine::prelude::{parse, ParsingError, Program};
 use thiserror::Error;
 
 #[non_exhaustive]
@@ -31,13 +31,17 @@ impl AssetLoader for ProgramLoader {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let text: String = bytes.iter().map(|b| char::from(*b)).collect();
-        let instructions = match parse(text) {
+        let instructions = match parse(&text) {
             Err(e) => {
                 println!("Error: {}", e);
-                return Err(e.into())
-            },
-            Ok(i) => i
+                return Err(e.into());
+            }
+            Ok(i) => i,
         };
-        Ok(Program { instructions, original_file: "unknown".to_string() })
+        Ok(Program {
+            instructions,
+            original_file: "unknown".to_string(),
+            textual_instructions: text,
+        })
     }
 }

@@ -13,6 +13,7 @@ use crate::player::components::SpawnPlace;
 use super::components::Bot;
 
 #[derive(Component)]
+/// The program handle gets attached to newly spawned bots and is removed when the program is loaded on the bot.
 pub struct ProgramHandle(pub Handle<Program>);
 
 /// A player's bundle

@@ -226,10 +226,10 @@ fn get_asmfg_keywords() -> HashSet<&'static str> {
 
 pub fn highlight_asmfg_syntax(
     ui: &egui::Ui,
-    text: &str,
+    _text: &str,
     wrap_width: f32,
 ) -> std::sync::Arc<egui::Galley> {
-    let keywords = get_asmfg_keywords();
+    let _keywords = get_asmfg_keywords();
     let mut job = LayoutJob::default();
 
     job.wrap.max_width = wrap_width;

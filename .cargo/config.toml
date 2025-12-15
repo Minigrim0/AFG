@@ -1,6 +1,3 @@
 [build]
 jobs = 8
 incremental = true
-
-[env]
-PKG_CONFIG_PATH = "/nix/store/a3608q50a1v0fcap02zq8gyjzxqhd85s-systemd-minimal-libs-257.10/lib/pkgconfig:/nix/store/b5hiy600d9sarkx0x7j6c85lkh64g1q8-alsa-lib-1.2.13/lib/pkgconfig:/nix/store/zr2df9arcy1xs1jkwb2rs0ym8hmgbjws-vulkan-loader-1.4.313.0/lib/pkgconfig:/nix/store/2yvh4kwhfd65dcd3r6y6bgdwclfndvzr-libX11-1.8.12/lib/pkgconfig:/nix/store/c0z5kfib8j6xcmbkdknwkkqy38nwph4c-libXcursor-1.2.3/lib/pkgconfig:/nix/store/frfb398wg8imfw5r0ac18gy389by0vap-libXi-1.8.2/lib/pkgconfig:/nix/store/fxw37cf0j4zp5xagyq0j144536qwc9q4-libXrandr-1.5.4/lib/pkgconfig:/nix/store/k9ab9lfy15l7br6iagxiwdgdi9kkby88-libxkbcommon-1.8.1/lib/pkgconfig:/nix/store/b3gdmzfivf8dx6c6lvix14fybyig2i4w-wayland-1.23.1/lib/pkgconfig:/nix/store/cwbrbp3yjmcn622gdwj0myhk07d527x8-imagemagick-7.1.2-8/lib/pkgconfig"

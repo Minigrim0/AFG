@@ -1,10 +1,14 @@
-use bevy::prelude::ResMut;
+use bevy::prelude::*;
 use bevy_egui::egui;
+use machine::prelude::{VirtualMachine, VirtualMachineMetaData};
+
+use crate::{editor::highlight::highlight_asmfg_syntax, player::components::IsSelected};
 
 use super::highlight::highlight_afg_syntax;
 
 // Example usage in your Bevy system
 pub fn afg_code_editor_system(
+    current_bot: Query<(&IsSelected, &VirtualMachineMetaData, &VirtualMachine)>,
     mut contexts: bevy_egui::EguiContexts,
     mut code: ResMut<AfgSourceCode>,
 ) {
@@ -12,31 +16,44 @@ pub fn afg_code_editor_system(
         .default_width(800.0)
         .default_height(600.0)
         .show(contexts.ctx_mut(), |ui| {
-            ui.heading("Bot Programming");
+            ui.heading("Bot Editor");
 
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::TextEdit::multiline(&mut code.source)
-                        .code_editor()
-                        .desired_width(f32::INFINITY)
-                        .desired_rows(25)
-                        .lock_focus(true)
-                        .layouter(&mut |ui, string, wrap_width| {
-                            highlight_afg_syntax(ui, string, wrap_width)
-                        }),
-                );
-
-                ui.add(
-                    egui::TextEdit::multiline(&mut code.compiled.unwrap_or(String::new()))
-                        .code_editor()
-                        .desired_width(f32::INFINITY)
-                        .desired_rows(25)
-                        .lock_focus(true)
-                        .layouter(&mut |ui, string, wrap_width| {
-                            highlight_afg_syntax(ui, string, wrap_width)
-                        }),
-                )
+            let _ = current_bot.single().map_err(|e| {
+                error!("Can't get single bot: {e}");
             });
+
+            if let Ok((_, vm_meta, _vm)) = current_bot.single() {
+                let program_text = vm_meta.text();
+                ui.horizontal(|ui| {
+                    if let Ok(mut text) = program_text.lock() {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut *text)
+                                .code_editor()
+                                .desired_width(400.0)
+                                .desired_rows(25)
+                                .lock_focus(true)
+                                .layouter(&mut |ui, string, wrap_width| {
+                                    highlight_afg_syntax(ui, string, wrap_width)
+                                }),
+                        );
+                    }
+
+                    ui.add(
+                        egui::TextEdit::multiline(
+                            &mut code.compiled.clone().unwrap_or("".to_string()),
+                        )
+                        .code_editor()
+                        .desired_width(200.0)
+                        .desired_rows(25)
+                        .lock_focus(true)
+                        .layouter(&mut |ui, string, wrap_width| {
+                            highlight_asmfg_syntax(ui, string, wrap_width)
+                        }),
+                    );
+                });
+            } else {
+                ui.label("No bot selected");
+            }
 
             ui.horizontal(|ui| {
                 if ui.button("Compile").clicked() {

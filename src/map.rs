@@ -44,8 +44,8 @@ pub fn spawn_map(
             commands
                 .spawn(RigidBody::Fixed)
                 .insert(Collider::cuboid(
-                    (wall.width as f32 * tile_size as f32) / 2.0,
-                    (wall.height as f32 * tile_size as f32) / 2.0,
+                    (wall.width as f32 * tile_size) / 2.0,
+                    (wall.height as f32 * tile_size) / 2.0,
                 ))
                 .insert(Transform::from_xyz(
                     wall.x as f32 * tile_size + (wall.width as f32 * tile_size) / 2.0,

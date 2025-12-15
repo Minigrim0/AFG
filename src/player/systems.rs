@@ -1,9 +1,10 @@
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_rapier2d::plugin::RapierContext;
-use bevy_rapier2d::{prelude::*, rapier};
+use bevy_rapier2d::prelude::*;
 use rand::Rng;
+
+// use log;
 
 use crate::player::components::{Crashed, IsSelected, SpawnPlace};
 use crate::{map::MapHandle, Map};
@@ -80,7 +81,10 @@ pub fn attach_program_to_player(
             commands
                 .entity(entity)
                 .remove::<ProgramHandle>()
-                .insert(super::components::ProgramLoaded);
+                .insert(super::components::ProgramLoaded)
+                .insert(machine::prelude::VirtualMachineMetaData::new(
+                    program.textual_instructions.clone(),
+                ));
         }
     }
 }
@@ -102,14 +106,14 @@ pub fn update_player(
     asset_server: Res<AssetServer>,
 ) {
     let Ok(rapier_context) = rapier_context.single() else {
-        println!("Can't get rapier context.");
+        error!("Can't get rapier context.");
         return;
     };
 
     for (entity, bot, mut vm, mut transform, mut vel) in query.iter_mut() {
         if let Err(e) = vm.tick() {
             // The bot crashed or completed its execution
-            println!("Oh noes {}", e);
+            error!("Oh noes {}", e);
             commands
                 .entity(entity)
                 .insert(Crashed)
@@ -128,7 +132,7 @@ pub fn update_player(
 
 /// System to update the health sprite of the bots
 pub fn update_health(time: Res<Time>, mut bot_query: Query<(&mut Health, &Transform), With<Bot>>) {
-    for (mut health, transform) in bot_query.iter_mut() {
+    for (mut health, _transform) in bot_query.iter_mut() {
         if let Some(regen_timer) = &mut health.no_regen_timer {
             // Wait for the timer to expire to regenerate
             regen_timer.tick(time.delta());
@@ -170,13 +174,9 @@ pub fn mouse_button_events(
             };
             let Ok(Some(mouse_position)) = q_windows.single().map(|window| {
                 if let Some(cursor_position) = window.cursor_position() {
-                    if let Ok(position) =
-                        camera.viewport_to_world_2d(camera_transform, cursor_position)
-                    {
-                        Some(position)
-                    } else {
-                        None
-                    }
+                    camera
+                        .viewport_to_world_2d(camera_transform, cursor_position)
+                        .ok()
                 } else {
                     None
                 }
@@ -189,10 +189,11 @@ pub fn mouse_button_events(
                 QueryFilter::default(),
                 |entity| {
                     if bots.get(entity).is_ok() {
-                        commands.entity(entity).insert(IsSelected);
                         if let Ok(previously_selected) = q_selected_entity.single_mut() {
                             commands.entity(previously_selected).remove::<IsSelected>();
                         }
+                        info!("Selecting bot {}", entity.index());
+                        commands.entity(entity).insert(IsSelected);
                     }
 
                     // Return `false` to stop searching for other colliders containing this point.

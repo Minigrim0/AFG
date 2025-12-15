@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::color::palettes::css::{BLUE, GREEN, RED};
+use bevy::color::palettes::css::{BLUE, RED};
 use bevy::prelude::*;
 use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::*;
