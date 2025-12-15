@@ -1,6 +1,15 @@
 use std::fmt;
 
-use super::types::TokenType;
+mod lexer;
+mod types;
+mod utils;
+
+pub use lexer::lex;
+pub use types::TokenType;
+pub use utils::{ensure_next_token, get_until};
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone)]
 pub struct Token {
