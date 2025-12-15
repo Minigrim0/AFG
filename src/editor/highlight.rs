@@ -140,7 +140,7 @@ pub fn highlight_afg_syntax(
                 }
             };
 
-            let is_bold = keywords.contains(word.as_str());
+            // let is_bold = keywords.contains(word.as_str());
 
             job.append(
                 &word,
@@ -208,6 +208,29 @@ pub fn highlight_afg_syntax(
         );
         i += 1;
     }
+
+    job.wrap.max_width = wrap_width;
+    ui.fonts(|f| f.layout_job(job))
+}
+
+// AFG language keywords
+fn get_asmfg_keywords() -> HashSet<&'static str> {
+    [
+        "mov", "add", "sub", "mul", "div", "call", "load", "store", "jmp", "jz", "jn", "ret",
+        "print",
+    ]
+    .iter()
+    .cloned()
+    .collect()
+}
+
+pub fn highlight_asmfg_syntax(
+    ui: &egui::Ui,
+    text: &str,
+    wrap_width: f32,
+) -> std::sync::Arc<egui::Galley> {
+    let keywords = get_asmfg_keywords();
+    let mut job = LayoutJob::default();
 
     job.wrap.max_width = wrap_width;
     ui.fonts(|f| f.layout_job(job))

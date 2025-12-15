@@ -14,16 +14,29 @@ pub fn afg_code_editor_system(
         .show(contexts.ctx_mut(), |ui| {
             ui.heading("Bot Programming");
 
-            ui.add(
-                egui::TextEdit::multiline(&mut code.source)
-                    .code_editor()
-                    .desired_width(f32::INFINITY)
-                    .desired_rows(25)
-                    .lock_focus(true)
-                    .layouter(&mut |ui, string, wrap_width| {
-                        highlight_afg_syntax(ui, string, wrap_width)
-                    }),
-            );
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut code.source)
+                        .code_editor()
+                        .desired_width(f32::INFINITY)
+                        .desired_rows(25)
+                        .lock_focus(true)
+                        .layouter(&mut |ui, string, wrap_width| {
+                            highlight_afg_syntax(ui, string, wrap_width)
+                        }),
+                );
+
+                ui.add(
+                    egui::TextEdit::multiline(&mut code.compiled.unwrap_or(String::new()))
+                        .code_editor()
+                        .desired_width(f32::INFINITY)
+                        .desired_rows(25)
+                        .lock_focus(true)
+                        .layouter(&mut |ui, string, wrap_width| {
+                            highlight_afg_syntax(ui, string, wrap_width)
+                        }),
+                )
+            });
 
             ui.horizontal(|ui| {
                 if ui.button("Compile").clicked() {
@@ -47,6 +60,7 @@ pub fn afg_code_editor_system(
 #[derive(bevy::prelude::Resource)]
 pub struct AfgSourceCode {
     pub source: String,
+    pub compiled: Option<String>,
 }
 
 impl Default for AfgSourceCode {
@@ -78,6 +92,7 @@ fn avoid_obstacle() {
     set $Velocity[0] = 200;  // Resume speed
 }"#,
             ),
+            compiled: None,
         }
     }
 }
