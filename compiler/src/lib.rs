@@ -104,6 +104,7 @@
 /// extensible and maintainable.
 pub mod allocation;
 pub mod ast;
+pub mod error;
 pub mod labels;
 pub mod liveness;
 pub mod pasm;

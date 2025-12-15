@@ -1,30 +1,48 @@
 use std::fmt;
 use std::iter::Peekable;
 
+use crate::error::{TokenError, TokenErrorType};
+
 use super::{types::TokenType, Token};
 
 pub fn ensure_next_token<T: Iterator<Item = Token>>(
     stream: &mut Peekable<T>,
     expected_ttype: TokenType,
     expected_value: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), TokenError> {
     match stream.next() {
         Some(t) => match (t.token_type, t.value) {
             (ttype, value) if ttype == expected_ttype && value == expected_value => Ok(()),
-            (ttype, value) if ttype == expected_ttype => Err(format!(
-                "Expected next token to have value {:?} but found {:?}",
-                expected_value, value
+            (ttype, value) if ttype == expected_ttype => Err(TokenError::new(
+                TokenErrorType::UnexpectedToken,
+                format!(
+                    "Expected next token to have value {:?} but found {:?}",
+                    expected_value, value
+                ),
+                Some(t.meta),
             )),
-            (ttype, value) if value == expected_value => Err(format!(
-                "Expected next token to have type {:?} but found {:?}",
-                expected_ttype, ttype
+            (ttype, value) if value == expected_value => Err(TokenError::new(
+                TokenErrorType::UnexpectedToken,
+                format!(
+                    "Expected next token to have type {:?} but found {:?}",
+                    expected_ttype, ttype
+                ),
+                Some(t.meta),
             )),
-            (ttype, value) => Err(format!(
-                "Expected next token to have type {:?} and value {:?} but found {:?}, {:?}",
-                expected_ttype, expected_value, ttype, value
+            (ttype, value) => Err(TokenError::new(
+                TokenErrorType::UnexpectedToken,
+                format!(
+                    "Expected next token to have type {:?} and value {:?} but found {:?}, {:?}",
+                    expected_ttype, expected_value, ttype, value
+                ),
+                Some(t.meta),
             )),
         },
-        None => Err("Expected a token but found nothing".to_string()),
+        None => Err(TokenError::new(
+            TokenErrorType::UnexpectedEndOfStream,
+            "Expected a token but found nothing".to_string(),
+            None,
+        )),
     }
 }
 

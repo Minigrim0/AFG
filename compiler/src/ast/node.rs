@@ -1,7 +1,10 @@
 use log::error;
 use std::{fmt, iter::Peekable};
 
-use crate::token::{ensure_next_token, Token, TokenType};
+use crate::{
+    error::{TokenError, TokenErrorType},
+    token::{ensure_next_token, Token, TokenMetaData, TokenType},
+};
 
 use super::super::token::get_until;
 
@@ -197,15 +200,26 @@ impl Default for Node {
     }
 }
 
-fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Node, String> {
+fn new_id_or_litteral<T: Iterator<Item = Token>>(
+    tokens: &mut Peekable<T>,
+    previous_token_md: TokenMetaData,
+) -> Result<Node, TokenError> {
     if tokens.peek().and_then(|t| Some(&t.token_type)) != Some(&TokenType::ID) {
         if let Some(token) = tokens.peek() {
-            return Err(format!(
-                "Unexpected token type {:?} expected an ID or a litteral (line: {} char: {})",
-                token.token_type, token.line, token.char
+            return Err(TokenError::new(
+                TokenErrorType::UnexpectedToken,
+                format!(
+                    "Unexpected token type {:?} expected an ID or a litteral",
+                    token.token_type
+                ),
+                Some(token.meta),
             ));
         } else {
-            return Err("Unexpected end of token stream".to_string());
+            return Err(TokenError::new(
+                TokenErrorType::UnexpectedEndOfStream,
+                "Unexpected end of token stream".to_string(),
+                Some(previous_token_md),
+            ));
         }
     }
 
@@ -218,20 +232,36 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
                     Ok(v) => v,
                     Err(_) => unreachable!(),
                 },
-                None => return Err("Token should be ID or Litteral but has no value !".to_string()),
+                None => {
+                    return Err(TokenError::new(
+                        TokenErrorType::Invalid,
+                        "Token should be ID or Litteral but has no value !".to_string(),
+                        Some(token.meta),
+                    ))
+                }
             },
         })
     } else {
         let base_identifier = match &token.value {
             Some(v) => Node::new_identifier(v.clone()),
-            None => return Err("Token should have a value".to_string()),
+            None => {
+                return Err(TokenError::new(
+                    TokenErrorType::Invalid,
+                    "Token should have a value",
+                    Some(token.meta),
+                ))
+            }
         };
 
         if tokens.peek().and_then(|t| Some(&t.token_type)) == Some(&TokenType::LBRACKET) {
             tokens.next();
             let result = Ok(Node::MemoryOffset {
                 base: Box::from(base_identifier),
-                offset: match tokens.next().ok_or("Missing token for memory offset")? {
+                offset: match tokens.next().ok_or(TokenError::new(
+                    TokenErrorType::UnexpectedEndOfStream,
+                    "Missing token for memory offset",
+                    None,
+                ))? {
                     token if token.is_literal() => Box::from(Node::Litteral {
                         value: token.get_literal_value()?,
                     }),
@@ -240,7 +270,11 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
                     }),
                     token => {
                         error!("Invalid token {:?}", token);
-                        return Err("Invalid token type for new id or literal".to_string());
+                        return Err(TokenError::new(
+                            TokenErrorType::Invalid,
+                            "Invalid token type for new id or literal",
+                            Some(token.meta),
+                        ));
                     }
                 },
             });
@@ -252,7 +286,12 @@ fn new_id_or_litteral<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Re
     }
 }
 
-fn new_operator(operator: String, lparam: Box<Node>, rparam: Box<Node>) -> Result<Node, String> {
+fn new_operator(
+    operator: String,
+    lparam: Box<Node>,
+    rparam: Box<Node>,
+    md: TokenMetaData,
+) -> Result<Node, TokenError> {
     Ok(Node::Operation {
         rparam,
         lparam,
@@ -263,9 +302,10 @@ fn new_operator(operator: String, lparam: Box<Node>, rparam: Box<Node>) -> Resul
             "/" => OperationType::Division,
             "%" => OperationType::Modulo,
             op => {
-                return Err(format!(
-                    "Unknown operator {}, expected one of +, -, *, /, %",
-                    op
+                return Err(TokenError::new(
+                    TokenErrorType::InvalidArithmeticOperator,
+                    format!("Unknown operator {}, expected one of +, -, *, /, %", op),
+                    Some(md),
                 ))
             }
         },
@@ -276,7 +316,8 @@ fn new_comp_operator(
     operator: String,
     lparam: Box<Node>,
     rparam: Box<Node>,
-) -> Result<Node, String> {
+    md: TokenMetaData,
+) -> Result<Node, TokenError> {
     Ok(Node::Comparison {
         lparam,
         rparam,
@@ -288,19 +329,26 @@ fn new_comp_operator(
             "<=" => ComparisonType::LE,
             "<" => ComparisonType::LT,
             op => {
-                return Err(format!(
-                    "Unknown comparison operator {}, expected one of >, >=, ==, !=, <=, <",
-                    op
+                return Err(TokenError::new(
+                    TokenErrorType::InvalidComparisonOperator,
+                    format!(
+                        "Unknown comparison operator {}, expected one of >, >=, ==, !=, <=, <",
+                        op
+                    ),
+                    Some(md),
                 ))
             }
         },
     })
 }
 
-fn new_return<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Node, String> {
+fn new_return<T: Iterator<Item = Token>>(
+    tokens: &mut Peekable<T>,
+    p_md: TokenMetaData,
+) -> Result<Node, TokenError> {
     if tokens.peek().is_some() {
         Ok(Node::Return {
-            value: Box::from(new_id_or_litteral(tokens)?),
+            value: Box::from(new_id_or_litteral(tokens, p_md)?),
         })
     } else {
         Ok(Node::Return {
@@ -309,7 +357,7 @@ fn new_return<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Nod
     }
 }
 
-fn new_loop<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
+fn new_loop<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, TokenError> {
     Ok(Node::Loop {
         content: parse_block(stream)?,
     })
@@ -318,9 +366,10 @@ fn new_loop<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node,
 fn new_function_call<T: Iterator<Item = Token>>(
     func_id: String,
     mut params: Peekable<T>,
+    p_md: TokenMetaData,
 ) -> Result<Node, String> {
     let mut parameters = vec![];
-    while let Ok(param) = new_id_or_litteral(&mut params) {
+    while let Ok(param) = new_id_or_litteral(&mut params, p_md) {
         parameters.push(Box::from(param));
     }
 
@@ -361,13 +410,20 @@ fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<No
 }
 
 /// Parses an assignment instructions
-fn parse_assignment<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
+fn parse_assignment<T: Iterator<Item = Token>>(
+    stream: &mut Peekable<T>,
+    p_md: TokenMetaData,
+) -> Result<Node, TokenError> {
     let mut assignment_stream = get_until(stream, TokenType::ENDL, false);
 
     let lparam = if assignment_stream.peek().is_some() {
-        new_id_or_litteral(&mut assignment_stream)?
+        new_id_or_litteral(&mut assignment_stream, p_md)?
     } else {
-        return Err("Expected identifier after `set` keyword".to_string());
+        return Err(TokenError::new(
+            crate::error::TokenErrorType::UnexpectedEndOfStream,
+            "Expected identifier after `set` keyword".to_string(),
+            Some(p_md),
+        ));
     };
 
     ensure_next_token(&mut assignment_stream, TokenType::OP, Some("=".to_string()))?;
@@ -377,17 +433,17 @@ fn parse_assignment<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Resu
         .iter()
         .any(|t: &Token| matches!(t.token_type, TokenType::LPAREN | TokenType::RPAREN))
     {
-        parse_function_call(&mut remaining_stream.into_iter().peekable())?
+        parse_function_call(&mut remaining_stream.into_iter().peekable(), p_md)?
     } else {
         let mut assignment_iter = remaining_stream.into_iter().peekable();
-        let first_assignant = new_id_or_litteral(&mut assignment_iter)?;
+        let first_assignant = new_id_or_litteral(&mut assignment_iter, p_md)?;
         if assignment_iter.peek().is_some() {
             let operator = assignment_iter
                 .next()
                 .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
                 .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
 
-            let second_assignant = new_id_or_litteral(&mut assignment_iter)?;
+            let second_assignant = new_id_or_litteral(&mut assignment_iter, p_md)?;
 
             new_operator(
                 operator,
@@ -407,7 +463,8 @@ fn parse_assignment<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Resu
 
 fn parse_function_call<T: Iterator<Item = Token>>(
     stream: &mut Peekable<T>,
-) -> Result<Node, String> {
+    p_md: TokenMetaData,
+) -> Result<Node, TokenError> {
     if let Some(function_name) = stream.next() {
         let func_id = match function_name.value {
             Some(v) => v,
@@ -426,10 +483,13 @@ fn parse_function_call<T: Iterator<Item = Token>>(
     }
 }
 
-fn parse_if<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
+fn parse_if<T: Iterator<Item = Token>>(
+    stream: &mut Peekable<T>,
+    p_md: TokenMetaData,
+) -> Result<Node, TokenError> {
     let mut branching_condition_tokens = get_until(stream, TokenType::LBRACE, false);
 
-    let condition = parse_tricomp(&mut branching_condition_tokens)?;
+    let condition = parse_tricomp(&mut branching_condition_tokens, p_md)?;
 
     Ok(Node::IfCondition {
         condition: Box::from(condition),
@@ -437,23 +497,26 @@ fn parse_if<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node,
     })
 }
 
-fn parse_print<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
+fn parse_print<T: Iterator<Item = Token>>(
+    stream: &mut Peekable<T>,
+    p_md: TokenMetaData,
+) -> Result<Node, TokenError> {
     let mut print_argument = get_until(stream, TokenType::ENDL, false);
 
     Ok(Node::Print {
-        value: Box::from(new_id_or_litteral(&mut print_argument)?),
+        value: Box::from(new_id_or_litteral(&mut print_argument, p_md)?),
     })
 }
 
 /// Parses a block of code (within a function)
 pub fn parse_block<T: Iterator<Item = Token>>(
     stream: &mut Peekable<T>,
-) -> Result<CodeBlock, String> {
+) -> Result<CodeBlock, TokenError> {
     let mut block_tree = vec![];
     while let Some(token) = stream.next() {
         match token.token_type {
             TokenType::KEYWORD if token.value == Some("set".to_string()) => {
-                let assignment = parse_assignment(stream)?;
+                let assignment = parse_assignment(stream, t.metadata)?;
                 block_tree.push(Box::from(assignment));
             }
             TokenType::KEYWORD if token.value == Some("while".to_string()) => {
@@ -508,7 +571,7 @@ pub fn parse_block<T: Iterator<Item = Token>>(
             t => {
                 return Err(format!(
                     "Unexpected or unhandled token: {:?} {:?} (line: {}, char: {})",
-                    t, token.value, token.line, token.char
+                    t, token.value, token.metadata.line, token.metadata.char
                 ))
             }
         }

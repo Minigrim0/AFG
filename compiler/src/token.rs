@@ -8,15 +8,24 @@ pub use lexer::lex;
 pub use types::TokenType;
 pub use utils::{ensure_next_token, get_until};
 
+use crate::error::{TokenError, TokenErrorType};
+
 #[cfg(test)]
 mod tests;
 
+#[derive(Debug, Clone, Copy)]
+/// The metadata of a token, its line and starting character numbers
+pub struct TokenMetaData {
+    pub line: usize,
+    pub char: usize,
+}
+
 #[derive(Debug, Clone)]
+/// A token extracted from the raw string
 pub struct Token {
     pub token_type: TokenType,
     pub value: Option<String>,
-    pub line: usize,
-    pub char: usize,
+    pub meta: TokenMetaData,
 }
 
 impl Token {
@@ -24,8 +33,7 @@ impl Token {
         Self {
             token_type,
             value,
-            line,
-            char,
+            meta: TokenMetaData { line, char },
         }
     }
 
@@ -45,19 +53,33 @@ impl Token {
         self.token_type == of_type
     }
 
-    pub fn get_literal_value(&self) -> Result<i32, String> {
+    pub fn get_literal_value(&self) -> Result<i32, TokenError> {
         if let Some(value) = &self.value {
-            value.parse::<i32>().map_err(|e| e.to_string())
+            value.parse::<i32>().map_err(|e| {
+                TokenError::new(
+                    TokenErrorType::ParseError,
+                    format!("Unable to parse token value: {e}"),
+                    Some(self.meta),
+                )
+            })
         } else {
-            Err("Token has no value".to_string())
+            Err(TokenError::new(
+                TokenErrorType::NotALiteral,
+                "Token is not a literal",
+                Some(self.meta),
+            ))
         }
     }
 
-    pub fn get_value(&self) -> Result<String, String> {
+    pub fn get_value(&self) -> Result<String, TokenError> {
         if let Some(value) = &self.value {
             Ok(value.clone())
         } else {
-            Err("Token as no value".to_string())
+            Err(TokenError::new(
+                TokenErrorType::EmptyToken,
+                "Token as no value",
+                Some(self.meta),
+            ))
         }
     }
 }
