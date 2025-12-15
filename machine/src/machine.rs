@@ -6,6 +6,7 @@ const STACK_SIZE: usize = 256; // 1kB of stack (each value on the stack is 4 byt
 const MEMORY_SIZE: usize = 65536; // 64kB of memory
 
 #[cfg_attr(feature = "bevy", derive(bevy::prelude::Component))]
+/// A virtual machine for interpreting instructions
 pub struct VirtualMachine {
     registers: [i32; REGISTER_AMOUNT],
     stack: [i32; STACK_SIZE],
@@ -276,7 +277,8 @@ impl VirtualMachine {
         addition: bool,
         offset: usize,
     ) -> Result<i32, String> {
-        let stack_index: usize = self.stack_index(base_register, addition, offset)?; // Offset is incremented by one here because the stack pointer actually points one above the last value
+        // Offset is incremented by one here because the stack pointer actually points one above the last value
+        let stack_index: usize = self.stack_index(base_register, addition, offset)?;
         if let Some(value) = self.stack.get(stack_index) {
             Ok(*value)
         } else {

@@ -5,6 +5,10 @@ mod enums;
 mod errors;
 mod machine;
 mod parser;
+mod variables;
+
+#[cfg(feature = "bevy")]
+mod components;
 
 #[cfg(test)]
 mod tests;
@@ -33,6 +37,7 @@ impl fmt::Display for Instruction {
 pub struct Program {
     pub original_file: String,
     pub instructions: Vec<Instruction>,
+    pub textual_instructions: String,
 }
 
 impl Program {
@@ -43,19 +48,9 @@ impl Program {
         Ok(Self {
             original_file: path,
             instructions,
+            textual_instructions: contents,
         })
     }
-}
-
-pub fn get_special_variables() -> Vec<String> {
-    vec![
-        "$Position".to_string(), // Read-only position
-        "$Rotation".to_string(), // Read-only Rotation
-        "$RayDist".to_string(),
-        "$RayType".to_string(),
-        "$Velocity".to_string(),
-        "$Moment".to_string(),
-    ]
 }
 
 pub mod prelude {
@@ -63,6 +58,7 @@ pub mod prelude {
     pub use super::errors::*;
     pub use super::machine::*;
     pub use super::parser::*;
+    pub use super::variables::*;
     pub use super::Instruction;
     pub use super::Program;
 }
