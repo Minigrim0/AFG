@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::iter::Peekable;
 
+use crate::error::{TokenError, TokenErrorType};
 use crate::token::{Token, TokenType};
 
 mod function;
@@ -16,7 +17,7 @@ pub struct AST {
 }
 
 impl AST {
-    pub fn parse<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Self, String> {
+    pub fn parse<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Self, TokenError> {
         let mut program = HashMap::new();
 
         while let Some(token) = tokens.next() {
@@ -27,9 +28,10 @@ impl AST {
                 }
                 TokenType::ENDL => continue,
                 token_type => {
-                    return Err(format!(
-                        "Unexpected token {:?} {:?}",
-                        token_type, token.value
+                    return Err(TokenError::new(
+                        TokenErrorType::UnexpectedToken,
+                        format!("Unexpected token {:?} {:?}", token_type, token.value),
+                        Some(token.meta)
                     ))
                 }
             }

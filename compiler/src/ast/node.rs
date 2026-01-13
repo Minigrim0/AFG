@@ -367,7 +367,7 @@ fn new_function_call<T: Iterator<Item = Token>>(
     func_id: String,
     mut params: Peekable<T>,
     p_md: TokenMetaData,
-) -> Result<Node, String> {
+) -> Result<Node, TokenError> {
     let mut parameters = vec![];
     while let Ok(param) = new_id_or_litteral(&mut params, p_md) {
         parameters.push(Box::from(param));
@@ -381,24 +381,30 @@ fn new_function_call<T: Iterator<Item = Token>>(
 
 /// Parses a tri-comparison expression (e.g. $a < 10)
 /// Tokens is expected to be three items long !
-fn parse_tricomp<T>(tokens: &mut Peekable<T>) -> Result<Node, String>
+fn parse_tricomp<T>(tokens: &mut Peekable<T>) -> Result<Node, TokenError>
 where
     T: Iterator<Item = Token>,
 {
-    let lparam = new_id_or_litteral(tokens)?;
+    let initial_meta = tokens.peek().map(|t| t.meta).unwrap_or(TokenMetaData { line: 0, char: 0 });
+    let lparam = new_id_or_litteral(tokens, initial_meta)?;
 
-    let operator = tokens
+    let operator_token = tokens
         .next()
-        .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
-        .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
+        .ok_or_else(|| TokenError::new(
+            TokenErrorType::UnexpectedEndOfStream,
+            "Unable to find the comparison operator",
+            Some(initial_meta)
+        ))?;
+    let operator = operator_token.value.unwrap_or("MISSING_TOKEN".to_string());
+    let operator_meta = operator_token.meta;
 
-    let rparam = new_id_or_litteral(tokens)?;
+    let rparam = new_id_or_litteral(tokens, operator_meta)?;
 
-    new_comp_operator(operator, Box::from(lparam), Box::from(rparam))
+    new_comp_operator(operator, Box::from(lparam), Box::from(rparam), operator_meta)
 }
 
 /// Parses a while loop condition
-fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, String> {
+fn parse_while<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Node, TokenError> {
     let mut loop_condition_token_stream = get_until(stream, TokenType::LBRACE, false);
 
     let condition = parse_tricomp(&mut loop_condition_token_stream)?;
@@ -438,17 +444,23 @@ fn parse_assignment<T: Iterator<Item = Token>>(
         let mut assignment_iter = remaining_stream.into_iter().peekable();
         let first_assignant = new_id_or_litteral(&mut assignment_iter, p_md)?;
         if assignment_iter.peek().is_some() {
-            let operator = assignment_iter
+            let operator_token = assignment_iter
                 .next()
-                .and_then(|op| Some(Ok(op.value.unwrap_or("MISSING_TOKEN".to_string()))))
-                .unwrap_or(Err("Unable to find the comparison operator".to_string()))?;
+                .ok_or_else(|| TokenError::new(
+                    TokenErrorType::UnexpectedEndOfStream,
+                    "Unable to find the arithmetic operator",
+                    Some(p_md)
+                ))?;
+            let operator = operator_token.value.unwrap_or("MISSING_TOKEN".to_string());
+            let operator_meta = operator_token.meta;
 
-            let second_assignant = new_id_or_litteral(&mut assignment_iter, p_md)?;
+            let second_assignant = new_id_or_litteral(&mut assignment_iter, operator_meta)?;
 
             new_operator(
                 operator,
                 Box::from(first_assignant),
                 Box::from(second_assignant),
+                operator_meta,
             )?
         } else {
             first_assignant
@@ -466,30 +478,47 @@ fn parse_function_call<T: Iterator<Item = Token>>(
     p_md: TokenMetaData,
 ) -> Result<Node, TokenError> {
     if let Some(function_name) = stream.next() {
+        let fn_meta = function_name.meta;
         let func_id = match function_name.value {
             Some(v) => v,
             None => unreachable!(),
         };
 
-        if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LPAREN) {
-            return Err("Unexpected token after function name, expected (".to_string());
+        if let Some(next_token) = stream.next() {
+            if next_token.token_type != TokenType::LPAREN {
+                return Err(TokenError::new(
+                    TokenErrorType::UnexpectedToken,
+                    "Unexpected token after function name, expected (",
+                    Some(next_token.meta)
+                ));
+            }
+        } else {
+            return Err(TokenError::new(
+                TokenErrorType::UnexpectedEndOfStream,
+                "Expected LPAREN after function name",
+                Some(fn_meta)
+            ));
         }
 
         let function_call =
-            new_function_call(func_id, get_until(stream, TokenType::RPAREN, false))?;
+            new_function_call(func_id, get_until(stream, TokenType::RPAREN, false), fn_meta)?;
         Ok(function_call)
     } else {
-        Err("Missing function name after call keyword".to_string())
+        Err(TokenError::new(
+            TokenErrorType::UnexpectedEndOfStream,
+            "Missing function name after call keyword",
+            Some(p_md)
+        ))
     }
 }
 
 fn parse_if<T: Iterator<Item = Token>>(
     stream: &mut Peekable<T>,
-    p_md: TokenMetaData,
+    _p_md: TokenMetaData,
 ) -> Result<Node, TokenError> {
     let mut branching_condition_tokens = get_until(stream, TokenType::LBRACE, false);
 
-    let condition = parse_tricomp(&mut branching_condition_tokens, p_md)?;
+    let condition = parse_tricomp(&mut branching_condition_tokens)?;
 
     Ok(Node::IfCondition {
         condition: Box::from(condition),
@@ -516,7 +545,7 @@ pub fn parse_block<T: Iterator<Item = Token>>(
     while let Some(token) = stream.next() {
         match token.token_type {
             TokenType::KEYWORD if token.value == Some("set".to_string()) => {
-                let assignment = parse_assignment(stream, t.metadata)?;
+                let assignment = parse_assignment(stream, token.meta)?;
                 block_tree.push(Box::from(assignment));
             }
             TokenType::KEYWORD if token.value == Some("while".to_string()) => {
@@ -524,39 +553,45 @@ pub fn parse_block<T: Iterator<Item = Token>>(
                 block_tree.push(Box::from(while_block));
             }
             TokenType::KEYWORD if token.value == Some("if".to_string()) => {
-                let if_block = parse_if(stream)?;
+                let if_block = parse_if(stream, token.meta)?;
                 block_tree.push(Box::from(if_block));
             }
             TokenType::KEYWORD if token.value == Some("return".to_string()) => {
-                if let Some(token) = stream.peek() {
-                    match token.token_type {
+                let return_meta = token.meta;
+                if let Some(next_token) = stream.peek() {
+                    match next_token.token_type {
                         TokenType::ENDL => block_tree
-                            .push(Box::from(new_return(&mut vec![].into_iter().peekable())?)),
-                        TokenType::ID => block_tree.push(Box::from(new_return(stream)?)),
+                            .push(Box::from(new_return(&mut vec![].into_iter().peekable(), return_meta)?)),
+                        TokenType::ID => block_tree.push(Box::from(new_return(stream, return_meta)?)),
                         _ => continue,
                     }
                 }
             }
             TokenType::KEYWORD if token.value == Some("call".to_string()) => {
-                block_tree.push(Box::from(parse_function_call(stream)?));
+                block_tree.push(Box::from(parse_function_call(stream, token.meta)?));
             }
             TokenType::KEYWORD if token.value == Some("loop".to_string()) => {
                 if let Some(t) = stream.next() {
                     if t.token_type != TokenType::LBRACE {
-                        return Err(format!(
-                            "Unexpected token {:?} after loop keyword, expected LBRACE",
-                            t.token_type
+                        return Err(TokenError::new(
+                            TokenErrorType::UnexpectedToken,
+                            format!("Unexpected token {:?} after loop keyword, expected LBRACE", t.token_type),
+                            Some(t.meta)
                         ));
                     }
                 } else {
-                    return Err("Expected LBRACE after loop keyword".to_string());
+                    return Err(TokenError::new(
+                        TokenErrorType::UnexpectedEndOfStream,
+                        "Expected LBRACE after loop keyword",
+                        None
+                    ));
                 }
 
                 let loop_block = new_loop(stream)?;
                 block_tree.push(Box::from(loop_block));
             }
             TokenType::KEYWORD if token.value == Some("print".to_string()) => {
-                let print_block = parse_print(stream)?;
+                let print_block = parse_print(stream, token.meta)?;
                 block_tree.push(Box::from(print_block));
             }
             TokenType::COMMENT => {
@@ -569,9 +604,13 @@ pub fn parse_block<T: Iterator<Item = Token>>(
                 break;
             }
             t => {
-                return Err(format!(
-                    "Unexpected or unhandled token: {:?} {:?} (line: {}, char: {})",
-                    t, token.value, token.metadata.line, token.metadata.char
+                return Err(TokenError::new(
+                    TokenErrorType::UnexpectedToken,
+                    format!(
+                        "Unexpected or unhandled token: {:?} {:?} (line: {}, char: {})",
+                        t, token.value, token.meta.line, token.meta.char
+                    ),
+                    Some(token.meta)
                 ))
             }
         }

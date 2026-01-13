@@ -1,5 +1,6 @@
 use std::iter::Peekable;
 
+use crate::error::{TokenError, TokenErrorType};
 use crate::token::{Token, TokenType};
 
 use super::super::token::get_until;
@@ -21,16 +22,42 @@ impl Function {
         }
     }
 
-    pub fn parse<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Self, String> {
+    pub fn parse<T: Iterator<Item = Token>>(stream: &mut Peekable<T>) -> Result<Self, TokenError> {
         if let Some(function_name) = stream.next() {
-            if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LPAREN) {
-                return Err("Unexpected token after function name, expected (".to_string());
+            let fn_meta = function_name.meta;
+
+            if let Some(next_token) = stream.next() {
+                if next_token.token_type != TokenType::LPAREN {
+                    return Err(TokenError::new(
+                        TokenErrorType::UnexpectedToken,
+                        "Unexpected token after function name, expected (",
+                        Some(next_token.meta)
+                    ));
+                }
+            } else {
+                return Err(TokenError::new(
+                    TokenErrorType::UnexpectedEndOfStream,
+                    "Expected LPAREN after function name",
+                    Some(fn_meta)
+                ));
             }
 
             let args = get_until(stream, TokenType::RPAREN, false);
 
-            if stream.next().and_then(|t| Some(t.token_type)) != Some(TokenType::LBRACE) {
-                return Err("Unexpected token after function name, expected {".to_string());
+            if let Some(next_token) = stream.next() {
+                if next_token.token_type != TokenType::LBRACE {
+                    return Err(TokenError::new(
+                        TokenErrorType::UnexpectedToken,
+                        "Unexpected token after function parameters, expected {",
+                        Some(next_token.meta)
+                    ));
+                }
+            } else {
+                return Err(TokenError::new(
+                    TokenErrorType::UnexpectedEndOfStream,
+                    "Expected LBRACE after function parameters",
+                    Some(fn_meta)
+                ));
             }
 
             Ok(Self {
@@ -44,7 +71,11 @@ impl Function {
                 content: parse_block(stream)?,
             })
         } else {
-            Err("Missing function name".to_string())
+            Err(TokenError::new(
+                TokenErrorType::UnexpectedEndOfStream,
+                "Missing function name",
+                None
+            ))
         }
     }
 }

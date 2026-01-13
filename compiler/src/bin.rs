@@ -48,7 +48,7 @@ fn main() -> Result<(), String> {
     }
 
     info!("Parsing AST from tokens");
-    let program = AST::parse(&mut tokens.into_iter().peekable())?;
+    let program = AST::parse(&mut tokens.into_iter().peekable()).map_err(|e| format!("{}", e))?;
     if args.save_intermediate {
         let ast_output = args.input.clone() + ".ast";
         info!("Saving AST to {}", ast_output);
