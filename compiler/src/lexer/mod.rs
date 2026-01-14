@@ -1,19 +1,12 @@
 use nom::{
-    Parser,
-    branch::alt,
-    bytes::complete::{tag, take_until},
-    multi::{many0, many1},
-    sequence::terminated,
-    character::complete::{char, one_of},
-    combinator::{map, value, recognize},
-    error::Error
+    Parser, branch::alt, bytes::complete::{tag, take_until}, character::complete::{char, one_of}, combinator::{opt, map, recognize, value}, error::Error, multi::{many0, many1}, sequence::{pair, terminated}
 };
 
 pub mod token;
 mod utils;
 
 use token::{TokenKind, Token, TokenLocation};
-use utils::Span;
+use utils::{Span, LexResult};
 
 #[cfg(test)]
 mod tests;
@@ -132,6 +125,13 @@ fn comments_parser<'a>() -> impl Parser<Span<'a>, Output = (), Error = Error<Spa
     )
 }
 
+fn whitespace_parser<'a>() -> impl Parser<Span<'a>, Output = (), Error = Error<Span<'a>>> {
+    value(
+        (),
+        many1(one_of(" \t\r\n"))
+    )
+}
+
 fn literals_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
     map(
         recognize(
@@ -146,7 +146,91 @@ fn literals_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Er
     )
 }
 
-pub fn parse_source<'a>(source: &'a str) -> Vec<Token<'a>> {
+fn identifier_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
+    map(
+        recognize(
+            pair(
+                opt(char('$')), 
+                terminated(
+                    one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"),
+                    many0(one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
+                )
+            )
+        ),
+        |lexeme: Span| {
+            Token {
+                kind: TokenKind::Ident(lexeme.fragment()),
+                location: TokenLocation::new(&lexeme)
+            }
+        }
+    )
+}
 
-    vec![]
+fn token_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
+    alt((
+        keywords_parser(),
+        comparison_operators_parser(),
+        arithmetic_operators_parser(),
+        symbols_parser(),
+        literals_parser(),
+        identifier_parser()
+    ))
+}
+
+fn skip_ignorable<'a>(input: Span<'a>) -> Span<'a> {
+    let mut current_input = input;
+
+    loop {
+        let next_input = match whitespace_parser().parse(current_input) {
+            Ok(result) => result.0,
+            Err(_) => current_input,
+        };
+
+        let next_input = match comments_parser().parse(next_input) {
+            Ok(result) => result.0,
+            Err(_) => next_input,
+        };
+
+        if next_input.fragment() == current_input.fragment() {
+            break;
+        } else {
+            current_input = next_input;
+        }
+    }
+
+    current_input
+}
+
+pub fn parse_source<'a>(source: &'a str) -> LexResult<'a> {
+    let mut input = Span::new(source);
+    let mut tokens = Vec::new();
+    let mut errors = Vec::new();
+
+    loop {
+        input = skip_ignorable(input);
+
+        if input.fragment().is_empty() {
+            break;
+        }
+
+        match token_parser().parse(input) {
+            Ok((remaining, token)) => {
+                tokens.push(token);
+                input = remaining;
+            },
+            Err(e) => {
+                errors.push(utils::LexerError {
+                    message: format!("Failed to parse token: {:?}", e),
+                    location: TokenLocation::new(&input),
+                });
+                
+                input = Span::new(&input.fragment()[1..]);
+            }
+        }
+    }
+
+    LexResult {
+        tokens,
+        errors,
+    }
 }
