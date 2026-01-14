@@ -30,7 +30,7 @@ impl TokenLocation {
 pub enum TokenKind<'a> {
     Keyword(KeywordKind),
     Ident(&'a str),
-    Number(&'a str),
+    Literal(&'a str),  // Optional extension with literal kind
     Symbol(SymbolKind),
     Op(OperationKind),
     Comp(ComparisonKind),
@@ -66,6 +66,8 @@ pub enum OperationKind {
     Subtract,
     Multiply,
     Divide,
+    Modulo,
+    Assign,
 }
 
 #[derive(Debug, PartialEq, Clone)]
