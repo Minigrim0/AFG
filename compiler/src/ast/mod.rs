@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::iter::Peekable;
 
-use crate::error::{TokenError, TokenErrorType};
-use crate::token::{Token, TokenType};
+use crate::error::TokenError;
+use crate::lexer::{parse_source, token::Token};
 
 mod function;
 pub mod node;
+mod parser;
 
 use function::Function;
 pub use node::Node;
+pub use parser::Parser;
 
 #[derive(Debug)]
 pub struct AST {
@@ -17,27 +18,21 @@ pub struct AST {
 }
 
 impl AST {
-    pub fn parse<T: Iterator<Item = Token>>(tokens: &mut Peekable<T>) -> Result<Self, TokenError> {
-        let mut program = HashMap::new();
+    /// Parse source code into an AST
+    pub fn parse(source: &str) -> Result<Self, TokenError> {
+        let lex_result = parse_source(source);
 
-        while let Some(token) = tokens.next() {
-            match &token.token_type {
-                TokenType::KEYWORD if token.value == Some("fn".to_string()) => {
-                    let function = Function::parse(tokens)?;
-                    program.insert(function.name.clone(), function);
-                }
-                TokenType::ENDL => continue,
-                token_type => {
-                    return Err(TokenError::new(
-                        TokenErrorType::UnexpectedToken,
-                        format!("Unexpected token {:?} {:?}", token_type, token.value),
-                        Some(token.meta)
-                    ))
-                }
-            }
-        }
+        // TODO: Handle lexer errors properly
+        // For now, we'll ignore them and try to parse anyway
 
-        Ok(Self { functions: program })
+        let mut parser = Parser::new(lex_result.tokens);
+        parser.parse_program()
+    }
+
+    /// Parse from an existing token stream
+    pub fn parse_tokens(tokens: Vec<Token>) -> Result<Self, TokenError> {
+        let mut parser = Parser::new(tokens);
+        parser.parse_program()
     }
 
     pub fn new() -> Self {
