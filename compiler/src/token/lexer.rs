@@ -1,4 +1,4 @@
-use super::{types::TokenType, Token};
+use super::{kind::TokenType, Token};
 
 /// Transforms a sets of two operators into a single operator
 /// This transforms the token list from:
@@ -91,7 +91,10 @@ fn lex_negative_immediates(tokens: Vec<Token>) -> Vec<Token> {
     let mut new_tokens: Vec<Token> = vec![last_token.clone()];
 
     for token in tokens.iter().skip(1) {
-        if token.token_type == TokenType::OP && token.value == Some("-".to_string()) && &last_token.token_type != &TokenType::ID {
+        if token.token_type == TokenType::OP
+            && token.value == Some("-".to_string())
+            && &last_token.token_type != &TokenType::ID
+        {
             negate_next_token = true;
         } else {
             if negate_next_token {
@@ -115,7 +118,11 @@ fn lex_negative_immediates(tokens: Vec<Token>) -> Vec<Token> {
 /// Remove line return tokens from the list of tokens
 /// Line return tokens are only useful to remove comments from the code
 fn remove_line_returns(tokens: Vec<Token>) -> Vec<Token> {
-    tokens.iter().filter(|t| t.token_type != TokenType::LRTRN).cloned().collect()
+    tokens
+        .iter()
+        .filter(|t| t.token_type != TokenType::LRTRN)
+        .cloned()
+        .collect()
 }
 
 pub fn lex<S: AsRef<str>>(text: S) -> Vec<Token> {

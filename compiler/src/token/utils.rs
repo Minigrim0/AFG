@@ -3,7 +3,7 @@ use std::iter::Peekable;
 
 use crate::error::{TokenError, TokenErrorType};
 
-use super::{types::TokenType, Token};
+use super::{kind::TokenType, Token};
 
 pub fn ensure_next_token<T: Iterator<Item = Token>>(
     stream: &mut Peekable<T>,

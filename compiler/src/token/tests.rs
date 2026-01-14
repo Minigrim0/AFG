@@ -1,5 +1,5 @@
-use super::{types::TokenType, Token};
 use super::lex;
+use super::{kind::TokenType, Token};
 
 // ========================================
 // Token Behavior Tests
@@ -192,7 +192,9 @@ fn test_lexer_double_operator_merging() {
 
 #[test]
 fn test_lexer_keywords() {
-    let keywords = vec!["fn", "while", "set", "if", "else", "return", "loop", "call", "print"];
+    let keywords = vec![
+        "fn", "while", "set", "if", "else", "return", "loop", "call", "print",
+    ];
 
     for keyword in keywords {
         let lexed = lex(keyword);
@@ -268,7 +270,13 @@ fn test_lexer_single_line_comment() {
     let lexed = lex("set x = 5; // this is a comment");
     // Comments should be filtered out entirely
     assert!(lexed.iter().all(|t| t.token_type != TokenType::COMMENT));
-    assert_eq!(lexed.len(), 5, "There should be 5 tokens remaining in the lexed source (tokens: {} - {:?})", lexed.len(), lexed); // set, x, =, 5, ;
+    assert_eq!(
+        lexed.len(),
+        5,
+        "There should be 5 tokens remaining in the lexed source (tokens: {} - {:?})",
+        lexed.len(),
+        lexed
+    ); // set, x, =, 5, ;
 }
 
 #[test]
@@ -297,7 +305,8 @@ fn test_lexer_complex_arithmetic() {
     assert_eq!(lexed[0].value, Some("set".to_string()));
     assert_eq!(lexed[1].value, Some("result".to_string()));
     // Verify all operators are present
-    let operators: Vec<_> = lexed.iter()
+    let operators: Vec<_> = lexed
+        .iter()
         .filter(|t| t.token_type == TokenType::OP && t.value != Some("=".to_string()))
         .collect();
     assert_eq!(operators.len(), 5); // +, *, -, /, %
@@ -309,8 +318,20 @@ fn test_lexer_nested_function_call() {
     assert_eq!(lexed[0].value, Some("call".to_string()));
     assert_eq!(lexed[1].value, Some("outer".to_string()));
     // Verify parentheses and inner call structure
-    assert!(lexed.iter().filter(|t| t.token_type == TokenType::LPAREN).count() == 2);
-    assert!(lexed.iter().filter(|t| t.token_type == TokenType::RPAREN).count() == 2);
+    assert!(
+        lexed
+            .iter()
+            .filter(|t| t.token_type == TokenType::LPAREN)
+            .count()
+            == 2
+    );
+    assert!(
+        lexed
+            .iter()
+            .filter(|t| t.token_type == TokenType::RPAREN)
+            .count()
+            == 2
+    );
 }
 
 // ========================================
@@ -385,7 +406,7 @@ fn test_lexer_char_positions() {
 
     // Verify char positions are tracked
     assert_eq!(lexed[0].meta.char, 0); // "set" starts at 0
-    assert!(lexed[1].meta.char > 0);   // "x" is after "set "
+    assert!(lexed[1].meta.char > 0); // "x" is after "set "
 }
 
 // ========================================
@@ -415,9 +436,12 @@ fn test_lexer_only_semicolons() {
 fn test_lexer_comma_handling() {
     // Commas should be removed from identifiers
     let lexed = lex("fn test(a, b, c) {}");
-    let params: Vec<_> = lexed.iter()
+    let params: Vec<_> = lexed
+        .iter()
         .filter(|t| t.token_type == TokenType::ID && t.value.is_some())
         .collect();
     // Verify no commas in parameter names
-    assert!(params.iter().all(|t| !t.value.as_ref().unwrap().contains(",")));
+    assert!(params
+        .iter()
+        .all(|t| !t.value.as_ref().unwrap().contains(",")));
 }

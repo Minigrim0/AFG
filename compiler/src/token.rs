@@ -1,11 +1,11 @@
 use std::fmt;
 
+mod kind;
 mod lexer;
-mod types;
 mod utils;
 
+pub use kind::TokenType;
 pub use lexer::lex;
-pub use types::TokenType;
 pub use utils::{ensure_next_token, get_until};
 
 use crate::error::{TokenError, TokenErrorType};

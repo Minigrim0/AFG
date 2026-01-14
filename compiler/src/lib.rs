@@ -106,6 +106,7 @@ pub mod allocation;
 pub mod ast;
 pub mod error;
 pub mod labels;
+pub mod lexer;
 pub mod liveness;
 pub mod pasm;
 pub mod semantic;

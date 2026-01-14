@@ -9,6 +9,8 @@ petgraph = "0.7.1"
 afg-machine = { path = "../machine" }
 colog = "1.3.0"
 log = "0.4.25"
+nom = "8.0.0"
+nom_locate = "5.0.0"
 
 [[bin]]
 name = "compiler"
