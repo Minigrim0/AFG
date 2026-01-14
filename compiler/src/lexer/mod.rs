@@ -3,10 +3,11 @@ use nom::{
 };
 
 pub mod token;
-mod utils;
+pub mod utils;
 
 use token::{TokenKind, Token, TokenLocation};
-use utils::{Span, LexResult};
+pub use utils::{LexResult, LexerError};
+use utils::Span;
 
 #[cfg(test)]
 mod tests;

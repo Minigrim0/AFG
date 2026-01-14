@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use nom_locate::LocatedSpan;
 
 use crate::lexer::token::TokenLocation;
@@ -10,6 +12,16 @@ pub type Span<'a> = LocatedSpan<&'a str>;
 pub struct LexerError {
     pub message: String,
     pub location: TokenLocation,
+}
+
+impl Display for LexerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Lexer Error at line {}, column {}: {}",
+            self.location.line, self.location.column, self.message
+        )
+    }
 }
 
 pub struct LexResult<'a> {
