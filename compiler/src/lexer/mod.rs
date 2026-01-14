@@ -1,5 +1,5 @@
 use nom::{
-    Parser, branch::alt, bytes::complete::{tag, take_until}, character::complete::{char, one_of}, combinator::{opt, map, recognize, value}, error::Error, multi::{many0, many1}, sequence::{pair, terminated}
+    Parser, branch::alt, bytes::complete::{tag, take_until}, character::complete::{char, one_of}, combinator::{opt, map, recognize, value, not, peek}, error::Error, multi::{many0, many1}, sequence::{pair, terminated}
 };
 
 pub mod token;
@@ -32,17 +32,20 @@ fn symbols_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Err
 
 fn keywords_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
     map(
-        alt((
-            tag("fn"),
-            tag("while"),
-            tag("set"),
-            tag("if"),
-            tag("else"),
-            tag("return"),
-            tag("loop"),
-            tag("call"),
-            tag("print"),
-        )),
+        terminated(
+            alt((
+                tag("return"),
+                tag("print"),
+                tag("while"),
+                tag("else"),
+                tag("loop"),
+                tag("call"),
+                tag("set"),
+                tag("if"),
+                tag("fn"),
+            )),
+            peek(not(one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")))
+        ),
         |lexeme: Span| {
             Token {
                 kind: TokenKind::Keyword(match *lexeme.fragment() {
