@@ -1,5 +1,5 @@
 use nom::{
-    Parser, branch::alt, bytes::complete::{tag, take_until}, character::complete::{char, one_of}, combinator::{opt, map, recognize, value, not, peek}, error::Error, multi::{many0, many1}, sequence::{pair, terminated}
+    Parser, branch::alt, bytes::complete::{tag, take_until, take_while}, character::complete::{char, one_of}, combinator::{map, not, opt, peek, recognize, value}, error::Error, multi::{many0, many1}, sequence::{pair, terminated}
 };
 
 pub mod token;
@@ -122,8 +122,8 @@ fn comments_parser<'a>() -> impl Parser<Span<'a>, Output = (), Error = Error<Spa
         (),
         (
             tag("//"),
-            take_until("\n"),
-            tag("\n"),
+            take_while(|c| c != '\n'),
+            opt(char('\n')),
         )
     )
 }
