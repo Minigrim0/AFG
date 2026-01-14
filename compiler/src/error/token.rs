@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::token::TokenMetaData;
+use crate::lexer::token::TokenLocation;
 
 #[derive(Debug)]
 pub enum TokenErrorType {
@@ -18,16 +18,16 @@ pub enum TokenErrorType {
 pub struct TokenError {
     error_type: TokenErrorType,
     text: String,
-    metadata: Option<TokenMetaData>,
+    location: Option<TokenLocation>,
 }
 
 impl fmt::Display for TokenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(md) = self.metadata {
+        if let Some(loc) = &self.location {
             write!(
                 f,
-                "[Token] {:?}: {} at line {}, char {}",
-                self.error_type, self.text, md.line, md.char
+                "[Token] {:?}: {} at line {}, column {}",
+                self.error_type, self.text, loc.line, loc.column
             )
         } else {
             write!(f, "[Token] {:?}: {}.", self.error_type, self.text)
@@ -39,12 +39,12 @@ impl TokenError {
     pub fn new<S: AsRef<str>>(
         error_type: TokenErrorType,
         text: S,
-        metadata: Option<TokenMetaData>,
+        location: Option<TokenLocation>,
     ) -> Self {
         Self {
             error_type,
             text: text.as_ref().to_string(),
-            metadata,
+            location,
         }
     }
 }

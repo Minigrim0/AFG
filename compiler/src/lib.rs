@@ -110,14 +110,13 @@ pub mod lexer;
 pub mod liveness;
 pub mod pasm;
 pub mod semantic;
-pub mod token;
 
 pub mod prelude {
     pub use super::allocation::allocate;
     pub use super::ast::{node::Node, AST};
     pub use super::labels::resolve_labels;
+    pub use super::lexer::parse_source;
     pub use super::liveness::PASMProgramWithInterferenceGraph;
     pub use super::pasm::{PASMAllocatedProgram, PASMInstruction, PASMProgram};
     pub use super::semantic::{analyze, SemanticError};
-    pub use super::token::lex;
 }
