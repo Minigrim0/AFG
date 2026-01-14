@@ -1,5 +1,33 @@
+use super::utils::Span;
+
+#[derive(Debug)]
+pub struct Token<'a> {
+    pub kind: TokenKind<'a>,
+    pub location: TokenLocation
+}
+
 #[derive(Debug, PartialEq, Clone)]
-pub enum Token<'a> {
+pub struct TokenLocation {
+    pub start: usize,
+    pub end: usize,
+    pub line: usize,
+    pub column: usize,
+}
+
+impl TokenLocation {
+    pub fn new(span: &Span) -> Self {
+        Self {
+            start: span.location_offset(),
+            end: span.location_offset() + span.fragment().len(),
+            line: span.location_line() as usize,
+            column: span.get_utf8_column(),
+        }
+    }
+}
+
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TokenKind<'a> {
     Keyword(KeywordKind),
     Ident(&'a str),
     Number(&'a str),
@@ -10,29 +38,26 @@ pub enum Token<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum KeywordKind {
-    Let,
+    Fn,
+    While,
+    Set,
     If,
     Else,
-    While,
-    For,
-    In,
     Return,
-    Break,
-    Continue,
-    True,
-    False,
-    Null,
+    Loop,
+    Call,
+    Print,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolKind {
+    LineBreak,
     LeftParen,
     RightParen,
     LeftBracket,
     RightBracket,
     LeftBrace,
     RightBrace,
-    LineBreak,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -47,8 +72,8 @@ pub enum OperationKind {
 pub enum ComparisonKind {
     Equal,
     NotEqual,
-    LessThan,
-    GreaterThan,
     LessThanOrEqual,
     GreaterThanOrEqual,
+    LessThan,
+    GreaterThan,
 }
