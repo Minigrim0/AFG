@@ -61,4 +61,7 @@ pub mod prelude {
     pub use super::variables::*;
     pub use super::Instruction;
     pub use super::Program;
+
+    #[cfg(feature = "bevy")]
+    pub use super::components::*;
 }

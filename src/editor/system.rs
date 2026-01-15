@@ -23,11 +23,11 @@ pub fn afg_code_editor_system(
             });
 
             if let Ok((_, vm_meta, _vm)) = current_bot.single() {
-                let program_text = vm_meta.text();
+                let program_text = vm_meta.afg();
                 ui.horizontal(|ui| {
                     if let Ok(mut text) = program_text.lock() {
                         ui.add(
-                            egui::TextEdit::multiline(&mut *text)
+                            egui::TextEdit::multiline(&mut *text.unwrap_or("".to_string()))
                                 .code_editor()
                                 .desired_width(400.0)
                                 .desired_rows(25)
