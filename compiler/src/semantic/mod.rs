@@ -1,5 +1,7 @@
 /// Semantic module
 /// Used to validate the semantics of an AST
+use std::collections::HashMap;
+
 use super::ast::AST;
 use crate::ast::node::{CodeBlock, Node};
 
@@ -11,17 +13,17 @@ pub use error::SemanticError;
 pub use utils::*;
 
 /// Analyzes a block of code for semantic errors
-fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), SemanticError> {
+fn analyze_block(block: &CodeBlock, mut scope: Vec<String>, functions: &HashMap<String, usize>) -> Result<(), SemanticError> {
     for inst in block.iter() {
         match &**inst {
             Node::WhileLoop { content, .. } => {
-                analyze_block(content, scope.clone())?;
+                analyze_block(content, scope.clone(), functions)?;
             }
             Node::IfCondition { content, .. } => {
-                analyze_block(content, scope.clone())?;
+                analyze_block(content, scope.clone(), functions)?;
             }
             Node::Loop { content, .. } => {
-                analyze_block(content, scope.clone())?;
+                analyze_block(content, scope.clone(), functions)?;
             }
             _ => {}
         }
@@ -34,6 +36,27 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
                     var
                 )));
             }
+        }
+
+        match &**inst {
+            Node::FunctionCall { function_name, parameters }=> {
+                if !functions.contains_key(function_name) {
+                    return Err(SemanticError::UnknownFunction(format!(
+                        "Function {} is not defined",
+                        function_name
+                    )));
+                }
+                let expected_arity = functions[function_name];
+                if parameters.len() != expected_arity {
+                    return Err(SemanticError::InvalidFunctionCall(format!(
+                        "Function {} expects {} parameters, but got {}",
+                        function_name,
+                        expected_arity,
+                        parameters.len()
+                    )));
+                }
+            },
+            _ => {}
         }
 
         let new_vars = get_new_variables(inst);
@@ -72,11 +95,18 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>) -> Result<(), Semant
 /// }
 /// ```
 pub fn analyze(ast: &AST) -> Result<(), SemanticError> {
+    // Collect function arities for later checks
+    let function_arities = ast
+        .functions
+        .iter()
+        .map(|(name, func)| (name.clone(), func.parameters.len()))
+        .collect::<HashMap<String, usize>>();
+
     for (_, func) in &ast.functions {
         let mut in_scope = machine::prelude::get_special_variables();
         in_scope.extend(func.parameters.clone());
 
-        analyze_block(&func.content, in_scope)?;
+        analyze_block(&func.content, in_scope, &function_arities)?;
     }
 
     Ok(())

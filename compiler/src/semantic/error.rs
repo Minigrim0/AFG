@@ -4,6 +4,8 @@ use std::fmt;
 pub enum SemanticError {
     UnknownVariable(String),  // Use of a previously undeclared variable
     InvalidOperation(String), // Invalid operation
+    UnknownFunction(String), // Call to an undefined function
+    InvalidFunctionCall(String), // Function called with incorrect number of parameters
 }
 
 impl fmt::Display for SemanticError {
@@ -11,6 +13,8 @@ impl fmt::Display for SemanticError {
         match &self {
             Self::UnknownVariable(value) => write!(f, "Unknown Variable: {}", value),
             Self::InvalidOperation(value) => write!(f, "Invalid Operation: {}", value),
+            Self::UnknownFunction(value) => write!(f, "Unknown Function: {}", value),
+            Self::InvalidFunctionCall(value) => write!(f, "Invalid Function Call: {}", value),
         }
     }
 }
