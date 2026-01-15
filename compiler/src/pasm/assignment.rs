@@ -1,22 +1,22 @@
 use super::{MaybeInstructions, OperandType, PASMInstruction};
-use crate::ast::node::Node;
+use crate::ast::node::{Node, NodeKind};
 use crate::ast::node::OperationType;
 
 /// Ensure the operand is either an Identifier, a Register or an Literal
 pub fn ensure_immediate(node: &Box<Node>) -> Result<OperandType, String> {
-    match &**node {
-        Node::Identifier { name } => Ok(OperandType::Identifier { name: name.clone() }),
-        Node::Register { name } => Ok(OperandType::Register { name: name.clone() }),
-        Node::Litteral { value } => Ok(OperandType::Literal { value: *value }),
+    match &node.kind {
+        NodeKind::Identifier { name } => Ok(OperandType::Identifier { name: name.clone() }),
+        NodeKind::Register { name } => Ok(OperandType::Register { name: name.clone() }),
+        NodeKind::Litteral { value } => Ok(OperandType::Literal { value: *value }),
         _ => Err("Operand should be either a Register, Identifier or Literal".to_string()),
     }
 }
 
 /// Ensures the operand is either an Identifier or a Literal
 fn ensure_loadable_immediate(node: &Box<Node>) -> Result<OperandType, String> {
-    match &**node {
-        Node::Identifier { name } => Ok(OperandType::Identifier { name: name.clone() }),
-        Node::Register { name } => Ok(OperandType::Register { name: name.clone() }),
+    match &node.kind {
+        NodeKind::Identifier { name } => Ok(OperandType::Identifier { name: name.clone() }),
+        NodeKind::Register { name } => Ok(OperandType::Register { name: name.clone() }),
         _ => Err("Operand should be either a Register, Identifier or Literal".to_string()),
     }
 }
@@ -26,9 +26,9 @@ fn ensure_loadable_immediate(node: &Box<Node>) -> Result<OperandType, String> {
 /// code, and the second element, the instructions to ensure the memory
 /// value is moved to the correct location (in registers)
 pub fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstruction>), String> {
-    match &**node {
-        Node::MemoryValue { name } => Ok((OperandType::Memory { name: name.clone() }, vec![])),
-        Node::MemoryOffset { base, offset } => Ok((
+    match &node.kind {
+        NodeKind::MemoryValue { name } => Ok((OperandType::Memory { name: name.clone() }, vec![])),
+        NodeKind::MemoryOffset { base, offset } => Ok((
             OperandType::MemoryOffset {
                 base: Box::from(OperandType::new_register("GPC")),
                 offset: Box::from(OperandType::new_register("GPD")),
@@ -39,9 +39,9 @@ pub fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstructi
                     OperandType::Register {
                         name: "GPC".to_string(),
                     },
-                    match &**base {
-                        Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
-                        Node::MemoryValue { name } => OperandType::Memory { name: name.clone() },
+                    match &base.kind {
+                        NodeKind::Identifier { name } => OperandType::Identifier { name: name.clone() },
+                        NodeKind::MemoryValue { name } => OperandType::Memory { name: name.clone() },
                         _ => {
                             return Err("Base for memory offset should be an identifier".to_string())
                         }
@@ -52,10 +52,10 @@ pub fn ensure_memory(node: &Box<Node>) -> Result<(OperandType, Vec<PASMInstructi
                 "mov".to_string(),
                 vec![
                     OperandType::new_register("GPD"),
-                    match &**offset {
-                        Node::Register { name } => OperandType::new_register(name),
-                        Node::Identifier { name } => OperandType::Identifier { name: name.clone() },
-                        Node::Litteral { value } => OperandType::new_literal(*value),
+                    match &offset.kind {
+                        NodeKind::Register { name } => OperandType::new_register(name),
+                        NodeKind::Identifier { name } => OperandType::Identifier { name: name.clone() },
+                        NodeKind::Litteral { value } => OperandType::new_literal(*value),
                         _ => return Err("(EnsureMemory) Invalid memory offset. Memory offset should be either a literal, identifier or register.".to_string())
                     }
                 ]
@@ -70,16 +70,16 @@ fn load_to_register<S: AsRef<str>>(
     register: S,
     from: &Box<Node>,
 ) -> Result<(OperandType, Vec<PASMInstruction>), String> {
-    let destination = Box::from(Node::Register {
+    let destination = Box::from(Node::new(NodeKind::Register {
         name: register.as_ref().to_string(),
-    });
-    match &**from {
+    }));
+    match &from.kind {
         // If the operand is already in a register
-        Node::Register { name } => Ok((OperandType::new_register(name), vec![])),
-        Node::Litteral { .. } | Node::Identifier { .. } => {
+        NodeKind::Register { name } => Ok((OperandType::new_register(name), vec![])),
+        NodeKind::Litteral { .. } | NodeKind::Identifier { .. } => {
             Ok((OperandType::new_register(register), imm_to_imm(from, &destination)?))
         },
-        Node::MemoryValue { .. } | Node::MemoryOffset { .. } => {
+        NodeKind::MemoryValue { .. } | NodeKind::MemoryOffset { .. } => {
             Ok((OperandType::new_register(register), mem_to_imm(from, &destination)?))
         },
         _ => Err(
@@ -141,8 +141,8 @@ pub fn mem_to_mem(from: &Box<Node>, to: &Box<Node>) -> MaybeInstructions {
 
 /// Performs an assignment from memory to memory (going through registers)
 pub fn op_to_imm(from: &Box<Node>, to: &Box<Node>) -> MaybeInstructions {
-    match &**from {
-        Node::Operation {
+    match &from.kind {
+        NodeKind::Operation {
             lparam,
             rparam,
             operation,
@@ -164,13 +164,13 @@ pub fn op_to_imm(from: &Box<Node>, to: &Box<Node>) -> MaybeInstructions {
                 vec![op1_register.clone(), op2_register],
             ));
             instructions.extend(imm_to_imm(
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: if let OperandType::Register { name } = op1_register {
                         name
                     } else {
                         unreachable!()
                     },
-                }),
+                })),
                 to,
             )?);
             Ok(instructions)
@@ -184,8 +184,8 @@ pub fn op_to_imm(from: &Box<Node>, to: &Box<Node>) -> MaybeInstructions {
 
 /// Performs an assignment from memory to memory (going through registers)
 pub fn op_to_mem(from: &Box<Node>, to: &Box<Node>) -> MaybeInstructions {
-    match &**from {
-        Node::Operation {
+    match &from.kind {
+        NodeKind::Operation {
             lparam,
             rparam,
             operation,
@@ -207,13 +207,13 @@ pub fn op_to_mem(from: &Box<Node>, to: &Box<Node>) -> MaybeInstructions {
                 vec![op1_register.clone(), op2_register],
             ));
             instructions.extend(imm_to_mem(
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: if let OperandType::Register { name } = op1_register {
                         name
                     } else {
                         unreachable!()
                     },
-                }),
+                })),
                 to,
             )?);
             Ok(instructions)

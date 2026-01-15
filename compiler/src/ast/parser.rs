@@ -3,7 +3,7 @@ use crate::lexer::token::{
     ComparisonKind, KeywordKind, OperationKind, SymbolKind, Token, TokenKind, TokenLocation,
 };
 
-use super::node::{CodeBlock, ComparisonType, Node, OperationType};
+use super::node::{CodeBlock, ComparisonType, Node, NodeKind, OperationType};
 use super::function::Function;
 use super::AST;
 
@@ -292,10 +292,10 @@ impl<'a> Parser<'a> {
 
         let rparam = self.parse_expression()?;
 
-        Ok(Node::Assignment {
+        Ok(Node::new(NodeKind::Assignment {
             lparam: Box::new(lparam),
             rparam: Box::new(rparam),
-        })
+        }))
     }
 
     /// Parse a while loop: while <condition> { <block> }
@@ -305,10 +305,10 @@ impl<'a> Parser<'a> {
         self.expect_symbol(SymbolKind::LeftBrace)?;
         let content = self.parse_block()?;
 
-        Ok(Node::WhileLoop {
+        Ok(Node::new(NodeKind::WhileLoop {
             condition: Box::new(condition),
             content,
-        })
+        }))
     }
 
     /// Parse an if statement: if <condition> { <block> }
@@ -318,10 +318,10 @@ impl<'a> Parser<'a> {
         self.expect_symbol(SymbolKind::LeftBrace)?;
         let content = self.parse_block()?;
 
-        Ok(Node::IfCondition {
+        Ok(Node::new(NodeKind::IfCondition {
             condition: Box::new(condition),
             content,
-        })
+        }))
     }
 
     /// Parse a loop: loop { <block> }
@@ -329,20 +329,20 @@ impl<'a> Parser<'a> {
         self.expect_symbol(SymbolKind::LeftBrace)?;
         let content = self.parse_block()?;
 
-        Ok(Node::Loop { content })
+        Ok(Node::new(NodeKind::Loop { content }))
     }
 
     /// Parse a return statement: return [<expr>]
     fn parse_return(&mut self) -> Result<Node, TokenError> {
         if self.check_symbol(SymbolKind::LineBreak) || self.check_symbol(SymbolKind::RightBrace) || self.is_at_end() {
-            Ok(Node::Return {
-                value: Box::new(Node::Litteral { value: 0 }),
-            })
+            Ok(Node::new(NodeKind::Return {
+                value: Box::new(Node::new(NodeKind::Litteral { value: 0 })),
+            }))
         } else {
             let value = self.parse_primary()?;
-            Ok(Node::Return {
+            Ok(Node::new(NodeKind::Return {
                 value: Box::new(value),
-            })
+            }))
         }
     }
 
@@ -365,18 +365,18 @@ impl<'a> Parser<'a> {
 
         self.expect_symbol(SymbolKind::RightParen)?;
 
-        Ok(Node::FunctionCall {
+        Ok(Node::new(NodeKind::FunctionCall {
             function_name,
             parameters,
-        })
+        }))
     }
 
     /// Parse a print statement: print <expr>
     fn parse_print(&mut self) -> Result<Node, TokenError> {
         let value = self.parse_primary()?;
-        Ok(Node::Print {
+        Ok(Node::new(NodeKind::Print {
             value: Box::new(value),
-        })
+        }))
     }
 
     /// Parse a comparison expression: <expr> <cmp_op> <expr>
@@ -397,11 +397,11 @@ impl<'a> Parser<'a> {
 
             let rparam = self.parse_primary()?;
 
-            Ok(Node::Comparison {
+            Ok(Node::new(NodeKind::Comparison {
                 lparam: Box::new(lparam),
                 rparam: Box::new(rparam),
                 comparison,
-            })
+            }))
         } else {
             // No comparison operator, just return the primary
             Ok(lparam)
@@ -427,16 +427,16 @@ impl<'a> Parser<'a> {
 
                 let right = self.parse_primary()?;
 
-                return Ok(Node::Operation {
+                return Ok(Node::new(NodeKind::Operation {
                     lparam: Box::new(left),
                     rparam: Box::new(right),
                     operation,
-                });
+                }));
             }
         }
 
         // Check if this is a function call (identifier followed by paren)
-        if let Node::Identifier { name } = &left {
+        if let NodeKind::Identifier { name } = &left.kind {
             if self.check_symbol(SymbolKind::LeftParen) {
                 self.advance(); // consume '('
                 let mut parameters = Vec::new();
@@ -451,10 +451,10 @@ impl<'a> Parser<'a> {
                 }
                 self.expect_symbol(SymbolKind::RightParen)?;
 
-                return Ok(Node::FunctionCall {
+                return Ok(Node::new(NodeKind::FunctionCall {
                     function_name: name.clone(),
                     parameters,
-                });
+                }));
             }
         }
 
@@ -473,7 +473,7 @@ impl<'a> Parser<'a> {
                     )
                 })?;
                 self.advance();
-                Ok(Node::Litteral { value })
+                Ok(Node::new(NodeKind::Litteral { value }))
             }
             Some(TokenKind::Ident(name)) => {
                 let name = name.to_string();
@@ -481,11 +481,11 @@ impl<'a> Parser<'a> {
 
                 // Create base node: MemoryValue for $identifier, Identifier otherwise
                 let base_node = if name.starts_with('$') {
-                    Node::MemoryValue {
+                    Node::new(NodeKind::MemoryValue {
                         name: name[1..].to_string(),
-                    }
+                    })
                 } else {
-                    Node::Identifier { name }
+                    Node::new(NodeKind::Identifier { name })
                 };
 
                 // Check for array access: ident[index] or $ident[index]
@@ -494,10 +494,10 @@ impl<'a> Parser<'a> {
                     let offset = self.parse_primary()?;
                     self.expect_symbol(SymbolKind::RightBracket)?;
 
-                    return Ok(Node::MemoryOffset {
+                    return Ok(Node::new(NodeKind::MemoryOffset {
                         base: Box::new(base_node),
                         offset: Box::new(offset),
-                    });
+                    }));
                 }
 
                 Ok(base_node)
@@ -512,8 +512,8 @@ impl<'a> Parser<'a> {
             Some(TokenKind::Op(OperationKind::Subtract)) => {
                 self.advance(); // consume '-'
                 let inner = self.parse_primary()?;
-                match inner {
-                    Node::Litteral { value } => Ok(Node::Litteral { value: -value }),
+                match inner.kind {
+                    NodeKind::Litteral { value } => Ok(Node::new(NodeKind::Litteral { value: -value })),
                     _ => Err(TokenError::new(
                         TokenErrorType::UnexpectedToken,
                         "Unary minus only supported for literals",

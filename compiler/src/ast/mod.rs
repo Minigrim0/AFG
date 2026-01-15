@@ -9,7 +9,7 @@ pub mod node;
 mod parser;
 
 use function::Function;
-pub use node::Node;
+pub use node::{Node, NodeKind};
 pub use parser::Parser;
 
 #[derive(Debug)]
@@ -55,22 +55,22 @@ impl AST {
         }
 
         for inst in block.into_iter() {
-            match &**inst {
-                Node::Identifier { name } => writeln!(f, "{}ID {}", prefix, name)?,
-                Node::MemoryValue { name } => writeln!(f, "{}MEM {}", prefix, name)?,
-                Node::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
-                Node::Register { name } => writeln!(f, "{}REG {}", prefix, name)?,
-                Node::MemoryOffset { base, offset } => {
+            match &inst.kind {
+                NodeKind::Identifier { name } => writeln!(f, "{}ID {}", prefix, name)?,
+                NodeKind::MemoryValue { name } => writeln!(f, "{}MEM {}", prefix, name)?,
+                NodeKind::Litteral { value } => writeln!(f, "{}LIT {}", prefix, value)?,
+                NodeKind::Register { name } => writeln!(f, "{}REG {}", prefix, name)?,
+                NodeKind::MemoryOffset { base, offset } => {
                     writeln!(f, "{}MOF", prefix)?;
                     Self::print_block(vec![base], f, level + 1)?;
                     Self::print_block(vec![offset], f, level + 1)?;
                 }
-                Node::Assignment { lparam, rparam } => {
+                NodeKind::Assignment { lparam, rparam } => {
                     writeln!(f, "{}Assignment", prefix)?;
                     Self::print_block(vec![lparam], f, level + 1)?;
                     Self::print_block(vec![rparam], f, level + 1)?;
                 }
-                Node::Operation {
+                NodeKind::Operation {
                     lparam,
                     rparam,
                     operation,
@@ -79,11 +79,11 @@ impl AST {
                     Self::print_block(vec![lparam], f, level + 1)?;
                     Self::print_block(vec![rparam], f, level + 1)?;
                 }
-                Node::Print { value } => {
+                NodeKind::Print { value } => {
                     writeln!(f, "{}Print", prefix)?;
                     Self::print_block(vec![value], f, level + 1)?;
                 }
-                Node::Comparison {
+                NodeKind::Comparison {
                     lparam,
                     rparam,
                     comparison,
@@ -92,30 +92,30 @@ impl AST {
                     Self::print_block(vec![lparam], f, level + 1)?;
                     Self::print_block(vec![rparam], f, level + 1)?;
                 }
-                Node::WhileLoop { condition, content } => {
+                NodeKind::WhileLoop { condition, content } => {
                     writeln!(f, "{}While", prefix)?;
                     Self::print_block(vec![condition], f, level + 1)?;
                     writeln!(f, "{}Do", prefix)?;
                     Self::print_block(content, f, level + 1)?;
                 }
-                Node::Loop { content } => {
+                NodeKind::Loop { content } => {
                     writeln!(f, "{}Loop", prefix)?;
                     Self::print_block(content, f, level + 1)?;
                 }
-                Node::IfCondition { condition, content } => {
+                NodeKind::IfCondition { condition, content } => {
                     writeln!(f, "{}If", prefix)?;
                     Self::print_block(vec![condition], f, level + 1)?;
                     writeln!(f, "{}Do", prefix)?;
                     Self::print_block(content, f, level + 1)?;
                 }
-                Node::FunctionCall {
+                NodeKind::FunctionCall {
                     function_name,
                     parameters,
                 } => {
                     writeln!(f, "{}Call {}", prefix, function_name)?;
                     Self::print_block(parameters, f, level + 1)?;
                 }
-                Node::Return { value } => {
+                NodeKind::Return { value } => {
                     writeln!(f, "{}Return", prefix)?;
                     Self::print_block(vec![value], f, level + 1)?;
                 }

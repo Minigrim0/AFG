@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use super::ast::AST;
-use crate::ast::node::{CodeBlock, Node};
+use crate::ast::node::{CodeBlock, NodeKind};
 
 mod error;
 mod utils;
@@ -15,14 +15,14 @@ pub use utils::*;
 /// Analyzes a block of code for semantic errors
 fn analyze_block(block: &CodeBlock, mut scope: Vec<String>, functions: &HashMap<String, usize>) -> Result<(), SemanticError> {
     for inst in block.iter() {
-        match &**inst {
-            Node::WhileLoop { content, .. } => {
+        match &inst.kind {
+            NodeKind::WhileLoop { content, .. } => {
                 analyze_block(content, scope.clone(), functions)?;
             }
-            Node::IfCondition { content, .. } => {
+            NodeKind::IfCondition { content, .. } => {
                 analyze_block(content, scope.clone(), functions)?;
             }
-            Node::Loop { content, .. } => {
+            NodeKind::Loop { content, .. } => {
                 analyze_block(content, scope.clone(), functions)?;
             }
             _ => {}
@@ -38,8 +38,8 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>, functions: &HashMap<
             }
         }
 
-        match &**inst {
-            Node::FunctionCall { function_name, parameters }=> {
+        match &inst.kind {
+            NodeKind::FunctionCall { function_name, parameters }=> {
                 if !functions.contains_key(function_name) {
                     return Err(SemanticError::UnknownFunction(format!(
                         "Function {} is not defined",

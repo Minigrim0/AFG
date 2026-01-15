@@ -5,7 +5,7 @@ use super::{
     MaybeInstructions, OperandType, PASMInstruction,
 };
 /// Transforms the AST of a function into pseudo-asm
-use crate::ast::node::{ComparisonType, Node, OperationType};
+use crate::ast::node::{ComparisonType, Node, NodeKind, OperationType};
 
 static TEMP_VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -17,8 +17,8 @@ fn create_temp_variable_name<S: AsRef<str>>(pattern: S) -> String {
 
 /// Loads the given base (for a memory access) into the GPC register for further operations
 fn load_base(base: &Box<Node>) -> MaybeInstructions {
-    match &**base {
-        Node::Identifier { name } => Ok(vec![PASMInstruction::new(
+    match &base.kind {
+        NodeKind::Identifier { name } => Ok(vec![PASMInstruction::new(
             "mov".to_string(),
             vec![
                 OperandType::Register {
@@ -49,31 +49,31 @@ fn operation_to_asm(
     };
 
     instructions.extend(assignment_to_asm(
-        &Box::from(Node::Register {
+        &Box::from(Node::new(NodeKind::Register {
             name: "GPA".to_string(),
-        }),
+        })),
         lparam,
     )?);
 
-    let new_rparam = match &**rparam {
-        Node::MemoryValue { name } => OperandType::Memory { name: name.clone() },
-        Node::Identifier { name: _ } => {
+    let new_rparam = match &rparam.kind {
+        NodeKind::MemoryValue { name } => OperandType::Memory { name: name.clone() },
+        NodeKind::Identifier { name: _ } => {
             let temp = create_temp_variable_name("oprpar");
             instructions.extend(assignment_to_asm(
-                &Box::from(Node::new_identifier(temp.clone())),
+                &Box::from(Node::new(NodeKind::new_identifier(temp.clone()))),
                 rparam,
             )?);
             OperandType::Identifier { name: temp.clone() }
         }
-        Node::Litteral { value } => OperandType::Literal { value: *value },
-        Node::MemoryOffset { base, offset } => {
+        NodeKind::Litteral { value } => OperandType::Literal { value: *value },
+        NodeKind::MemoryOffset { base, offset } => {
             instructions.extend(load_base(base)?);
             OperandType::MemoryOffset {
                 base: Box::from(OperandType::new_register("GPC")),
-                offset: match &**offset {
-                    Node::Register { name } => Box::from(OperandType::new_register(name)),
-                    Node::Identifier { name } => Box::from(OperandType::Identifier { name: name.clone() }),
-                    Node::Litteral { value } => Box::from(OperandType::new_literal(*value)),
+                offset: match &offset.kind {
+                    NodeKind::Register { name } => Box::from(OperandType::new_register(name)),
+                    NodeKind::Identifier { name } => Box::from(OperandType::Identifier { name: name.clone() }),
+                    NodeKind::Litteral { value } => Box::from(OperandType::new_literal(*value)),
                     _ => return Err("(OpToAsm) Invalid memory offset. Memory offset should be either a literal, identifier or register.".to_string())
                 },
             }
@@ -96,49 +96,49 @@ fn operation_to_asm(
 fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstructions {
     let mut instructions = vec![];
 
-    match (&**assignant, &**assignee) {
+    match (&assignant.kind, &assignee.kind) {
         // Id to Id
         (
-            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
-            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+            NodeKind::Identifier { .. } | NodeKind::Register { .. } | NodeKind::Litteral { .. },
+            NodeKind::Identifier { .. } | NodeKind::Register { .. } | NodeKind::Litteral { .. },
         ) => {
             instructions.extend(super::assignment::imm_to_imm(assignant, assignee)?);
         }
         // Mem to Id
         (
-            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
-            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
+            NodeKind::MemoryValue { .. } | NodeKind::MemoryOffset { .. },
+            NodeKind::Identifier { .. } | NodeKind::Register { .. } | NodeKind::Litteral { .. },
         ) => {
             instructions.extend(super::assignment::mem_to_imm(assignant, assignee)?);
         }
         // Id to Mem
         (
-            Node::Identifier { .. } | Node::Register { .. } | Node::Litteral { .. },
-            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+            NodeKind::Identifier { .. } | NodeKind::Register { .. } | NodeKind::Litteral { .. },
+            NodeKind::MemoryValue { .. } | NodeKind::MemoryOffset { .. },
         ) => {
             instructions.extend(super::assignment::imm_to_mem(assignant, assignee)?);
         }
         (
             // Mem to mem
-            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
-            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+            NodeKind::MemoryValue { .. } | NodeKind::MemoryOffset { .. },
+            NodeKind::MemoryValue { .. } | NodeKind::MemoryOffset { .. },
         ) => {
             instructions.extend(super::assignment::mem_to_mem(assignant, assignee)?);
         }
         // Op to Id
-        (Node::Operation { .. }, Node::Identifier { .. } | Node::Register { .. }) => {
+        (NodeKind::Operation { .. }, NodeKind::Identifier { .. } | NodeKind::Register { .. }) => {
             instructions.extend(super::assignment::op_to_imm(assignant, assignee)?);
         }
         (
             // Op to Mem
-            Node::Operation { .. },
-            Node::MemoryValue { .. } | Node::MemoryOffset { .. },
+            NodeKind::Operation { .. },
+            NodeKind::MemoryValue { .. } | NodeKind::MemoryOffset { .. },
         ) => {
             instructions.extend(super::assignment::op_to_mem(assignant, assignee)?);
         }
-        (Node::FunctionCall { .. }, Node::Identifier { .. } | Node::Register { .. }) => {
-            instructions.extend(match &**assignant {
-                Node::FunctionCall {
+        (NodeKind::FunctionCall { .. }, NodeKind::Identifier { .. } | NodeKind::Register { .. }) => {
+            instructions.extend(match &assignant.kind {
+                NodeKind::FunctionCall {
                     function_name,
                     parameters,
                 } => function_to_asm(&function_name, &parameters)?,
@@ -148,15 +148,15 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             });
 
             instructions.extend(super::assignment::imm_to_imm(
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: "FRV".to_string(),
-                }),
+                })),
                 assignee,
             )?);
         }
-        (Node::FunctionCall { .. }, Node::MemoryOffset { .. } | Node::MemoryValue { .. }) => {
-            instructions.extend(match &**assignant {
-                Node::FunctionCall {
+        (NodeKind::FunctionCall { .. }, NodeKind::MemoryOffset { .. } | NodeKind::MemoryValue { .. }) => {
+            instructions.extend(match &assignant.kind {
+                NodeKind::FunctionCall {
                     function_name,
                     parameters,
                 } => function_to_asm(&function_name, &parameters)?,
@@ -166,9 +166,9 @@ fn assignment_to_asm(assignee: &Box<Node>, assignant: &Box<Node>) -> MaybeInstru
             });
 
             instructions.extend(super::assignment::imm_to_mem(
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: "FRV".to_string(),
-                }),
+                })),
                 assignee,
             )?);
         }
@@ -189,23 +189,23 @@ fn comparison_to_asm(
 ) -> MaybeInstructions {
     let mut instructions = vec![];
 
-    let lparam = match &**lparam {
-        Node::Register { name } => OperandType::new_register(name),
-        Node::Identifier { .. } | Node::Litteral { .. } => {
+    let lparam_op = match &lparam.kind {
+        NodeKind::Register { name } => OperandType::new_register(name),
+        NodeKind::Identifier { .. } | NodeKind::Litteral { .. } => {
             instructions.extend(imm_to_imm(
                 lparam,
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: "GPA".to_string(),
-                }),
+                })),
             )?);
             OperandType::new_register("GPA")
         }
-        Node::MemoryOffset { .. } | Node::MemoryValue { .. } => {
+        NodeKind::MemoryOffset { .. } | NodeKind::MemoryValue { .. } => {
             instructions.extend(mem_to_imm(
                 lparam,
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: "GPA".to_string(),
-                }),
+                })),
             )?);
             OperandType::new_register("GPA")
         }
@@ -213,23 +213,23 @@ fn comparison_to_asm(
         _ => return Err("Invalid lparam for comparison".to_string()),
     };
 
-    let rparam = match &**rparam {
-        Node::Register { name } => OperandType::new_register(name),
-        Node::Identifier { .. } | Node::Litteral { .. } => {
+    let rparam_op = match &rparam.kind {
+        NodeKind::Register { name } => OperandType::new_register(name),
+        NodeKind::Identifier { .. } | NodeKind::Litteral { .. } => {
             instructions.extend(imm_to_imm(
                 rparam,
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: "GPB".to_string(),
-                }),
+                })),
             )?);
             OperandType::new_register("GPB")
         }
-        Node::MemoryOffset { .. } | Node::MemoryValue { .. } => {
+        NodeKind::MemoryOffset { .. } | NodeKind::MemoryValue { .. } => {
             instructions.extend(mem_to_imm(
                 rparam,
-                &Box::from(Node::Register {
+                &Box::from(Node::new(NodeKind::Register {
                     name: "GPB".to_string(),
-                }),
+                })),
             )?);
             OperandType::new_register("GPB")
         }
@@ -239,7 +239,7 @@ fn comparison_to_asm(
     match *comparison {
         ComparisonType::EQ => {
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op, rparam_op]),
                 PASMInstruction::new(
                     "jnz".to_string(),
                     vec![OperandType::Identifier {
@@ -250,7 +250,7 @@ fn comparison_to_asm(
         }
         ComparisonType::DIFF => {
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op, rparam_op]),
                 PASMInstruction::new(
                     "jz".to_string(),
                     vec![OperandType::Identifier {
@@ -261,7 +261,7 @@ fn comparison_to_asm(
         }
         ComparisonType::GE => {
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op, rparam_op]),
                 PASMInstruction::new(
                     "jn".to_string(),
                     vec![OperandType::Identifier {
@@ -272,14 +272,14 @@ fn comparison_to_asm(
         }
         ComparisonType::GT => {
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![lparam.clone(), rparam.clone()]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op.clone(), rparam_op.clone()]),
                 PASMInstruction::new(
                     "jn".to_string(),
                     vec![OperandType::Identifier {
                         name: jmp_to.clone(),
                     }],
                 ), // lpram < rparam => Jump to next block
-                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op, rparam_op]),
                 PASMInstruction::new(
                     "jz".to_string(),
                     vec![OperandType::Identifier {
@@ -290,14 +290,14 @@ fn comparison_to_asm(
         }
         ComparisonType::LT => {
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![lparam.clone(), rparam.clone()]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op.clone(), rparam_op.clone()]),
                 PASMInstruction::new(
                     "jp".to_string(),
                     vec![OperandType::Identifier {
                         name: jmp_to.clone(),
                     }],
                 ), // lparam > rparam => jump to next block
-                PASMInstruction::new("cmp".to_string(), vec![rparam, lparam]),
+                PASMInstruction::new("cmp".to_string(), vec![rparam_op, lparam_op]),
                 PASMInstruction::new(
                     "jz".to_string(),
                     vec![OperandType::Identifier {
@@ -308,7 +308,7 @@ fn comparison_to_asm(
         }
         ComparisonType::LE => {
             instructions.extend(vec![
-                PASMInstruction::new("cmp".to_string(), vec![lparam, rparam]),
+                PASMInstruction::new("cmp".to_string(), vec![lparam_op, rparam_op]),
                 PASMInstruction::new(
                     "jp".to_string(),
                     vec![OperandType::Identifier {
@@ -334,8 +334,8 @@ fn if_to_asm(
         None => create_temp_variable_name("if_exit"),
     };
 
-    match &**condition {
-        Node::Comparison {
+    match &condition.kind {
+        NodeKind::Comparison {
             lparam,
             rparam,
             comparison,
@@ -347,7 +347,7 @@ fn if_to_asm(
                 next_block_label.clone(),
             )?);
         }
-        Node::Identifier { name } => instructions.extend(vec![
+        NodeKind::Identifier { name } => instructions.extend(vec![
             PASMInstruction::new(
                 "cmp".to_string(),
                 vec![
@@ -362,7 +362,7 @@ fn if_to_asm(
                 }],
             ),
         ]),
-        Node::Litteral { value } => {
+        NodeKind::Litteral { value } => {
             let temp_condition = create_temp_variable_name("cp");
             instructions.extend(vec![
                 PASMInstruction::new(
@@ -446,20 +446,20 @@ fn function_to_asm(function_name: &String, parameters: &Vec<Box<Node>>) -> Maybe
 
     // Push parameters in reverse order
     for node in parameters.iter().rev() {
-        match &**node {
-            Node::Identifier { name } => instructions.push(
+        match &node.kind {
+            NodeKind::Identifier { name } => instructions.push(
                 PASMInstruction::new(
                     "push".to_string(),
                     vec![OperandType::Identifier { name: name.clone() }]
                 )
             ),
-            Node::Litteral { value } => instructions.push(
+            NodeKind::Litteral { value } => instructions.push(
                 PASMInstruction::new(
                     "push".to_string(),
                     vec![OperandType::Literal { value: *value }]
                 )
             ),
-            Node::Operation { lparam, rparam, operation } => {
+            NodeKind::Operation { lparam, rparam, operation } => {
                 let (temp, operation_instructions) = operation_to_asm(operation, lparam, rparam)?;
                 instructions.extend(operation_instructions);
                 instructions.push(
@@ -509,8 +509,8 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
     let mut instructions = vec![];
 
     // Return value goes in FRV
-    match &**value {
-        Node::MemoryValue { name } => {
+    match &value.kind {
+        NodeKind::MemoryValue { name } => {
             instructions.push(PASMInstruction::new(
                 "load".to_string(),
                 vec![
@@ -519,7 +519,7 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
                 ],
             ));
         }
-        Node::Identifier { name } => {
+        NodeKind::Identifier { name } => {
             instructions.push(PASMInstruction::new(
                 "mov".to_string(),
                 vec![
@@ -528,7 +528,7 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
                 ],
             ));
         }
-        Node::Litteral { value } => {
+        NodeKind::Litteral { value } => {
             instructions.push(PASMInstruction::new(
                 "mov".to_string(),
                 vec![
@@ -564,11 +564,11 @@ fn ret_to_asm(value: &Box<Node>) -> MaybeInstructions {
 
 /// Produces a print instruction from the AST nodes
 fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
-    let (operand, mut instructions) = match &**node {
-        Node::Identifier { .. } | Node::Litteral { .. } => {
+    let (operand, mut instructions) = match &node.kind {
+        NodeKind::Identifier { .. } | NodeKind::Litteral { .. } => {
             (super::assignment::ensure_immediate(node)?, vec![])
         }
-        Node::MemoryOffset { .. } | Node::MemoryValue { .. } => {
+        NodeKind::MemoryOffset { .. } | NodeKind::MemoryValue { .. } => {
             super::assignment::ensure_memory(node)?
         }
         _ => return Err("Invalid value to print".to_string()),
@@ -582,17 +582,17 @@ fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
 /// Return either a list of `PASMInstruction` if there is no error in the AST node or
 /// an error containing a string explaining the error
 pub fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
-    match &**node {
-        Node::Assignment { lparam, rparam } => Ok(assignment_to_asm(lparam, rparam)?),
-        Node::IfCondition { condition, content } => Ok(if_to_asm(condition, content, None)?),
-        Node::Loop { content } => Ok(loop_to_asm(content)?),
-        Node::WhileLoop { condition, content } => Ok(while_to_asm(condition, content)?),
-        Node::Print { value } => Ok(print_to_asm(value)?),
-        Node::FunctionCall {
+    match &node.kind {
+        NodeKind::Assignment { lparam, rparam } => Ok(assignment_to_asm(lparam, rparam)?),
+        NodeKind::IfCondition { condition, content } => Ok(if_to_asm(condition, content, None)?),
+        NodeKind::Loop { content } => Ok(loop_to_asm(content)?),
+        NodeKind::WhileLoop { condition, content } => Ok(while_to_asm(condition, content)?),
+        NodeKind::Print { value } => Ok(print_to_asm(value)?),
+        NodeKind::FunctionCall {
             function_name,
             parameters,
         } => Ok(function_to_asm(function_name, parameters)?),
-        Node::Return { value } => Ok(ret_to_asm(value)?),
+        NodeKind::Return { value } => Ok(ret_to_asm(value)?),
         _ => Err("Not implemented".to_string()),
     }
 }

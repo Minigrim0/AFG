@@ -1,4 +1,4 @@
-use super::node::{Node, ComparisonType, OperationType};
+use super::node::{NodeKind, ComparisonType, OperationType};
 use super::AST;
 
 // ========================================
@@ -59,14 +59,14 @@ fn test_parse_simple_assignment() {
     let content = &ast.functions["main"].content;
     assert_eq!(content.len(), 1);
 
-    match &*content[0] {
-        Node::Assignment { lparam, rparam } => {
-            match &**lparam {
-                Node::Identifier { name } => assert_eq!(name, "x"),
+    match &content[0].kind {
+        NodeKind::Assignment { lparam, rparam } => {
+            match &lparam.kind {
+                NodeKind::Identifier { name } => assert_eq!(name, "x"),
                 _ => panic!("Expected identifier on left side"),
             }
-            match &**rparam {
-                Node::Litteral { value } => assert_eq!(*value, 5),
+            match &rparam.kind {
+                NodeKind::Litteral { value } => assert_eq!(*value, 5),
                 _ => panic!("Expected literal on right side"),
             }
         }
@@ -80,14 +80,14 @@ fn test_parse_assignment_with_identifier() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { lparam, rparam } => {
-            match &**lparam {
-                Node::Identifier { name } => assert_eq!(name, "x"),
+    match &content[0].kind {
+        NodeKind::Assignment { lparam, rparam } => {
+            match &lparam.kind {
+                NodeKind::Identifier { name } => assert_eq!(name, "x"),
                 _ => panic!("Expected identifier"),
             }
-            match &**rparam {
-                Node::Identifier { name } => assert_eq!(name, "y"),
+            match &rparam.kind {
+                NodeKind::Identifier { name } => assert_eq!(name, "y"),
                 _ => panic!("Expected identifier"),
             }
         }
@@ -101,10 +101,10 @@ fn test_parse_assignment_with_memory_value() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::MemoryValue { name } => assert_eq!(name, "Velocity"),
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::MemoryValue { name } => assert_eq!(name, "Velocity"),
                 _ => panic!("Expected memory value, got {:?}", rparam),
             }
         }
@@ -122,17 +122,17 @@ fn test_parse_addition() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::Operation { lparam, rparam, operation } => {
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::Operation { lparam, rparam, operation } => {
                     assert!(matches!(operation, OperationType::Addition));
-                    match &**lparam {
-                        Node::Identifier { name } => assert_eq!(name, "a"),
+                    match &lparam.kind {
+                        NodeKind::Identifier { name } => assert_eq!(name, "a"),
                         _ => panic!("Expected identifier"),
                     }
-                    match &**rparam {
-                        Node::Identifier { name } => assert_eq!(name, "b"),
+                    match &rparam.kind {
+                        NodeKind::Identifier { name } => assert_eq!(name, "b"),
                         _ => panic!("Expected identifier"),
                     }
                 }
@@ -149,10 +149,10 @@ fn test_parse_subtraction() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::Operation { operation, .. } => {
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::Operation { operation, .. } => {
                     assert!(matches!(operation, OperationType::Substraction));
                 }
                 _ => panic!("Expected operation"),
@@ -168,10 +168,10 @@ fn test_parse_multiplication() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::Operation { operation, .. } => {
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::Operation { operation, .. } => {
                     assert!(matches!(operation, OperationType::Multiplication));
                 }
                 _ => panic!("Expected operation"),
@@ -187,10 +187,10 @@ fn test_parse_division() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::Operation { operation, .. } => {
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::Operation { operation, .. } => {
                     assert!(matches!(operation, OperationType::Division));
                 }
                 _ => panic!("Expected operation"),
@@ -206,10 +206,10 @@ fn test_parse_modulo() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::Operation { operation, .. } => {
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::Operation { operation, .. } => {
                     assert!(matches!(operation, OperationType::Modulo));
                 }
                 _ => panic!("Expected operation"),
@@ -225,16 +225,16 @@ fn test_parse_operation_with_literals_and_identifiers() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::Operation { lparam, rparam, .. } => {
-                    match &**lparam {
-                        Node::Identifier { name } => assert_eq!(name, "count"),
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::Operation { lparam, rparam, .. } => {
+                    match &lparam.kind {
+                        NodeKind::Identifier { name } => assert_eq!(name, "count"),
                         _ => panic!("Expected identifier"),
                     }
-                    match &**rparam {
-                        Node::Litteral { value } => assert_eq!(*value, 1),
+                    match &rparam.kind {
+                        NodeKind::Litteral { value } => assert_eq!(*value, 1),
                         _ => panic!("Expected literal"),
                     }
                 }
@@ -255,10 +255,10 @@ fn test_parse_greater_than() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { condition, .. } => {
-            match &**condition {
-                Node::Comparison { comparison, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, .. } => {
+            match &condition.kind {
+                NodeKind::Comparison { comparison, .. } => {
                     assert!(matches!(comparison, ComparisonType::GT));
                 }
                 _ => panic!("Expected comparison"),
@@ -274,10 +274,10 @@ fn test_parse_greater_than_or_equal() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { condition, .. } => {
-            match &**condition {
-                Node::Comparison { comparison, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, .. } => {
+            match &condition.kind {
+                NodeKind::Comparison { comparison, .. } => {
                     assert!(matches!(comparison, ComparisonType::GE));
                 }
                 _ => panic!("Expected comparison"),
@@ -293,10 +293,10 @@ fn test_parse_less_than() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { condition, .. } => {
-            match &**condition {
-                Node::Comparison { comparison, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, .. } => {
+            match &condition.kind {
+                NodeKind::Comparison { comparison, .. } => {
                     assert!(matches!(comparison, ComparisonType::LT));
                 }
                 _ => panic!("Expected comparison"),
@@ -312,10 +312,10 @@ fn test_parse_less_than_or_equal() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { condition, .. } => {
-            match &**condition {
-                Node::Comparison { comparison, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, .. } => {
+            match &condition.kind {
+                NodeKind::Comparison { comparison, .. } => {
                     assert!(matches!(comparison, ComparisonType::LE));
                 }
                 _ => panic!("Expected comparison"),
@@ -331,10 +331,10 @@ fn test_parse_equality() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { condition, .. } => {
-            match &**condition {
-                Node::Comparison { comparison, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, .. } => {
+            match &condition.kind {
+                NodeKind::Comparison { comparison, .. } => {
                     assert!(matches!(comparison, ComparisonType::EQ));
                 }
                 _ => panic!("Expected comparison"),
@@ -350,10 +350,10 @@ fn test_parse_inequality() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { condition, .. } => {
-            match &**condition {
-                Node::Comparison { comparison, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, .. } => {
+            match &condition.kind {
+                NodeKind::Comparison { comparison, .. } => {
                     assert!(matches!(comparison, ComparisonType::DIFF));
                 }
                 _ => panic!("Expected comparison"),
@@ -374,9 +374,9 @@ fn test_parse_if_statement() {
     let content = &ast.functions["main"].content;
     assert_eq!(content.len(), 1);
 
-    match &*content[0] {
-        Node::IfCondition { condition, content } => {
-            assert!(matches!(&**condition, Node::Comparison { .. }));
+    match &content[0].kind {
+        NodeKind::IfCondition { condition, content } => {
+            assert!(matches!(&condition.kind, NodeKind::Comparison { .. }));
             assert_eq!(content.len(), 1);
         }
         _ => panic!("Expected if condition"),
@@ -390,9 +390,9 @@ fn test_parse_while_loop() {
     let content = &ast.functions["main"].content;
     assert_eq!(content.len(), 1);
 
-    match &*content[0] {
-        Node::WhileLoop { condition, content } => {
-            assert!(matches!(&**condition, Node::Comparison { .. }));
+    match &content[0].kind {
+        NodeKind::WhileLoop { condition, content } => {
+            assert!(matches!(&condition.kind, NodeKind::Comparison { .. }));
             assert_eq!(content.len(), 1);
         }
         _ => panic!("Expected while loop"),
@@ -406,8 +406,8 @@ fn test_parse_infinite_loop() {
     let content = &ast.functions["main"].content;
     assert_eq!(content.len(), 1);
 
-    match &*content[0] {
-        Node::Loop { content } => {
+    match &content[0].kind {
+        NodeKind::Loop { content } => {
             assert_eq!(content.len(), 1);
         }
         _ => panic!("Expected loop"),
@@ -420,11 +420,11 @@ fn test_parse_nested_if_statements() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::IfCondition { content, .. } => {
+    match &content[0].kind {
+        NodeKind::IfCondition { content, .. } => {
             assert_eq!(content.len(), 1);
-            match &*content[0] {
-                Node::IfCondition { content, .. } => {
+            match &content[0].kind {
+                NodeKind::IfCondition { content, .. } => {
                     assert_eq!(content.len(), 1);
                 }
                 _ => panic!("Expected nested if"),
@@ -440,11 +440,11 @@ fn test_parse_nested_loops() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::WhileLoop { content, .. } => {
+    match &content[0].kind {
+        NodeKind::WhileLoop { content, .. } => {
             assert_eq!(content.len(), 1);
-            match &*content[0] {
-                Node::WhileLoop { .. } => {}, // Success
+            match &content[0].kind {
+                NodeKind::WhileLoop { .. } => {}, // Success
                 _ => panic!("Expected nested while loop"),
             }
         }
@@ -462,8 +462,8 @@ fn test_parse_function_call_no_params() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::FunctionCall { function_name, parameters } => {
+    match &content[0].kind {
+        NodeKind::FunctionCall { function_name, parameters } => {
             assert_eq!(function_name, "helper");
             assert_eq!(parameters.len(), 0);
         }
@@ -477,16 +477,16 @@ fn test_parse_function_call_with_params() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::FunctionCall { function_name, parameters } => {
+    match &content[0].kind {
+        NodeKind::FunctionCall { function_name, parameters } => {
             assert_eq!(function_name, "add");
             assert_eq!(parameters.len(), 2);
-            match &*parameters[0] {
-                Node::Litteral { value } => assert_eq!(*value, 5),
+            match &parameters[0].kind {
+                NodeKind::Litteral { value } => assert_eq!(*value, 5),
                 _ => panic!("Expected literal"),
             }
-            match &*parameters[1] {
-                Node::Litteral { value } => assert_eq!(*value, 3),
+            match &parameters[1].kind {
+                NodeKind::Litteral { value } => assert_eq!(*value, 3),
                 _ => panic!("Expected literal"),
             }
         }
@@ -504,10 +504,10 @@ fn test_parse_return_with_value() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Return { value } => {
-            match &**value {
-                Node::Litteral { value } => assert_eq!(*value, 42),
+    match &content[0].kind {
+        NodeKind::Return { value } => {
+            match &value.kind {
+                NodeKind::Litteral { value } => assert_eq!(*value, 42),
                 _ => panic!("Expected literal"),
             }
         }
@@ -521,10 +521,10 @@ fn test_parse_return_with_identifier() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Return { value } => {
-            match &**value {
-                Node::Identifier { name } => assert_eq!(name, "x"),
+    match &content[0].kind {
+        NodeKind::Return { value } => {
+            match &value.kind {
+                NodeKind::Identifier { name } => assert_eq!(name, "x"),
                 _ => panic!("Expected identifier"),
             }
         }
@@ -538,10 +538,10 @@ fn test_parse_return_without_value() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Return { value } => {
-            match &**value {
-                Node::Litteral { value } => assert_eq!(*value, 0),
+    match &content[0].kind {
+        NodeKind::Return { value } => {
+            match &value.kind {
+                NodeKind::Litteral { value } => assert_eq!(*value, 0),
                 _ => panic!("Expected default literal 0"),
             }
         }
@@ -559,10 +559,10 @@ fn test_parse_print_literal() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Print { value } => {
-            match &**value {
-                Node::Litteral { value } => assert_eq!(*value, 42),
+    match &content[0].kind {
+        NodeKind::Print { value } => {
+            match &value.kind {
+                NodeKind::Litteral { value } => assert_eq!(*value, 42),
                 _ => panic!("Expected literal"),
             }
         }
@@ -576,10 +576,10 @@ fn test_parse_print_identifier() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Print { value } => {
-            match &**value {
-                Node::Identifier { name } => assert_eq!(name, "x"),
+    match &content[0].kind {
+        NodeKind::Print { value } => {
+            match &value.kind {
+                NodeKind::Identifier { name } => assert_eq!(name, "x"),
                 _ => panic!("Expected identifier"),
             }
         }
@@ -597,16 +597,16 @@ fn test_parse_array_access_with_literal() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::MemoryOffset { base, offset } => {
-                    match &**base {
-                        Node::Identifier { name } => assert_eq!(name, "arr"),
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::MemoryOffset { base, offset } => {
+                    match &base.kind {
+                        NodeKind::Identifier { name } => assert_eq!(name, "arr"),
                         _ => panic!("Expected identifier for base"),
                     }
-                    match &**offset {
-                        Node::Litteral { value } => assert_eq!(*value, 5),
+                    match &offset.kind {
+                        NodeKind::Litteral { value } => assert_eq!(*value, 5),
                         _ => panic!("Expected literal for offset"),
                     }
                 }
@@ -623,16 +623,16 @@ fn test_parse_array_access_with_identifier() {
     let ast = parse_program(code).unwrap();
     let content = &ast.functions["main"].content;
 
-    match &*content[0] {
-        Node::Assignment { rparam, .. } => {
-            match &**rparam {
-                Node::MemoryOffset { base, offset } => {
-                    match &**base {
-                        Node::Identifier { name } => assert_eq!(name, "arr"),
+    match &content[0].kind {
+        NodeKind::Assignment { rparam, .. } => {
+            match &rparam.kind {
+                NodeKind::MemoryOffset { base, offset } => {
+                    match &base.kind {
+                        NodeKind::Identifier { name } => assert_eq!(name, "arr"),
                         _ => panic!("Expected identifier for base"),
                     }
-                    match &**offset {
-                        Node::Identifier { name } => assert_eq!(name, "i"),
+                    match &offset.kind {
+                        NodeKind::Identifier { name } => assert_eq!(name, "i"),
                         _ => panic!("Expected identifier for offset"),
                     }
                 }

@@ -113,7 +113,7 @@ pub mod semantic;
 
 pub mod prelude {
     pub use super::allocation::allocate;
-    pub use super::ast::{node::Node, AST};
+    pub use super::ast::{node::NodeKind, AST};
     pub use super::labels::resolve_labels;
     pub use super::lexer::parse_source;
     pub use super::liveness::PASMProgramWithInterferenceGraph;

@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::lexer::token::TokenLocation;
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub enum ComparisonType {
     GT,
@@ -48,10 +50,32 @@ impl fmt::Display for OperationType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Node {
+    pub kind: NodeKind,
+    pub span: Option<TokenLocation>,
+}
+
+impl Node {
+    pub fn new(kind: NodeKind) -> Self {
+        Self { kind, span: None }
+    }
+
+    pub fn with_span(kind: NodeKind, span: TokenLocation) -> Self {
+        Self { kind, span: Some(span) }
+    }
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.kind)
+    }
+}
+
 pub type CodeBlock = Vec<Box<Node>>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Node {
+pub enum NodeKind {
     Identifier {
         name: String,
     },
@@ -107,7 +131,7 @@ pub enum Node {
     },
 }
 
-impl Node {
+impl NodeKind {
     pub fn new_identifier(name: String) -> Self {
         if name.starts_with('$') {
             Self::MemoryValue {
@@ -119,21 +143,21 @@ impl Node {
     }
 }
 
-impl fmt::Display for Node {
+impl fmt::Display for NodeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Node::Identifier { name } => write!(f, "ID {}", name),
-            Node::MemoryValue { name } => write!(f, "MEM {}", name),
-            Node::Litteral { value } => write!(f, "LIT {}", value),
-            Node::Register { name } => write!(f, "REG {}", name),
-            Node::MemoryOffset { base, offset } => write!(f, "MOF\n{}\n{}", base, offset),
-            Node::Assignment { lparam, rparam } => write!(f, "Assignment: {} {}", lparam, rparam),
-            Node::Comparison {
+            NodeKind::Identifier { name } => write!(f, "ID {}", name),
+            NodeKind::MemoryValue { name } => write!(f, "MEM {}", name),
+            NodeKind::Litteral { value } => write!(f, "LIT {}", value),
+            NodeKind::Register { name } => write!(f, "REG {}", name),
+            NodeKind::MemoryOffset { base, offset } => write!(f, "MOF\n{}\n{}", base, offset),
+            NodeKind::Assignment { lparam, rparam } => write!(f, "Assignment: {} {}", lparam, rparam),
+            NodeKind::Comparison {
                 lparam,
                 rparam,
                 comparison,
             } => write!(f, "Comparison {} {} {}", lparam, comparison, rparam),
-            Node::IfCondition { condition, content } => write!(
+            NodeKind::IfCondition { condition, content } => write!(
                 f,
                 "if {}\n{}",
                 condition,
@@ -143,7 +167,7 @@ impl fmt::Display for Node {
                     .collect::<Vec<String>>()
                     .join("\n")
             ),
-            Node::WhileLoop { condition, content } => write!(
+            NodeKind::WhileLoop { condition, content } => write!(
                 f,
                 "while {}\n{}",
                 condition,
@@ -153,14 +177,14 @@ impl fmt::Display for Node {
                     .collect::<Vec<String>>()
                     .join("\n")
             ),
-            Node::Return { value } => write!(f, "ret {}", value),
-            Node::Print { value } => write!(f, "Print {}", value),
-            Node::Operation {
+            NodeKind::Return { value } => write!(f, "ret {}", value),
+            NodeKind::Print { value } => write!(f, "Print {}", value),
+            NodeKind::Operation {
                 lparam,
                 rparam,
                 operation,
             } => write!(f, "Op {} {} {}", lparam, operation, rparam),
-            Node::FunctionCall {
+            NodeKind::FunctionCall {
                 function_name,
                 parameters,
             } => write!(
@@ -173,7 +197,7 @@ impl fmt::Display for Node {
                     .collect::<Vec<String>>()
                     .join("\n")
             ),
-            Node::Loop { content } => write!(
+            NodeKind::Loop { content } => write!(
                 f,
                 "Loop\n{}",
                 content
@@ -186,8 +210,8 @@ impl fmt::Display for Node {
     }
 }
 
-impl Default for Node {
+impl Default for NodeKind {
     fn default() -> Self {
-        Node::Litteral { value: 0 }
+        NodeKind::Litteral { value: 0 }
     }
 }
