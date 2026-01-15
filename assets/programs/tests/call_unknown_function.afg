@@ -1,0 +1,3 @@
+fn main() {
+    call unknown_function(1, 2);
+}
