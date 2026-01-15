@@ -35,7 +35,7 @@ fn main() -> Result<(), String> {
     // Report any lexer errors
     if !lex_result.errors.is_empty() {
         for err in &lex_result.errors {
-            error!("Lexer error: {}", err);
+            error!("Lexer error: {} - (Line: {}, column: {})", err.message, err.location.line, err.location.column);
         }
         return Err("Lexer encountered errors".to_string());
     }
@@ -94,7 +94,7 @@ fn main() -> Result<(), String> {
         fs::write(&pasm_output, format!("{}", allocated_program)).map_err(|e| e.to_string())?;
     }
 
-    if args.optmimize {
+    if args.optimize {
         warn!("Code optimization is not complete yet and might lead to buggy programs");
         error!("Code optimization is not implemented yet");
         return Err("Code optimization not implemented for this compiler's version".to_string());
