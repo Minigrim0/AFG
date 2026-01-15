@@ -30,9 +30,9 @@
 ///
 /// Example:
 /// ```rust
-/// use afgcompiler::token::lex;
+/// use afgcompiler::lexer::parse_source;
 ///
-/// let tokens = lex("fn main() { set x = 0; print x; }".to_string());
+/// let tokens = parse_source("fn main() { set x = 0; print x; }");
 /// ```
 ///
 /// ### 2. Parsing (Abstract Syntax Tree [AST] Generation)

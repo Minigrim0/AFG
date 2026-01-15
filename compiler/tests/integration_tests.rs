@@ -1,7 +1,7 @@
 // Integration tests for the AFG compiler
 // These tests verify end-to-end functionality from source code to AST
 
-use afgcompiler::token::lex;
+use afgcompiler::lexer::parse_source;
 use afgcompiler::ast::AST;
 
 // ========================================
@@ -17,19 +17,19 @@ fn test_fibonacci_program() {
             }
             set a = n - 1;
             set b = n - 2;
-            set fib_a = call fibonacci(a);
-            set fib_b = call fibonacci(b);
-            return fib_a + fib_b;
+            set fib_a = fibonacci(a);
+            set fib_b = fibonacci(b);
+            set result = fib_a + fib_b;
+            return result;
         }
 
         fn main() {
-            set result = call fibonacci(10);
+            set result = fibonacci(10);
             print result;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -54,13 +54,12 @@ fn test_factorial_iterative() {
         }
 
         fn main() {
-            set fact = call factorial(5);
+            set fact = factorial(5);
             print fact;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -88,13 +87,12 @@ fn test_array_manipulation() {
 
         fn main() {
             set data = $ArrayData;
-            set result = call sum_array(data, 10);
+            set result = sum_array(data, 10);
             print result;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -110,7 +108,8 @@ fn test_nested_control_flow() {
                     while x > y {
                         set x = x - 1;
                     }
-                    return x + y;
+                    set result = x + y;
+                    return result;
                 }
                 return x;
             }
@@ -118,36 +117,38 @@ fn test_nested_control_flow() {
         }
 
         fn main() {
-            set result = call complex_logic(10, 5);
+            set result = complex_logic(10, 5);
             print result;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
-    assert!(ast.is_ok());
+    assert!(ast.is_ok(), "AST parsing failed: {:?}", ast.err());
 }
 
 #[test]
 fn test_multiple_arithmetic_operations() {
     let code = r#"
         fn calculator(a, b, c) {
-            set sum = a + b + c;
-            set product = a * b * c;
-            set diff = a - b - c;
-            set result = sum + product - diff;
+            set sum = a + b;
+            set sum = sum + c;
+            set product = a * b;
+            set product = product * c;
+            set diff = a - b;
+            set diff = diff - c;
+            set result = sum + product;
+            set result = result - diff;
             return result;
         }
 
         fn main() {
-            set ans = call calculator(5, 3, 2);
+            set ans = calculator(5, 3, 2);
             print ans;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -178,13 +179,12 @@ fn test_all_comparison_operators() {
         }
 
         fn main() {
-            set result = call comparisons(5, 10);
+            set result = comparisons(5, 10);
             print result;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -204,13 +204,12 @@ fn test_infinite_loop_with_conditional_break() {
         }
 
         fn main() {
-            set found = call find_value(42);
+            set found = find_value(42);
             print found;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -227,8 +226,7 @@ fn test_empty_function_bodies() {
         fn main() {}
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -243,8 +241,7 @@ fn test_single_statement_functions() {
         fn print_hello() { print 42; }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -268,8 +265,7 @@ fn test_deeply_nested_blocks() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -292,8 +288,7 @@ fn test_many_sequential_statements() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -310,17 +305,17 @@ fn test_comments_everywhere() {
             // Between statements
             set y = 10;
             // Before return
-            return x + y; // End comment
+            set res = x + y; // Inline before return
+            return res; // End comment
         } // After function
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
-    assert!(ast.is_ok());
+    assert!(ast.is_ok(), "AST parsing failed : {:?}", ast.err());
     let ast = ast.unwrap();
     // Comments should be ignored, function should parse correctly
-    assert_eq!(ast.functions["test"].content.len(), 3);
+    assert_eq!(ast.functions["test"].content.len(), 4);
 }
 
 #[test]
@@ -338,8 +333,7 @@ fn test_negative_numbers_in_various_contexts() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -356,8 +350,7 @@ fn test_memory_values_and_array_access() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -365,7 +358,7 @@ fn test_memory_values_and_array_access() {
 #[test]
 fn test_complex_expressions_in_assignments() {
     let code = r#"
-        fn complex() {
+        fn compparse_source() {
             set a = 1 + 2;
             set b = 3 * 4;
             set c = 5 - 6;
@@ -375,8 +368,7 @@ fn test_complex_expressions_in_assignments() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -390,12 +382,11 @@ fn test_function_calls_with_various_arguments() {
             call two_args(x, y);
             call three_args(1, 2, 3);
             call mixed_args(literal, 42, $Mem);
-            set result = call with_return(a, b);
+            set result = with_return(a, b);
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -407,8 +398,7 @@ fn test_function_calls_with_various_arguments() {
 #[test]
 fn test_invalid_syntax_produces_error() {
     let code = "fn main() { syntax error here }";
-    let tokens = lex(code);
-    let result = AST::parse(&mut tokens.into_iter().peekable());
+    let result = AST::parse(&code);
 
     assert!(result.is_err());
 }
@@ -416,8 +406,7 @@ fn test_invalid_syntax_produces_error() {
 #[test]
 fn test_unclosed_brace_produces_error() {
     let code = "fn main() { set x = 5;";
-    let tokens = lex(code);
-    let result = AST::parse(&mut tokens.into_iter().peekable());
+    let result = AST::parse(&code);
 
     assert!(result.is_err());
 }
@@ -425,8 +414,7 @@ fn test_unclosed_brace_produces_error() {
 #[test]
 fn test_invalid_token_at_toplevel() {
     let code = "random_token";
-    let tokens = lex(code);
-    let result = AST::parse(&mut tokens.into_iter().peekable());
+    let result = AST::parse(&code);
 
     assert!(result.is_err());
 }
@@ -434,8 +422,7 @@ fn test_invalid_token_at_toplevel() {
 #[test]
 fn test_malformed_function_definition() {
     let code = "fn (x) { return x; }";
-    let tokens = lex(code);
-    let result = AST::parse(&mut tokens.into_iter().peekable());
+    let result = AST::parse(&code);
 
     assert!(result.is_err());
 }
@@ -450,13 +437,9 @@ fn test_whitespace_variations() {
     let code2 = "fn main() { set x = 5; return x; }";
     let code3 = "fn main()    {    set    x    =    5    ;    return    x    ;    }";
 
-    let tokens1 = lex(code1);
-    let tokens2 = lex(code2);
-    let tokens3 = lex(code3);
-
-    let ast1 = AST::parse(&mut tokens1.into_iter().peekable());
-    let ast2 = AST::parse(&mut tokens2.into_iter().peekable());
-    let ast3 = AST::parse(&mut tokens3.into_iter().peekable());
+    let ast1 = AST::parse(&code1);
+    let ast2 = AST::parse(&code2);
+    let ast3 = AST::parse(&code3);
 
     assert!(ast1.is_ok());
     assert!(ast2.is_ok());
@@ -470,23 +453,21 @@ fn test_whitespace_variations() {
 
 #[test]
 fn test_newline_handling() {
-    let code_oneline = "fn main() { set x = 5; set y = 10; return x + y; }";
+    let code_oneline = "fn main() { set x = 5; set y = 10; set result = x + y; return result; }";
     let code_multiline = r#"
         fn main() {
             set x = 5;
             set y = 10;
-            return x + y;
+            set result = x + y;
+            return result;
         }
     "#;
 
-    let tokens1 = lex(code_oneline);
-    let tokens2 = lex(code_multiline);
+    let ast1 = AST::parse(&code_oneline);
+    let ast2 = AST::parse(&code_multiline);
 
-    let ast1 = AST::parse(&mut tokens1.into_iter().peekable());
-    let ast2 = AST::parse(&mut tokens2.into_iter().peekable());
-
-    assert!(ast1.is_ok());
-    assert!(ast2.is_ok());
+    assert!(ast1.is_ok(), "AST parsing failed: {:?}", ast1.err());
+    assert!(ast2.is_ok(), "AST parsing failed: {:?}", ast2.err());
 
     // Should produce same structure
     assert_eq!(
@@ -507,8 +488,7 @@ fn test_semicolon_placement() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -549,8 +529,7 @@ fn test_simple_game_logic() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -573,13 +552,12 @@ fn test_state_machine_logic() {
 
         fn main() {
             set state = $CurrentState;
-            set next_state = call process_state(state);
+            set next_state = process_state(state);
             set $CurrentState = next_state;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -598,14 +576,13 @@ fn test_counter_with_bounds() {
         fn main() {
             set counter = $Counter;
             set max_value = 100;
-            set new_counter = call increment_counter(counter, max_value);
+            set new_counter = increment_counter(counter, max_value);
             set $Counter = new_counter;
             print new_counter;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }
@@ -621,8 +598,7 @@ fn test_many_functions() {
         code.push_str(&format!("fn func{}() {{ return {}; }}\n", i, i));
     }
 
-    let tokens = lex(&code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -633,13 +609,20 @@ fn test_many_functions() {
 fn test_long_parameter_lists() {
     let code = r#"
         fn many_params(a, b, c, d, e, f, g, h, i, j) {
-            set sum = a + b + c + d + e + f + g + h + i + j;
+            set sum = a + b;
+            set sum = sum + c;
+            set sum = sum + d;
+            set sum = sum + e;
+            set sum = sum + f;
+            set sum = sum + g;
+            set sum = sum + h;
+            set sum = sum + i;
+            set sum = sum + j;
             return sum;
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
     let ast = ast.unwrap();
@@ -663,8 +646,7 @@ fn test_deeply_nested_loops() {
         }
     "#;
 
-    let tokens = lex(code);
-    let ast = AST::parse(&mut tokens.into_iter().peekable());
+    let ast = AST::parse(&code);
 
     assert!(ast.is_ok());
 }

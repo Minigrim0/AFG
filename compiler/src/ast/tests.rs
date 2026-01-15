@@ -655,13 +655,13 @@ fn test_parse_complete_program() {
                 return 1;
             }
             set temp = n - 1;
-            set result = call factorial(temp);
+            set result = factorial(temp);
             return result;
         }
 
         fn main() {
             set x = 5;
-            set fact = call factorial(x);
+            set fact = factorial(x);
             print fact;
         }
     "#;
