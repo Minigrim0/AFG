@@ -18,7 +18,7 @@ struct Args {
     #[arg(short, long, help = "Save intermediate files (ast, pseudo-asm, ...)")]
     save_intermediate: bool,
     #[arg(short = 'O', long, help = "Tries to delete redundant instructions")]
-    optmimize: bool,
+    optimize: bool,
 }
 
 fn main() -> Result<(), String> {
