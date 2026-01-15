@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
         } else {
             Err(TokenError::new(
                 TokenErrorType::UnexpectedToken,
-                format!("Expected {:?}", symbol),
+                format!("Expected symbol {:?}", symbol),
                 self.current_location(),
             ))
         }
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
         } else {
             Err(TokenError::new(
                 TokenErrorType::UnexpectedToken,
-                format!("Expected {:?}", keyword),
+                format!("Expected keyword {:?}", keyword),
                 self.current_location(),
             ))
         }
@@ -356,6 +356,11 @@ impl<'a> Parser<'a> {
         while !self.check_symbol(SymbolKind::RightParen) && !self.is_at_end() {
             let param = self.parse_primary()?;
             parameters.push(Box::new(param));
+
+            // Skip comma separator if present
+            if self.check_symbol(SymbolKind::Separator) {
+                self.advance();
+            }
         }
 
         self.expect_symbol(SymbolKind::RightParen)?;
@@ -438,6 +443,11 @@ impl<'a> Parser<'a> {
                 while !self.check_symbol(SymbolKind::RightParen) && !self.is_at_end() {
                     let param = self.parse_primary()?;
                     parameters.push(Box::new(param));
+
+                    // Skip comma separator if present
+                    if self.check_symbol(SymbolKind::Separator) {
+                        self.advance();
+                    }
                 }
                 self.expect_symbol(SymbolKind::RightParen)?;
 
