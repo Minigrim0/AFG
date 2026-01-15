@@ -58,6 +58,7 @@ pub enum SymbolKind {
     RightBracket,
     LeftBrace,
     RightBrace,
+    Separator,
 }
 
 #[derive(Debug, PartialEq, Clone)]

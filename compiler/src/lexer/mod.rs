@@ -13,7 +13,7 @@ use utils::Span;
 mod tests;
 
 fn symbols_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
-    map(alt((tag(";"), tag("("), tag(")"), tag("["), tag("]"), tag("{"), tag("}"))), |lexeme: Span| {
+    map(alt((tag(";"), tag("("), tag(")"), tag("["), tag("]"), tag("{"), tag("}"), tag(","))), |lexeme: Span| {
         Token {
             kind: TokenKind::Symbol(match *lexeme.fragment() {
                 ";" => token::SymbolKind::LineBreak,
@@ -23,6 +23,7 @@ fn symbols_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Err
                 "]" => token::SymbolKind::RightBracket,
                 "{" => token::SymbolKind::LeftBrace,
                 "}" => token::SymbolKind::RightBrace,
+                "," => token::SymbolKind::Separator,
                 _ => unreachable!(),
             }),
             location: TokenLocation::new(&lexeme)
@@ -224,7 +225,7 @@ pub fn parse_source<'a>(source: &'a str) -> LexResult<'a> {
             },
             Err(e) => {
                 errors.push(utils::LexerError {
-                    message: format!("Failed to parse token: {:?}", e),
+                    message: format!("Failed to parse token"),
                     location: TokenLocation::new(&input),
                 });
                 

@@ -198,6 +198,9 @@ impl<'a> Parser<'a> {
                 self.advance();
             }
             // Skip commas (we're lenient here)
+            if let Some(Token { kind: TokenKind::Symbol(SymbolKind::Separator), .. }) = self.peek() {
+                self.advance(); // Consume comma
+            }
         }
 
         Ok(params)
