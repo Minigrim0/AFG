@@ -479,32 +479,47 @@ impl<'a> Parser<'a> {
                 let name = name.to_string();
                 self.advance();
 
-                // Check for memory value ($identifier)
-                if name.starts_with('$') {
-                    return Ok(Node::MemoryValue {
+                // Create base node: MemoryValue for $identifier, Identifier otherwise
+                let base_node = if name.starts_with('$') {
+                    Node::MemoryValue {
                         name: name[1..].to_string(),
-                    });
-                }
+                    }
+                } else {
+                    Node::Identifier { name }
+                };
 
-                // Check for array access: ident[index]
+                // Check for array access: ident[index] or $ident[index]
                 if self.check_symbol(SymbolKind::LeftBracket) {
                     self.advance();
                     let offset = self.parse_primary()?;
                     self.expect_symbol(SymbolKind::RightBracket)?;
 
                     return Ok(Node::MemoryOffset {
-                        base: Box::new(Node::Identifier { name }),
+                        base: Box::new(base_node),
                         offset: Box::new(offset),
                     });
                 }
 
-                Ok(Node::Identifier { name })
+                Ok(base_node)
             }
             Some(TokenKind::Symbol(SymbolKind::LeftParen)) => {
                 self.advance();
                 let expr = self.parse_expression()?;
                 self.expect_symbol(SymbolKind::RightParen)?;
                 Ok(expr)
+            }
+            // Handle unary minus for negative numbers
+            Some(TokenKind::Op(OperationKind::Subtract)) => {
+                self.advance(); // consume '-'
+                let inner = self.parse_primary()?;
+                match inner {
+                    Node::Litteral { value } => Ok(Node::Litteral { value: -value }),
+                    _ => Err(TokenError::new(
+                        TokenErrorType::UnexpectedToken,
+                        "Unary minus only supported for literals",
+                        self.current_location(),
+                    )),
+                }
             }
             Some(kind) => Err(TokenError::new(
                 TokenErrorType::UnexpectedToken,
