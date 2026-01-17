@@ -3,8 +3,8 @@ use crate::lexer::token::{
     ComparisonKind, KeywordKind, OperationKind, SymbolKind, Token, TokenKind, TokenLocation,
 };
 
-use super::node::{CodeBlock, ComparisonType, Node, NodeKind, OperationType};
 use super::function::Function;
+use super::node::{CodeBlock, ComparisonType, Node, NodeKind, OperationType};
 use super::AST;
 
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Look n tokens ahead (0 = current token)
-    fn peek_nth(&self, n: usize) -> Option<&Token<'a>> {
+    fn _peek_nth(&self, n: usize) -> Option<&Token<'a>> {
         self.tokens.get(self.pos + n)
     }
 
@@ -57,19 +57,19 @@ impl<'a> Parser<'a> {
     }
 
     /// Save position for backtracking
-    fn save(&self) -> usize {
+    fn _save(&self) -> usize {
         self.pos
     }
 
     /// Restore position for backtracking
-    fn restore(&mut self, pos: usize) {
+    fn _restore(&mut self, pos: usize) {
         self.pos = pos;
     }
 
     // ========== Token Matching Methods ==========
 
     /// Check if current token matches a specific kind
-    fn check(&self, kind: &TokenKind) -> bool {
+    fn _check(&self, kind: &TokenKind) -> bool {
         self.peek()
             .map(|t| std::mem::discriminant(&t.kind) == std::mem::discriminant(kind))
             .unwrap_or(false)
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Consume token if it matches, return whether it matched
-    fn match_keyword(&mut self, keyword: KeywordKind) -> bool {
+    fn _match_keyword(&mut self, keyword: KeywordKind) -> bool {
         if self.check_keyword(keyword) {
             self.advance();
             true
@@ -119,8 +119,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Expect a specific keyword, error if not found
-    fn expect_keyword(&mut self, keyword: KeywordKind) -> Result<(), TokenError> {
-        if self.match_keyword(keyword.clone()) {
+    fn _expect_keyword(&mut self, keyword: KeywordKind) -> Result<(), TokenError> {
+        if self._match_keyword(keyword.clone()) {
             Ok(())
         } else {
             Err(TokenError::new(
@@ -158,7 +158,10 @@ impl<'a> Parser<'a> {
             } else {
                 return Err(TokenError::new(
                     TokenErrorType::UnexpectedToken,
-                    format!("Expected 'fn' keyword, found {:?}", self.peek().map(|t| &t.kind)),
+                    format!(
+                        "Expected 'fn' keyword, found {:?}",
+                        self.peek().map(|t| &t.kind)
+                    ),
                     self.current_location(),
                 ));
             }
@@ -193,12 +196,20 @@ impl<'a> Parser<'a> {
         let mut params = Vec::new();
 
         while !self.check_symbol(SymbolKind::RightParen) && !self.is_at_end() {
-            if let Some(Token { kind: TokenKind::Ident(name), .. }) = self.peek() {
+            if let Some(Token {
+                kind: TokenKind::Ident(name),
+                ..
+            }) = self.peek()
+            {
                 params.push(name.to_string());
                 self.advance();
             }
             // Skip commas (we're lenient here)
-            if let Some(Token { kind: TokenKind::Symbol(SymbolKind::Separator), .. }) = self.peek() {
+            if let Some(Token {
+                kind: TokenKind::Symbol(SymbolKind::Separator),
+                ..
+            }) = self.peek()
+            {
                 self.advance(); // Consume comma
             }
         }
@@ -281,7 +292,13 @@ impl<'a> Parser<'a> {
         let lparam = self.parse_primary()?;
 
         // Expect '='
-        if !matches!(self.peek(), Some(Token { kind: TokenKind::Op(OperationKind::Assign), .. })) {
+        if !matches!(
+            self.peek(),
+            Some(Token {
+                kind: TokenKind::Op(OperationKind::Assign),
+                ..
+            })
+        ) {
             return Err(TokenError::new(
                 TokenErrorType::UnexpectedToken,
                 "Expected '=' in assignment",
@@ -334,7 +351,10 @@ impl<'a> Parser<'a> {
 
     /// Parse a return statement: return [<expr>]
     fn parse_return(&mut self) -> Result<Node, TokenError> {
-        if self.check_symbol(SymbolKind::LineBreak) || self.check_symbol(SymbolKind::RightBrace) || self.is_at_end() {
+        if self.check_symbol(SymbolKind::LineBreak)
+            || self.check_symbol(SymbolKind::RightBrace)
+            || self.is_at_end()
+        {
             Ok(Node::new(NodeKind::Return {
                 value: Box::new(Node::new(NodeKind::Litteral { value: 0 })),
             }))
@@ -348,6 +368,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a function call: <ident>(<args>)
     fn parse_function_call(&mut self) -> Result<Node, TokenError> {
+        let fun_call_location = self.current_location();
         let function_name = self.parse_identifier()?;
 
         self.expect_symbol(SymbolKind::LeftParen)?;
@@ -365,10 +386,13 @@ impl<'a> Parser<'a> {
 
         self.expect_symbol(SymbolKind::RightParen)?;
 
-        Ok(Node::new(NodeKind::FunctionCall {
-            function_name,
-            parameters,
-        }))
+        match fun_call_location {
+            Some(location) => Ok(Node::with_span(
+                NodeKind::new_fun_call(function_name, parameters),
+                location,
+            )),
+            None => Ok(Node::new(NodeKind::new_fun_call(function_name, parameters))),
+        }
     }
 
     /// Parse a print statement: print <expr>
@@ -383,7 +407,11 @@ impl<'a> Parser<'a> {
     fn parse_comparison(&mut self) -> Result<Node, TokenError> {
         let lparam = self.parse_primary()?;
 
-        if let Some(Token { kind: TokenKind::Comp(cmp), location }) = self.peek() {
+        if let Some(Token {
+            kind: TokenKind::Comp(cmp),
+            location,
+        }) = self.peek()
+        {
             let comparison = match cmp {
                 ComparisonKind::GreaterThan => ComparisonType::GT,
                 ComparisonKind::GreaterThanOrEqual => ComparisonType::GE,
@@ -397,11 +425,14 @@ impl<'a> Parser<'a> {
 
             let rparam = self.parse_primary()?;
 
-            Ok(Node::new(NodeKind::Comparison {
-                lparam: Box::new(lparam),
-                rparam: Box::new(rparam),
-                comparison,
-            }))
+            Ok(Node::with_span(
+                NodeKind::Comparison {
+                    lparam: Box::new(lparam),
+                    rparam: Box::new(rparam),
+                    comparison,
+                },
+                loc,
+            ))
         } else {
             // No comparison operator, just return the primary
             Ok(lparam)
@@ -413,7 +444,14 @@ impl<'a> Parser<'a> {
         let left = self.parse_primary()?;
 
         // Check for binary operator
-        if let Some(Token { kind: TokenKind::Op(op), .. }) = self.peek() {
+        if let Some(Token {
+            kind: TokenKind::Op(op),
+            location,
+        }) = self.peek()
+        {
+            // Clone location to free mut ref
+            let location = location.clone();
+
             if *op != OperationKind::Assign {
                 let operation = match op {
                     OperationKind::Add => OperationType::Addition,
@@ -427,11 +465,14 @@ impl<'a> Parser<'a> {
 
                 let right = self.parse_primary()?;
 
-                return Ok(Node::new(NodeKind::Operation {
-                    lparam: Box::new(left),
-                    rparam: Box::new(right),
-                    operation,
-                }));
+                return Ok(Node::with_span(
+                    NodeKind::Operation {
+                        lparam: Box::new(left),
+                        rparam: Box::new(right),
+                        operation,
+                    },
+                    location,
+                ));
             }
         }
 
@@ -451,10 +492,13 @@ impl<'a> Parser<'a> {
                 }
                 self.expect_symbol(SymbolKind::RightParen)?;
 
-                return Ok(Node::new(NodeKind::FunctionCall {
-                    function_name: name.clone(),
-                    parameters,
-                }));
+                return Ok(match left.span {
+                    Some(span) => Node::with_span(
+                        NodeKind::new_fun_call(name.clone(), parameters),
+                        span.clone(),
+                    ),
+                    None => Node::new(NodeKind::new_fun_call(name.clone(), parameters)),
+                });
             }
         }
 
@@ -463,8 +507,12 @@ impl<'a> Parser<'a> {
 
     /// Parse a primary expression (identifier, literal, or parenthesized expression)
     fn parse_primary(&mut self) -> Result<Node, TokenError> {
-        match self.peek().map(|t| &t.kind) {
-            Some(TokenKind::Literal(value)) => {
+        match self.peek() {
+            Some(Token {
+                kind: TokenKind::Literal(value),
+                location,
+            }) => {
+                let location = location.clone();
                 let value: i32 = value.replace("_", "").parse().map_err(|_| {
                     TokenError::new(
                         TokenErrorType::ParseError,
@@ -473,19 +521,26 @@ impl<'a> Parser<'a> {
                     )
                 })?;
                 self.advance();
-                Ok(Node::new(NodeKind::Litteral { value }))
+                Ok(Node::with_span(NodeKind::Litteral { value }, location))
             }
-            Some(TokenKind::Ident(name)) => {
+            Some(Token {
+                kind: TokenKind::Ident(name),
+                location,
+            }) => {
                 let name = name.to_string();
+                let location = location.clone();
                 self.advance();
 
                 // Create base node: MemoryValue for $identifier, Identifier otherwise
                 let base_node = if name.starts_with('$') {
-                    Node::new(NodeKind::MemoryValue {
-                        name: name[1..].to_string(),
-                    })
+                    Node::with_span(
+                        NodeKind::MemoryValue {
+                            name: name[1..].to_string(),
+                        },
+                        location.clone(),
+                    )
                 } else {
-                    Node::new(NodeKind::Identifier { name })
+                    Node::with_span(NodeKind::Identifier { name }, location.clone())
                 };
 
                 // Check for array access: ident[index] or $ident[index]
@@ -494,26 +549,36 @@ impl<'a> Parser<'a> {
                     let offset = self.parse_primary()?;
                     self.expect_symbol(SymbolKind::RightBracket)?;
 
-                    return Ok(Node::new(NodeKind::MemoryOffset {
-                        base: Box::new(base_node),
-                        offset: Box::new(offset),
-                    }));
+                    return Ok(Node::with_span(
+                        NodeKind::new_mem_offset(base_node, offset),
+                        location.clone(),
+                    ));
                 }
 
                 Ok(base_node)
             }
-            Some(TokenKind::Symbol(SymbolKind::LeftParen)) => {
+            Some(Token {
+                kind: TokenKind::Symbol(SymbolKind::LeftParen),
+                ..
+            }) => {
                 self.advance();
                 let expr = self.parse_expression()?;
                 self.expect_symbol(SymbolKind::RightParen)?;
                 Ok(expr)
             }
             // Handle unary minus for negative numbers
-            Some(TokenKind::Op(OperationKind::Subtract)) => {
+            Some(Token {
+                kind: TokenKind::Op(OperationKind::Subtract),
+                location,
+            }) => {
+                let location = location.clone();
                 self.advance(); // consume '-'
                 let inner = self.parse_primary()?;
                 match inner.kind {
-                    NodeKind::Litteral { value } => Ok(Node::new(NodeKind::Litteral { value: -value })),
+                    NodeKind::Litteral { value } => Ok(Node::with_span(
+                        NodeKind::Litteral { value: -value },
+                        location,
+                    )),
                     _ => Err(TokenError::new(
                         TokenErrorType::UnexpectedToken,
                         "Unary minus only supported for literals",
@@ -521,9 +586,9 @@ impl<'a> Parser<'a> {
                     )),
                 }
             }
-            Some(kind) => Err(TokenError::new(
+            Some(token) => Err(TokenError::new(
                 TokenErrorType::UnexpectedToken,
-                format!("Expected expression, found {:?}", kind),
+                format!("Expected expression, found {:?}", token.kind),
                 self.current_location(),
             )),
             None => Err(TokenError::new(
@@ -537,15 +602,23 @@ impl<'a> Parser<'a> {
     /// Parse an identifier and return its name
     fn parse_identifier(&mut self) -> Result<String, TokenError> {
         match self.peek() {
-            Some(Token { kind: TokenKind::Ident(name), .. }) => {
+            Some(Token {
+                kind: TokenKind::Ident(name),
+                ..
+            }) => {
                 let name = name.to_string();
                 self.advance();
                 Ok(name)
             }
-            _ => Err(TokenError::new(
+            Some(Token { location, .. }) => Err(TokenError::new(
                 TokenErrorType::UnexpectedToken,
                 "Expected identifier",
-                self.current_location(),
+                Some(location.clone()),
+            )),
+            None => Err(TokenError::new(
+                TokenErrorType::UnexpectedEndOfStream,
+                "Unexpected end of input while parsing identifier",
+                None,
             )),
         }
     }

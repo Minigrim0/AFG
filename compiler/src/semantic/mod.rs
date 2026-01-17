@@ -32,8 +32,9 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>, functions: &HashMap<
         for var in used_vars.iter() {
             if !scope.contains(var) {
                 return Err(SemanticError::UnknownVariable(format!(
-                    "{} is not in scope",
-                    var
+                    "{} is not in scope{}",
+                    var,
+                    show_span_location(&inst.span)
                 )));
             }
         }
@@ -42,17 +43,19 @@ fn analyze_block(block: &CodeBlock, mut scope: Vec<String>, functions: &HashMap<
             NodeKind::FunctionCall { function_name, parameters }=> {
                 if !functions.contains_key(function_name) {
                     return Err(SemanticError::UnknownFunction(format!(
-                        "Function {} is not defined",
-                        function_name
+                        "Function {} is not defined{}",
+                        function_name,
+                        show_span_location(&inst.span)
                     )));
                 }
                 let expected_arity = functions[function_name];
                 if parameters.len() != expected_arity {
                     return Err(SemanticError::InvalidFunctionCall(format!(
-                        "Function {} expects {} parameters, but got {}",
+                        "Function {} expects {} parameters, but got {}{}",
                         function_name,
                         expected_arity,
-                        parameters.len()
+                        parameters.len(),
+                        show_span_location(&inst.span)
                     )));
                 }
             },

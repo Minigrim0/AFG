@@ -1,20 +1,37 @@
 use nom::{
-    Parser, branch::alt, bytes::complete::{tag, take_until, take_while}, character::complete::{char, one_of}, combinator::{map, not, opt, peek, recognize, value}, error::Error, multi::{many0, many1}, sequence::{pair, terminated}
+    branch::alt,
+    bytes::complete::{tag, take_while},
+    character::complete::{char, one_of},
+    combinator::{map, not, opt, peek, recognize, value},
+    error::Error,
+    multi::{many0, many1},
+    sequence::{pair, terminated},
+    Parser,
 };
 
 pub mod token;
 pub mod utils;
 
-use token::{TokenKind, Token, TokenLocation};
-pub use utils::{LexResult, LexerError};
+use token::{Token, TokenKind, TokenLocation};
 use utils::Span;
+pub use utils::{LexResult, LexerError};
 
 #[cfg(test)]
 mod tests;
 
 fn symbols_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
-    map(alt((tag(";"), tag("("), tag(")"), tag("["), tag("]"), tag("{"), tag("}"), tag(","))), |lexeme: Span| {
-        Token {
+    map(
+        alt((
+            tag(";"),
+            tag("("),
+            tag(")"),
+            tag("["),
+            tag("]"),
+            tag("{"),
+            tag("}"),
+            tag(","),
+        )),
+        |lexeme: Span| Token {
             kind: TokenKind::Symbol(match *lexeme.fragment() {
                 ";" => token::SymbolKind::LineBreak,
                 "(" => token::SymbolKind::LeftParen,
@@ -26,10 +43,9 @@ fn symbols_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Err
                 "," => token::SymbolKind::Separator,
                 _ => unreachable!(),
             }),
-            location: TokenLocation::new(&lexeme)
-
-        }
-    })
+            location: TokenLocation::new(&lexeme),
+        },
+    )
 }
 
 fn keywords_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
@@ -46,128 +62,108 @@ fn keywords_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Er
                 tag("if"),
                 tag("fn"),
             )),
-            peek(not(one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")))
+            peek(not(one_of(
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_",
+            ))),
         ),
-        |lexeme: Span| {
-            Token {
-                kind: TokenKind::Keyword(match *lexeme.fragment() {
-                    "fn" => token::KeywordKind::Fn,
-                    "while" => token::KeywordKind::While,
-                    "set" => token::KeywordKind::Set,
-                    "if" => token::KeywordKind::If,
-                    "else" => token::KeywordKind::Else,
-                    "return" => token::KeywordKind::Return,
-                    "loop" => token::KeywordKind::Loop,
-                    "call" => token::KeywordKind::Call,
-                    "print" => token::KeywordKind::Print,
-                    _ => unreachable!(),
-                }),
-                location: TokenLocation::new(&lexeme)
-            }
+        |lexeme: Span| Token {
+            kind: TokenKind::Keyword(match *lexeme.fragment() {
+                "fn" => token::KeywordKind::Fn,
+                "while" => token::KeywordKind::While,
+                "set" => token::KeywordKind::Set,
+                "if" => token::KeywordKind::If,
+                "else" => token::KeywordKind::Else,
+                "return" => token::KeywordKind::Return,
+                "loop" => token::KeywordKind::Loop,
+                "call" => token::KeywordKind::Call,
+                "print" => token::KeywordKind::Print,
+                _ => unreachable!(),
+            }),
+            location: TokenLocation::new(&lexeme),
         },
     )
 }
 
 /// Parses comparator tokens
-fn comparison_operators_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
+fn comparison_operators_parser<'a>(
+) -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
     map(
-        alt(
-            (
-                tag(">="),
-                tag("<="),
-                tag("=="),
-                tag("!="),
-                tag("<"),
-                tag(">")
-            )
-        ),
-        |lexeme: Span| {
-            Token {
-                kind: TokenKind::Comp(match *lexeme.fragment() {
-                    "==" => token::ComparisonKind::Equal,
-                    "!=" => token::ComparisonKind::NotEqual,
-                    "<=" => token::ComparisonKind::LessThanOrEqual,
-                    ">=" => token::ComparisonKind::GreaterThanOrEqual,
-                    "<" => token::ComparisonKind::LessThan,
-                    ">" => token::ComparisonKind::GreaterThan,
-                    _ => unreachable!()
-                }),
-                location: TokenLocation::new(&lexeme)
-            }
-        }
+        alt((
+            tag(">="),
+            tag("<="),
+            tag("=="),
+            tag("!="),
+            tag("<"),
+            tag(">"),
+        )),
+        |lexeme: Span| Token {
+            kind: TokenKind::Comp(match *lexeme.fragment() {
+                "==" => token::ComparisonKind::Equal,
+                "!=" => token::ComparisonKind::NotEqual,
+                "<=" => token::ComparisonKind::LessThanOrEqual,
+                ">=" => token::ComparisonKind::GreaterThanOrEqual,
+                "<" => token::ComparisonKind::LessThan,
+                ">" => token::ComparisonKind::GreaterThan,
+                _ => unreachable!(),
+            }),
+            location: TokenLocation::new(&lexeme),
+        },
     )
 }
 
-fn arithmetic_operators_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
+fn arithmetic_operators_parser<'a>(
+) -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
     map(
         alt((tag("+"), tag("-"), tag("*"), tag("/"), tag("%"), tag("="))),
-        |lexeme: Span| {
-            Token {
-                kind: TokenKind::Op(match *lexeme.fragment() {
-                    "+" => token::OperationKind::Add,
-                    "-" => token::OperationKind::Subtract,
-                    "*" => token::OperationKind::Multiply,
-                    "/" => token::OperationKind::Divide,
-                    "%" => token::OperationKind::Modulo,
-                    "=" => token::OperationKind::Assign,
-                    _ => unreachable!(),
-                }),
-                location: TokenLocation::new(&lexeme)
-            }
+        |lexeme: Span| Token {
+            kind: TokenKind::Op(match *lexeme.fragment() {
+                "+" => token::OperationKind::Add,
+                "-" => token::OperationKind::Subtract,
+                "*" => token::OperationKind::Multiply,
+                "/" => token::OperationKind::Divide,
+                "%" => token::OperationKind::Modulo,
+                "=" => token::OperationKind::Assign,
+                _ => unreachable!(),
+            }),
+            location: TokenLocation::new(&lexeme),
         },
     )
 }
 
 /// Remove comments from the source code
 fn comments_parser<'a>() -> impl Parser<Span<'a>, Output = (), Error = Error<Span<'a>>> {
-    value(
-        (),
-        (
-            tag("//"),
-            take_while(|c| c != '\n'),
-            opt(char('\n')),
-        )
-    )
+    value((), (tag("//"), take_while(|c| c != '\n'), opt(char('\n'))))
 }
 
 fn whitespace_parser<'a>() -> impl Parser<Span<'a>, Output = (), Error = Error<Span<'a>>> {
-    value(
-        (),
-        many1(one_of(" \t\r\n"))
-    )
+    value((), many1(one_of(" \t\r\n")))
 }
 
 fn literals_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
     map(
-        recognize(
-            many1(terminated(one_of("0123456789"), many0(char('_'))))
-        ),
-        |lexeme: Span| {
-            Token {
-                kind: TokenKind::Literal(lexeme.fragment()),
-                location: TokenLocation::new(&lexeme)
-            }
-        }
+        recognize(many1(terminated(one_of("0123456789"), many0(char('_'))))),
+        |lexeme: Span| Token {
+            kind: TokenKind::Literal(lexeme.fragment()),
+            location: TokenLocation::new(&lexeme),
+        },
     )
 }
 
 fn identifier_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error<Span<'a>>> {
     map(
-        recognize(
-            pair(
-                opt(char('$')), 
-                terminated(
-                    one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"),
-                    many0(one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
-                )
-            )
-        ),
-        |lexeme: Span| {
-            Token {
-                kind: TokenKind::Ident(lexeme.fragment()),
-                location: TokenLocation::new(&lexeme)
-            }
-        }
+        recognize(pair(
+            opt(char('$')),
+            terminated(
+                one_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"),
+                many0(one_of(
+                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_",
+                )),
+            ),
+        )),
+        |lexeme: Span| Token {
+            kind: TokenKind::Ident(lexeme.fragment()),
+            location: TokenLocation::new(&lexeme),
+        },
     )
 }
 
@@ -178,7 +174,7 @@ fn token_parser<'a>() -> impl Parser<Span<'a>, Output = Token<'a>, Error = Error
         arithmetic_operators_parser(),
         symbols_parser(),
         literals_parser(),
-        identifier_parser()
+        identifier_parser(),
     ))
 }
 
@@ -222,20 +218,17 @@ pub fn parse_source<'a>(source: &'a str) -> LexResult<'a> {
             Ok((remaining, token)) => {
                 tokens.push(token);
                 input = remaining;
-            },
-            Err(e) => {
+            }
+            Err(_) => {
                 errors.push(utils::LexerError {
                     message: format!("Failed to parse token"),
                     location: TokenLocation::new(&input),
                 });
-                
+
                 input = Span::new(&input.fragment()[1..]);
             }
         }
     }
 
-    LexResult {
-        tokens,
-        errors,
-    }
+    LexResult { tokens, errors }
 }

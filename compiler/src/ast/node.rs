@@ -62,7 +62,10 @@ impl Node {
     }
 
     pub fn with_span(kind: NodeKind, span: TokenLocation) -> Self {
-        Self { kind, span: Some(span) }
+        Self {
+            kind,
+            span: Some(span),
+        }
     }
 }
 
@@ -141,6 +144,21 @@ impl NodeKind {
             Self::Identifier { name }
         }
     }
+
+    pub fn new_mem_offset(base: Node, offset: Node) -> Self {
+        Self::MemoryOffset {
+            base: Box::new(base),
+            offset: Box::new(offset),
+        }
+    }
+
+    /// Creates a new function call node kind
+    pub fn new_fun_call(fun_name: String, parameters: CodeBlock) -> Self {
+        Self::FunctionCall {
+            function_name: fun_name,
+            parameters,
+        }
+    }
 }
 
 impl fmt::Display for NodeKind {
@@ -151,7 +169,9 @@ impl fmt::Display for NodeKind {
             NodeKind::Litteral { value } => write!(f, "LIT {}", value),
             NodeKind::Register { name } => write!(f, "REG {}", name),
             NodeKind::MemoryOffset { base, offset } => write!(f, "MOF\n{}\n{}", base, offset),
-            NodeKind::Assignment { lparam, rparam } => write!(f, "Assignment: {} {}", lparam, rparam),
+            NodeKind::Assignment { lparam, rparam } => {
+                write!(f, "Assignment: {} {}", lparam, rparam)
+            }
             NodeKind::Comparison {
                 lparam,
                 rparam,

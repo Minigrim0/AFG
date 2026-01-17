@@ -11,10 +11,10 @@ pub enum SemanticError {
 impl fmt::Display for SemanticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            Self::UnknownVariable(value) => write!(f, "Unknown Variable: {}", value),
-            Self::InvalidOperation(value) => write!(f, "Invalid Operation: {}", value),
-            Self::UnknownFunction(value) => write!(f, "Unknown Function: {}", value),
-            Self::InvalidFunctionCall(value) => write!(f, "Invalid Function Call: {}", value),
+            Self::UnknownVariable(value) => write!(f, "[Semantic] Unknown Variable: {}", value),
+            Self::InvalidOperation(value) => write!(f, "[Semantic] Invalid Operation: {}", value),
+            Self::UnknownFunction(value) => write!(f, "[Semantic] Unknown Function: {}", value),
+            Self::InvalidFunctionCall(value) => write!(f, "[Semantic] Invalid Function Call: {}", value),
         }
     }
 }

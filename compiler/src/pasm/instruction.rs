@@ -1,14 +1,16 @@
 use std::fmt;
 
 use super::OperandType;
+use crate::lexer::token::TokenLocation;
 
 #[derive(Clone)]
 /// A Pseudo-assembly instruction.
 pub struct PASMInstruction {
     pub is_label: bool,             // Whether this is just a label or not
-    pub is_comment: bool,           // Whether this is just a label or not
+    pub is_comment: bool,           // Whether this is just a comment or not
     pub opcode: String,             // Will not change until the end
     pub operands: Vec<OperandType>, // Up to two operands
+    pub span: Option<TokenLocation>, // Source location for error reporting
 }
 
 impl PASMInstruction {
@@ -18,6 +20,7 @@ impl PASMInstruction {
             is_comment: false,
             opcode: name,
             operands: vec![],
+            span: None,
         }
     }
 
@@ -27,6 +30,7 @@ impl PASMInstruction {
             is_comment: true,
             opcode: comment,
             operands: vec![],
+            span: None,
         }
     }
 
@@ -36,7 +40,25 @@ impl PASMInstruction {
             is_comment: false,
             opcode: instr,
             operands,
+            span: None,
         }
+    }
+
+    /// Creates a new instruction with source location information
+    pub fn with_span(instr: String, operands: Vec<OperandType>, span: Option<TokenLocation>) -> Self {
+        Self {
+            is_label: false,
+            is_comment: false,
+            opcode: instr,
+            operands,
+            span,
+        }
+    }
+
+    /// Attaches a source location to this instruction
+    pub fn at(mut self, span: Option<TokenLocation>) -> Self {
+        self.span = span;
+        self
     }
 
     pub fn get_live_and_dead(&self) -> (Vec<String>, Vec<String>) {

@@ -6,8 +6,27 @@ use super::{
 };
 /// Transforms the AST of a function into pseudo-asm
 use crate::ast::node::{ComparisonType, Node, NodeKind, OperationType};
+use crate::lexer::token::TokenLocation;
 
 static TEMP_VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+/// Tags instructions that don't have a span with the provided span.
+/// This preserves more specific spans from nested nodes while providing
+/// a fallback for generated instructions.
+fn tag_instructions_with_span(
+    instructions: Vec<PASMInstruction>,
+    span: &Option<TokenLocation>,
+) -> Vec<PASMInstruction> {
+    instructions
+        .into_iter()
+        .map(|mut inst| {
+            if inst.span.is_none() {
+                inst.span = span.clone();
+            }
+            inst
+        })
+        .collect()
+}
 
 /// Creates a new identifier for a variable with the given pattern
 fn create_temp_variable_name<S: AsRef<str>>(pattern: S) -> String {
@@ -580,19 +599,24 @@ fn print_to_asm(node: &Box<Node>) -> MaybeInstructions {
 
 /// Converts an instruction from its AST node representation to pseudo assembly
 /// Return either a list of `PASMInstruction` if there is no error in the AST node or
-/// an error containing a string explaining the error
+/// an error containing a string explaining the error.
+///
+/// Generated instructions are tagged with the source node's span for error reporting.
 pub fn inst_to_pasm(node: &Box<Node>) -> MaybeInstructions {
-    match &node.kind {
-        NodeKind::Assignment { lparam, rparam } => Ok(assignment_to_asm(lparam, rparam)?),
-        NodeKind::IfCondition { condition, content } => Ok(if_to_asm(condition, content, None)?),
-        NodeKind::Loop { content } => Ok(loop_to_asm(content)?),
-        NodeKind::WhileLoop { condition, content } => Ok(while_to_asm(condition, content)?),
-        NodeKind::Print { value } => Ok(print_to_asm(value)?),
+    let instructions = match &node.kind {
+        NodeKind::Assignment { lparam, rparam } => assignment_to_asm(lparam, rparam)?,
+        NodeKind::IfCondition { condition, content } => if_to_asm(condition, content, None)?,
+        NodeKind::Loop { content } => loop_to_asm(content)?,
+        NodeKind::WhileLoop { condition, content } => while_to_asm(condition, content)?,
+        NodeKind::Print { value } => print_to_asm(value)?,
         NodeKind::FunctionCall {
             function_name,
             parameters,
-        } => Ok(function_to_asm(function_name, parameters)?),
-        NodeKind::Return { value } => Ok(ret_to_asm(value)?),
-        _ => Err("Not implemented".to_string()),
-    }
+        } => function_to_asm(function_name, parameters)?,
+        NodeKind::Return { value } => ret_to_asm(value)?,
+        _ => return Err("Not implemented".to_string()),
+    };
+
+    // Tag generated instructions with the source node's location
+    Ok(tag_instructions_with_span(instructions, &node.span))
 }
