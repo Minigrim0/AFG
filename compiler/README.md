@@ -1,6 +1,24 @@
-# Bugs
-* [X] fix calling with negative immediate values => `call function(-1)` ignores the `-1` and calls `function()`
-* [ ] automatic return instruction at the end of a function
+# TODO
+
+## Features
+- [ ] Implement register allocation (currently all vars go to stack)
+- [ ] Complete live variable analysis
+- [ ] Add code optimization pass (dead code elimination, constant folding)
+- [ ] Support `else` branches in if-statements
+- [ ] Add `break` statement for loops
+- [ ] Type checking (currently all values are i32)
+
+## Code Quality
+- [ ] Update README tokenization docs (outdated after nom rewrite)
+- [X] Remove dead code warnings in parser
+- [ ] Add more semantic checks (e.g., return in non-void functions)
+
+## Testing
+- [ ] Add pasm generation tests
+- [ ] Add allocation tests
+- [ ] Add end-to-end compilation tests
+
+---
 
 # Information on the AFG compiler
 This is a simple compiler, that translates the AFG language into ASMFG, a pseudo-assembly language. The compiler is written in Rust. It is not supposed to be performant, in order to push people towards writing their code in assembly directly.

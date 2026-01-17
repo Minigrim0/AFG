@@ -1,0 +1,8 @@
+fn test(param1) {
+    print param1;
+}
+
+fn main() {
+    call test(1);  // Should work
+    call test(1, 1);  // Should fail
+}

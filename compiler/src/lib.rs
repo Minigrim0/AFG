@@ -30,9 +30,9 @@
 ///
 /// Example:
 /// ```rust
-/// use afgcompiler::token::lex;
+/// use afgcompiler::lexer::parse_source;
 ///
-/// let tokens = lex("fn main() { set x = 0; print x; }".to_string());
+/// let tokens = parse_source("fn main() { set x = 0; print x; }");
 /// ```
 ///
 /// ### 2. Parsing (Abstract Syntax Tree [AST] Generation)
@@ -104,18 +104,19 @@
 /// extensible and maintainable.
 pub mod allocation;
 pub mod ast;
+pub mod error;
 pub mod labels;
+pub mod lexer;
 pub mod liveness;
 pub mod pasm;
 pub mod semantic;
-pub mod token;
 
 pub mod prelude {
     pub use super::allocation::allocate;
-    pub use super::ast::{node::Node, AST};
+    pub use super::ast::{node::NodeKind, AST};
     pub use super::labels::resolve_labels;
+    pub use super::lexer::parse_source;
     pub use super::liveness::PASMProgramWithInterferenceGraph;
     pub use super::pasm::{PASMAllocatedProgram, PASMInstruction, PASMProgram};
     pub use super::semantic::{analyze, SemanticError};
-    pub use super::token::lex;
 }

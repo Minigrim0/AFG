@@ -6,6 +6,7 @@ use colog;
 use log::{error, info, warn};
 
 use afgcompiler::prelude::*;
+use afgcompiler::lexer::parse_source;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -17,7 +18,7 @@ struct Args {
     #[arg(short, long, help = "Save intermediate files (ast, pseudo-asm, ...)")]
     save_intermediate: bool,
     #[arg(short = 'O', long, help = "Tries to delete redundant instructions")]
-    optmimize: bool,
+    optimize: bool,
 }
 
 fn main() -> Result<(), String> {
@@ -29,7 +30,16 @@ fn main() -> Result<(), String> {
     let text = fs::read_to_string(&args.input).map_err(|e| e.to_string())?;
 
     info!("Extracting tokens");
-    let tokens = lex(text);
+    let lex_result = parse_source(&text);
+
+    // Report any lexer errors
+    if !lex_result.errors.is_empty() {
+        for err in &lex_result.errors {
+            error!("Lexer error: {} - (Line: {}, column: {})", err.message, err.location.line, err.location.column);
+        }
+        return Err("Lexer encountered errors".to_string());
+    }
+
     if args.save_intermediate {
         let token_output = args.input.clone() + ".tokens";
         info!("Saving tokens to {}", token_output);
@@ -37,9 +47,9 @@ fn main() -> Result<(), String> {
             &token_output,
             format!(
                 "{}",
-                tokens
+                lex_result.tokens
                     .iter()
-                    .map(|t| format!("{}", t))
+                    .map(|t| format!("{:?}", t))
                     .collect::<Vec<String>>()
                     .join("\n")
             ),
@@ -48,7 +58,7 @@ fn main() -> Result<(), String> {
     }
 
     info!("Parsing AST from tokens");
-    let program = AST::parse(&mut tokens.into_iter().peekable())?;
+    let program = AST::parse_tokens(lex_result.tokens).map_err(|e| format!("{}", e))?;
     if args.save_intermediate {
         let ast_output = args.input.clone() + ".ast";
         info!("Saving AST to {}", ast_output);
@@ -84,7 +94,7 @@ fn main() -> Result<(), String> {
         fs::write(&pasm_output, format!("{}", allocated_program)).map_err(|e| e.to_string())?;
     }
 
-    if args.optmimize {
+    if args.optimize {
         warn!("Code optimization is not complete yet and might lead to buggy programs");
         error!("Code optimization is not implemented yet");
         return Err("Code optimization not implemented for this compiler's version".to_string());

@@ -58,6 +58,9 @@ pub fn allocate(
 
         next_instructions.push(PASMInstruction::new_comment(format!("{}", instruction)));
 
+        // Track where new instructions start so we can tag them with the source span
+        let new_insts_start = next_instructions.len();
+
         // next_instructions.push(PASMInstruction::new_comment(format!("OG: {}", instruction)));
         match instruction.opcode.as_str() {
             // If the instruction is a mov, we need to check if the source is a variable
@@ -363,6 +366,13 @@ pub fn allocate(
             // Other instructions don't need to be modified
             _ => {
                 next_instructions.push(instruction.clone());
+            }
+        }
+
+        // Tag all newly generated instructions with the source instruction's span
+        for inst in next_instructions[new_insts_start..].iter_mut() {
+            if inst.span.is_none() {
+                inst.span = instruction.span.clone();
             }
         }
     }
