@@ -2,9 +2,11 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 use machine::prelude::{VirtualMachine, VirtualMachineMetaData};
 
-use crate::{editor::highlight::highlight_asmfg_syntax, player::components::IsSelected};
+use crate::player::components::IsSelected;
 
-use super::highlight::highlight_afg_syntax;
+// TODO: Re-enable when editor is fixed
+// use crate::editor::highlight::highlight_asmfg_syntax;
+// use super::highlight::highlight_afg_syntax;
 
 // Example usage in your Bevy system
 pub fn afg_code_editor_system(
@@ -22,35 +24,9 @@ pub fn afg_code_editor_system(
                 error!("Can't get single bot: {e}");
             });
 
-            if let Ok((_, vm_meta, _vm)) = current_bot.single() {
-                let program_text = vm_meta.afg();
-                ui.horizontal(|ui| {
-                    if let Ok(mut text) = program_text.lock() {
-                        ui.add(
-                            egui::TextEdit::multiline(&mut *text.unwrap_or("".to_string()))
-                                .code_editor()
-                                .desired_width(400.0)
-                                .desired_rows(25)
-                                .lock_focus(true)
-                                .layouter(&mut |ui, string, wrap_width| {
-                                    highlight_afg_syntax(ui, string, wrap_width)
-                                }),
-                        );
-                    }
-
-                    ui.add(
-                        egui::TextEdit::multiline(
-                            &mut code.compiled.clone().unwrap_or("".to_string()),
-                        )
-                        .code_editor()
-                        .desired_width(200.0)
-                        .desired_rows(25)
-                        .lock_focus(true)
-                        .layouter(&mut |ui, string, wrap_width| {
-                            highlight_asmfg_syntax(ui, string, wrap_width)
-                        }),
-                    );
-                });
+            // TODO: Fix text editor integration with VirtualMachineMetaData
+            if current_bot.single().is_ok() {
+                ui.label("Bot selected - editor WIP");
             } else {
                 ui.label("No bot selected");
             }
