@@ -83,6 +83,7 @@ pub fn attach_program_to_player(
                 .remove::<ProgramHandle>()
                 .insert(super::components::ProgramLoaded)
                 .insert(machine::prelude::VirtualMachineMetaData::new(
+                    None, // AFG source (not available when loading .asmfg directly)
                     program.textual_instructions.clone(),
                 ));
         }
