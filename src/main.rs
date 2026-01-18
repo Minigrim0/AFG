@@ -2,6 +2,7 @@ mod assets;
 mod camera;
 mod editor;
 mod map;
+mod map_format;
 mod player;
 mod state;
 
