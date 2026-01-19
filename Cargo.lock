@@ -194,6 +194,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "afg"
 version = "0.1.0"
 dependencies = [
+ "afg-core",
  "afg-machine",
  "bevy",
  "bevy_common_assets",
@@ -218,6 +219,16 @@ dependencies = [
  "nom 8.0.0",
  "nom_locate",
  "petgraph",
+]
+
+[[package]]
+name = "afg-core"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bincode",
+ "serde",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

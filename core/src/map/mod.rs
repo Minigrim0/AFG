@@ -6,5 +6,5 @@
 mod loader;
 mod structures;
 
-pub use loader::GameMapLoader;
+pub use loader::{GameMapLoader, GameMapLoaderError, GameMapPlugin};
 pub use structures::*;

@@ -21,8 +21,9 @@ thiserror = "2.0.11"
 toml = "0.8.19"
 bevy_egui = "0.34.1"
 afg-machine = { path = "machine", features = ["bevy"] }
+afg-core = { path = "core" }
 bincode = { version = "2", features = ["serde"] }
 
 [workspace]
-members = ["compiler", "machine", "map_editor"]
+members = ["compiler", "machine", "map_editor", "core"]
 resolver = "2"
